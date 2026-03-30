@@ -23,6 +23,19 @@ class CustomButtonStyles {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(dimension.d100),
       ));
+
+  ButtonStyle get deleteButtonStyle => ElevatedButton.styleFrom(
+      padding: EdgeInsets.symmetric(vertical: dimension.d8),
+      backgroundColor: appTheme.red,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(dimension.d100),
+      ));
+  ButtonStyle get cancelMeetupButtonStyle => ElevatedButton.styleFrom(
+      padding: EdgeInsets.symmetric(vertical: dimension.d8),
+      backgroundColor: appTheme.red,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(dimension.d100),
+      ));
   ButtonStyle get googleButtonStyle => OutlinedButton.styleFrom(
         padding: EdgeInsets.symmetric(vertical: dimension.d8),
         backgroundColor: appTheme.infieldColor,
@@ -31,12 +44,51 @@ class CustomButtonStyles {
             borderRadius: BorderRadius.circular(dimension.d100)),
       );
 
+  ButtonStyle get requestButtonStyle => OutlinedButton.styleFrom(
+        padding: EdgeInsets.symmetric(vertical: dimension.d8),
+        backgroundColor: appTheme.b_100,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(dimension.d100)),
+      );
+
+  ButtonStyle cnextButtonStyle(bool isStepValid) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: isStepValid ? appTheme.b_Primary : appTheme.b_200,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(dimension.d28),
+      ),
+      padding: EdgeInsets.symmetric(
+        vertical: dimension.d12.h,
+      ),
+    );
+  }
+
   // Text Styles
   TextStyle get loginButtonTextStyle => TextStyle(
       fontFamily: strings.fontFamily,
       fontSize: dimension.d16.sp,
       fontWeight: FontWeight.w600,
       color: appTheme.coreWhite);
+  TextStyle get acceptCahtButtonTextStyle => TextStyle(
+      fontFamily: strings.fontFamily,
+      fontWeight: FontWeight.w600,
+      fontSize: dimension.d16,
+      color: appTheme.infieldColor);
+  TextStyle get closeButtonTextStyle => TextStyle(
+      fontFamily: strings.fontFamily,
+      fontWeight: FontWeight.w600,
+      fontSize: dimension.d16,
+      color: appTheme.neutral_600);
+  TextStyle get googleButtonTextStyle => TextStyle(
+      fontFamily: strings.fontFamily,
+      fontWeight: FontWeight.w600,
+      fontSize: dimension.d16,
+      color: appTheme.neutral_700);
+  TextStyle get cancelButtonTextStyle => TextStyle(
+      fontFamily: strings.fontFamily,
+      fontSize: dimension.d16.sp,
+      fontWeight: FontWeight.w600,
+      color: appTheme.neutral_700);
   TextStyle get userNameTextStyle => TextStyle(
       color: appTheme.neutral_700,
       fontSize: dimension.d14.sp,
@@ -57,6 +109,11 @@ class CustomButtonStyles {
       fontSize: dimension.d16.sp,
       color: appTheme.neutral_800,
       fontWeight: FontWeight.w600);
+  TextStyle get locationTextStyle => TextStyle(
+      fontFamily: strings.fontFamily,
+      fontSize: dimension.d14.sp,
+      color: appTheme.neutral_600,
+      fontWeight: FontWeight.w500);
   TextStyle get titleTextStyle => TextStyle(
         color: appTheme.neutral_800,
         fontSize: dimension.d20.sp,
@@ -67,11 +124,6 @@ class CustomButtonStyles {
         fontWeight: FontWeight.w500,
         color: appTheme.neutral_600,
       );
-  TextStyle get googleButtonTextStyle => TextStyle(
-      fontFamily: strings.fontFamily,
-      fontWeight: FontWeight.w600,
-      fontSize: dimension.d16,
-      color: appTheme.black90001);
 
   TextStyle get textSpanTextStyle => TextStyle(
       fontFamily: strings.fontFamily,
@@ -96,6 +148,11 @@ class CustomButtonStyles {
       fontSize: dimension.d14.sp,
       fontWeight: FontWeight.w500,
       color: appTheme.neutral_600);
+  TextStyle get sliderTextStyle => TextStyle(
+      fontFamily: strings.fontFamily,
+      fontSize: dimension.d12.sp,
+      fontWeight: FontWeight.w500,
+      color: appTheme.neutral_400);
 
   InputDecoration get userNameInputDecoration => InputDecoration(
         filled: true,
@@ -139,6 +196,40 @@ class CustomButtonStyles {
         filled: true,
         fillColor: appTheme.infieldColor,
         hintStyle: dateFieldTextStyle,
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: dimension.d16,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d100),
+          borderSide:
+              BorderSide(color: appTheme.borderColor, width: dimension.d1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d100),
+          borderSide:
+              BorderSide(color: appTheme.borderColor, width: dimension.d1),
+        ),
+      );
+  InputDecoration get messagefInputDecoration => InputDecoration(
+        filled: true,
+        fillColor: appTheme.infieldColor,
+        hintStyle: dateFieldTextStyle,
+        contentPadding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d12),
+          borderSide:
+              BorderSide(color: appTheme.borderColor, width: dimension.d1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d12),
+          borderSide:
+              BorderSide(color: appTheme.borderColor, width: dimension.d1),
+        ),
+      );
+  InputDecoration get feedbackfInputDecoration => InputDecoration(
+        filled: true,
+        fillColor: appTheme.infieldColor,
+        hintStyle: dateFieldTextStyle,
         contentPadding: EdgeInsets.symmetric(horizontal: dimension.d16),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(dimension.d100),
@@ -151,6 +242,7 @@ class CustomButtonStyles {
               BorderSide(color: appTheme.borderColor, width: dimension.d1),
         ),
       );
+
   InputDecoration dateFieldInputDecoration({Widget? suffix}) => InputDecoration(
         filled: true,
         fillColor: appTheme.infieldColor,
@@ -218,6 +310,54 @@ class CustomButtonStyles {
           borderRadius: BorderRadius.circular(dimension.d100),
           borderSide:
               BorderSide(color: appTheme.borderColor, width: dimension.d1),
+        ),
+      );
+
+  InputDecoration get timeFInputDecoration => InputDecoration(
+        labelText: strings.timeLabelShort,
+        hintText: strings.timeHintExample,
+        prefixIcon: const Icon(Icons.access_time),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(dimension.d12)),
+        contentPadding: EdgeInsets.symmetric(
+            horizontal: dimension.d12, vertical: dimension.d12),
+      );
+
+  InputDecoration get datefInputDecoration => InputDecoration(
+        labelText: strings.dateLabel,
+        hintText: strings.dateHintExample,
+        prefixIcon: const Icon(Icons.date_range),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(dimension.d12)),
+        contentPadding: EdgeInsets.symmetric(
+            horizontal: dimension.d12, vertical: dimension.d12),
+      );
+  InputDecoration get addresFInputDecoration => InputDecoration(
+        filled: true,
+        fillColor: appTheme.infieldColor,
+        suffixIcon: const Icon(Icons.map),
+        prefixIcon: const Icon(Icons.maps_home_work_rounded),
+        hintText: strings.nearSohoHint,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d12),
+        ),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: dimension.d12,
+          vertical: dimension.d12,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d100),
+          borderSide: BorderSide(
+            color: appTheme.borderColor,
+            width: dimension.d1,
+          ),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d100),
+          borderSide: BorderSide(
+            color: appTheme.borderColor,
+            width: dimension.d1,
+          ),
         ),
       );
 }

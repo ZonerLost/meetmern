@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:meetmern/utils/constants/constants.dart';
 import 'package:meetmern/utils/dimension_resource/dimension_resource.dart';
 import 'package:meetmern/utils/strings/strings.dart';
 import 'package:meetmern/utils/theme/theme.dart';
 
 final DimensionResource dimension = DimensionResource();
 final appTheme = ThemeHelper(appThemeName: strings.lightCode).themeColor;
-
+final Constants constant = Constants();
 const strings = Strings();
 
 class CustomTextFormField extends StatefulWidget {
@@ -44,44 +45,49 @@ class CustomTextFormField extends StatefulWidget {
   final int? maxLength;
   final List<TextInputFormatter>? inputFormatters;
   final TextAlign? textAlign;
-  const CustomTextFormField(
-      {super.key,
-      this.alignment,
-      this.width,
-      this.height,
-      this.boxDecoration,
-      this.scrollPadding,
-      this.controller,
-      this.focusNode,
-      this.autofocus = false,
-      this.textStyle,
-      this.obscureText = false,
-      this.isDense,
-      this.readOnly = false,
-      this.onTap,
-      this.textInputAction = TextInputAction.next,
-      this.textInputType = TextInputType.text,
-      this.maxLines = 1,
-      this.hintText,
-      this.labelText,
-      this.errorMessage,
-      this.hintStyle,
-      this.prefix,
-      this.prefixConstraints,
-      this.suffix,
-      this.suffixConstraints,
-      this.contentPadding,
-      this.inputDecoration,
-      this.validator,
-      this.onChanged,
-      this.isAppBar = false,
-      this.onFieldSubmitted,
-      this.textAlignVertical,
-      this.maxLength,
-      this.inputFormatters,
-      this.textAlign});
+  final bool expands;
+
+  const CustomTextFormField({
+    super.key,
+    this.alignment,
+    this.width,
+    this.height,
+    this.boxDecoration,
+    this.scrollPadding,
+    this.controller,
+    this.focusNode,
+    this.autofocus = false,
+    this.textStyle,
+    this.obscureText = false,
+    this.isDense,
+    this.readOnly = false,
+    this.onTap,
+    this.textInputAction = TextInputAction.next,
+    this.textInputType = TextInputType.text,
+    this.maxLines = 1,
+    this.hintText,
+    this.labelText,
+    this.errorMessage,
+    this.hintStyle,
+    this.prefix,
+    this.prefixConstraints,
+    this.suffix,
+    this.suffixConstraints,
+    this.contentPadding,
+    this.inputDecoration,
+    this.validator,
+    this.onChanged,
+    this.isAppBar = false,
+    this.onFieldSubmitted,
+    this.textAlignVertical,
+    this.maxLength,
+    this.inputFormatters,
+    this.textAlign,
+    this.expands = false,
+  });
+
   @override
-  _CustomTextFormFieldState createState() => _CustomTextFormFieldState();
+  State<CustomTextFormField> createState() => _CustomTextFormFieldState();
 }
 
 class _CustomTextFormFieldState extends State<CustomTextFormField> {
@@ -107,8 +113,10 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
     super.dispose();
   }
 
-  InputBorder _defaultBorder(BuildContext context) {
-    final appTheme = ThemeHelper(appThemeName: strings.lightCode).themeColor;
+  bool get _isMultiline =>
+      widget.expands || (widget.maxLines != null && widget.maxLines! > 1);
+
+  InputBorder _defaultBorder() {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(dimension.d14),
       borderSide: BorderSide(
@@ -118,7 +126,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
     );
   }
 
-  InputBorder _errorBorder(BuildContext context) {
+  InputBorder _errorBorder() {
     return OutlineInputBorder(
       borderRadius: BorderRadius.circular(dimension.d14),
       borderSide: BorderSide(
@@ -129,34 +137,44 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
   }
 
   InputDecoration _buildDecoration(BuildContext context) {
-    final appTheme = ThemeHelper(appThemeName: strings.lightCode).themeColor;
-    final ThemeData theme = Theme.of(context);
+    final theme = Theme.of(context);
+
     return InputDecoration(
       hintText: widget.hintText ?? "",
       labelText: widget.labelText,
+      alignLabelWithHint: _isMultiline,
       floatingLabelStyle: TextStyle(color: appTheme.black90001),
       hintStyle: widget.hintStyle ?? theme.textTheme.bodyMedium,
       errorText: (widget.errorMessage != null && _controller.text.isEmpty)
           ? widget.errorMessage
           : null,
       prefixIcon: widget.prefix,
-      prefixIconConstraints: widget.prefixConstraints,
+      prefixIconConstraints: widget.prefixConstraints ??
+          const BoxConstraints.tightFor(width: 48, height: 48),
       suffixIcon: widget.suffix,
-      suffixIconConstraints: widget.suffixConstraints,
+      suffixIconConstraints: widget.suffixConstraints ??
+          const BoxConstraints.tightFor(width: 48, height: 48),
       isDense: widget.isDense ?? true,
-      contentPadding: widget.contentPadding ?? EdgeInsets.all(dimension.d14),
+      contentPadding: widget.contentPadding ??
+          EdgeInsets.fromLTRB(
+            14,
+            16,
+            14,
+            _isMultiline ? 16 : 14,
+          ),
       fillColor: appTheme.coreWhite,
       filled: true,
-      border: _defaultBorder(context),
-      enabledBorder: _defaultBorder(context),
-      focusedBorder: _defaultBorder(context).copyWith(
+      border: _defaultBorder(),
+      enabledBorder: _defaultBorder(),
+      focusedBorder: _defaultBorder().copyWith(
         borderSide: BorderSide(
           color: appTheme.blue800,
           width: 2,
         ),
       ),
-      errorBorder: _errorBorder(context),
-      focusedErrorBorder: _errorBorder(context),
+      errorBorder: _errorBorder(),
+      focusedErrorBorder: _errorBorder(),
+      counterText: widget.maxLength != null ? "" : null,
     );
   }
 
@@ -168,54 +186,87 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
       focusedBorder: InputBorder.none,
       isDense: true,
       contentPadding: EdgeInsets.symmetric(
-          horizontal: dimension.d8, vertical: dimension.d10),
+        horizontal: dimension.d8,
+        vertical: dimension.d10,
+      ),
       fillColor: appTheme.blacktransparent,
       filled: false,
     );
   }
 
   Widget _textFormFieldWidget(BuildContext context) {
-    final decoration = widget.inputDecoration ??
+    final baseDecoration = widget.inputDecoration ??
         (widget.isAppBar
             ? _buildAppBarDecoration(context)
             : _buildDecoration(context));
-    final ThemeData theme = Theme.of(context);
 
-    return Container(
-      height: widget.height ?? 50,
-      width: widget.width ?? double.infinity,
-      decoration: widget.boxDecoration,
-      child: TextFormField(
-        textAlignVertical: widget.textAlignVertical,
-        textAlign: widget.textAlign ?? TextAlign.start,
-        controller: _controller,
-        onChanged: widget.onChanged,
-        onFieldSubmitted: widget.onFieldSubmitted,
-        scrollPadding: widget.scrollPadding ??
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-        focusNode: widget.focusNode,
-        onTap: widget.onTap,
-        textInputAction: widget.textInputAction,
-        keyboardType: widget.textInputType,
-        maxLines: widget.maxLines,
-        maxLength: widget.maxLength,
-        inputFormatters: widget.inputFormatters,
-        style: widget.textStyle ?? theme.textTheme.bodyMedium,
-        obscureText: widget.obscureText,
-        readOnly: widget.readOnly,
-        decoration: decoration.copyWith(
-          suffixIcon: widget.isAppBar
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () => _controller.clear(),
-                )
-              : widget.suffix,
-          suffixIconConstraints: widget.suffixConstraints,
-          counterText: widget.maxLength != null ? "" : null,
-        ),
-        validator: widget.validator,
-      ),
+    final decoration = baseDecoration.copyWith(
+      hintText: widget.hintText ?? baseDecoration.hintText,
+      labelText: widget.labelText ?? baseDecoration.labelText,
+      hintStyle: widget.hintStyle ?? baseDecoration.hintStyle,
+      errorText: (widget.errorMessage != null && _controller.text.isEmpty)
+          ? widget.errorMessage
+          : baseDecoration.errorText,
+      prefixIcon: widget.prefix ?? baseDecoration.prefixIcon,
+      prefixIconConstraints:
+          widget.prefixConstraints ?? baseDecoration.prefixIconConstraints,
+      suffixIcon: widget.suffix ?? baseDecoration.suffixIcon,
+      suffixIconConstraints:
+          widget.suffixConstraints ?? baseDecoration.suffixIconConstraints,
+      contentPadding: widget.contentPadding ?? baseDecoration.contentPadding,
+      isDense: widget.isDense ?? baseDecoration.isDense,
+      alignLabelWithHint: _isMultiline,
+      counterText: widget.maxLength != null ? "" : null,
     );
+
+    final theme = Theme.of(context);
+
+    final field = TextFormField(
+      controller: _controller,
+      focusNode: widget.focusNode,
+      autofocus: widget.autofocus,
+      onChanged: widget.onChanged,
+      onFieldSubmitted: widget.onFieldSubmitted,
+      onTap: widget.onTap,
+      scrollPadding: widget.scrollPadding ??
+          EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      textInputAction: widget.textInputAction,
+      keyboardType:
+          _isMultiline ? TextInputType.multiline : widget.textInputType,
+
+      // Fixed-height multiline support
+      maxLines: widget.expands ? null : widget.maxLines,
+      minLines: widget.expands ? null : 1,
+      expands: widget.expands,
+
+      maxLength: widget.maxLength,
+      inputFormatters: widget.inputFormatters,
+      style: widget.textStyle ?? theme.textTheme.bodyMedium,
+      obscureText: widget.obscureText,
+      readOnly: widget.readOnly,
+      textAlignVertical: widget.textAlignVertical ??
+          (_isMultiline ? TextAlignVertical.top : TextAlignVertical.center),
+      textAlign: widget.textAlign ?? TextAlign.start,
+      decoration: decoration,
+      validator: widget.validator,
+    );
+
+    Widget result = Container(
+      width: widget.width ?? double.infinity,
+      height: widget.height,
+      decoration: widget.boxDecoration,
+      child: field,
+    );
+
+    if (widget.boxDecoration != null &&
+        widget.boxDecoration!.borderRadius != null) {
+      result = ClipRRect(
+        borderRadius: widget.boxDecoration!.borderRadius as BorderRadius,
+        child: result,
+      );
+    }
+
+    return result;
   }
 
   @override

@@ -91,8 +91,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           style: customButtonandTextStyles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
                       CustomTextFormField(
-                          height: dimension.d52,
-                          width: dimension.d366,
                           controller: _nameController,
                           textStyle:
                               customButtonandTextStyles.userNameTextStyle,
@@ -109,8 +107,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           style: customButtonandTextStyles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
                       CustomTextFormField(
-                          height: dimension.d52,
-                          width: dimension.d366,
                           controller: _emailController,
                           textStyle:
                               customButtonandTextStyles.userNameTextStyle,
@@ -129,8 +125,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           style: customButtonandTextStyles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
                       CustomTextFormField(
-                        height: dimension.d52,
-                        width: dimension.d366,
                         controller: _phoneController,
                         textStyle: customButtonandTextStyles.userNameTextStyle,
                         inputFormatters: [
@@ -165,8 +159,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           style: customButtonandTextStyles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
                       CustomTextFormField(
-                          height: dimension.d52,
-                          width: dimension.d366,
                           controller: _passwordController,
                           obscureText: isObscure,
                           textStyle:
@@ -191,8 +183,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       SizedBox(height: dimension.d20.h),
                       Center(
                         child: CustomElevatedButton(
-                          height: dimension.d52,
-                          width: dimension.d366,
                           onPressed: () {
                             if (_formKey.currentState!.validate()) {
                               context.navigateToScreen(const LoginScreen());

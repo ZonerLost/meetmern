@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:meetmern/presentation/screens/OnboardingScreens/mock/onboarding_mock_data.dart';
-import 'package:meetmern/presentation/screens/OnboardingScreens/model/onboarding_model.dart';
+import 'package:meetmern/presentation/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
+import 'package:meetmern/presentation/screens/OnboardingScreens/dummy_data/onboarding_model.dart';
 import 'package:meetmern/presentation/screens/OnboardingScreens/pages/about_page.dart';
 import 'package:meetmern/presentation/screens/OnboardingScreens/pages/basics_page.dart';
 import 'package:meetmern/presentation/screens/OnboardingScreens/pages/final_page.dart';

@@ -60,7 +60,7 @@ class PhotoPage extends StatelessWidget {
                   ? GestureDetector(
                       onTap: () => _pick(context),
                       child: Container(
-                        height: dimension.d250.h,
+                        height: dimension.d350.h,
                         width: dimension.d336.w,
                         decoration: BoxDecoration(
                           color: appTheme.infieldColor,
@@ -85,7 +85,7 @@ class PhotoPage extends StatelessWidget {
                       ),
                     )
                   : Container(
-                      height: dimension.d100.h,
+                      height: dimension.d200.h,
                       width: dimension.d100.w,
                       decoration: BoxDecoration(
                         color: appTheme.neutral_50,
@@ -103,7 +103,7 @@ class PhotoPage extends StatelessWidget {
               GestureDetector(
                 onTap: () => _pick(context),
                 child: Container(
-                  height: dimension.d100.h,
+                  height: dimension.d300.h,
                   width: dimension.d100.w,
                   decoration: BoxDecoration(
                     color: appTheme.infieldColor,

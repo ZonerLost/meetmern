@@ -22,3 +22,13 @@ extension NavigationHelpers on BuildContext {
     );
   }
 }
+
+extension NavigationExtension1 on BuildContext {
+  Future<bool> maybePopScreen() {
+    return Navigator.of(this).maybePop();
+  }
+
+  void popScreen<T extends Object?>([T? result]) {
+    Navigator.of(this).pop(result);
+  }
+}

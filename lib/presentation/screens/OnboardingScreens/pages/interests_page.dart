@@ -118,7 +118,7 @@ class InterestsPage extends StatelessWidget {
               return buildChip(pt, sel, (v) => onTogglePassion(pt, v));
             }).toList(),
           ),
-          SizedBox(height: dimension.d150.h),
+          SizedBox(height: dimension.d30.h),
           CustomElevatedButton(
             text: strings.nextButtonText,
             isDisabled: !stepValid,
@@ -130,8 +130,6 @@ class InterestsPage extends StatelessWidget {
             onDisabledPressed: onDisabledTap,
             buttonStyle: customButtonandTextStyles.loginButtonStyle,
             buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
-            height: dimension.d54.h,
-            width: dimension.d366.w,
           ),
         ]),
       ),

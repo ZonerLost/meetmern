@@ -74,8 +74,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           style: styles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
                       CustomTextFormField(
-                        height: dimension.d54.h,
-                        width: dimension.d366.w,
                         controller: _newPasswordController,
                         obscureText: isObscure1,
                         textStyle: styles.userNameTextStyle,
@@ -99,8 +97,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           style: styles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
                       CustomTextFormField(
-                        height: dimension.d54.h,
-                        width: dimension.d366.w,
                         controller: _confirmPasswordController,
                         obscureText: isObscure2,
                         textStyle: styles.userNameTextStyle,
@@ -124,8 +120,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       ),
                       SizedBox(height: dimension.d28.h),
                       CustomElevatedButton(
-                        height: dimension.d54.h,
-                        width: dimension.d366.w,
                         text: strings.resetButtonText,
                         buttonTextStyle: styles.loginButtonTextStyle,
                         buttonStyle: styles.loginButtonStyle,

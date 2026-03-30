@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:meetmern/presentation/screens/OnboardingScreens/model/onboarding_model.dart';
+import 'package:meetmern/presentation/screens/HomeScreens/CreateMeetupScreen/create_meetup.dart';
+import 'package:meetmern/presentation/screens/HomeScreens/ExploreScreen/explore_meetups_screen.dart';
+import 'package:meetmern/presentation/screens/OnboardingScreens/dummy_data/onboarding_model.dart';
 import 'package:meetmern/presentation/screens/OnboardingScreens/pages/onboarding_topbar.dart';
+import 'package:meetmern/utils/extensions/navigation_extensions.dart';
 import 'package:meetmern/utils/strings/strings.dart';
 import 'package:meetmern/utils/theme/theme.dart';
 import 'package:meetmern/utils/widgets/custom_button_style_text_style.dart';
+import 'package:meetmern/utils/widgets/custom_elevated_button.dart';
 import 'package:meetmern/utils/widgets/custom_outlined_button.dart';
 
 const strings = Strings();
@@ -43,11 +47,9 @@ class FinalPage extends StatelessWidget {
                   style: customButtonandTextStyles.subtitleTextStyle),
               SizedBox(height: dimension.d150.h),
               SizedBox(
-                width: dimension.d366.w,
-                height: dimension.d54.h,
                 child: CustomOutlinedButton(
                   onPressed: () {
-                    if (onFinish != null) onFinish!();
+                    context.navigateToScreen(const CreateMeetupScreen());
                   },
                   text: strings.createMeetupText,
                   buttonStyle: customButtonandTextStyles.googleButtonStyle,
@@ -57,15 +59,14 @@ class FinalPage extends StatelessWidget {
               ),
               SizedBox(height: dimension.d20.h),
               SizedBox(
-                width: dimension.d366.w,
-                height: dimension.d54.h,
-                child: ElevatedButton(
+                child: CustomElevatedButton(
                   onPressed: () {
-                    if (onFinish != null) onFinish!();
+                    context.navigateToScreen(const ExploreMeetupsScreen());
                   },
-                  style: customButtonandTextStyles.loginButtonStyle,
-                  child: Text(strings.exploreMeetupsText,
-                      style: customButtonandTextStyles.loginButtonTextStyle),
+                  buttonStyle: customButtonandTextStyles.loginButtonStyle,
+                  text: strings.exploreMeetupsText,
+                  buttonTextStyle:
+                      customButtonandTextStyles.loginButtonTextStyle,
                 ),
               ),
               SizedBox(height: dimension.d20.h),

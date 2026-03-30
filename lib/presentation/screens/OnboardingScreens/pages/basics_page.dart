@@ -71,8 +71,6 @@ class BasicsPage extends StatelessWidget {
           RequiredLabel(text: strings.dateOfBirthLabel),
           SizedBox(height: dimension.d14.h),
           CustomTextFormField(
-            width: dimension.d366.w,
-            height: dimension.d48.h,
             controller: dobController,
             textInputType: TextInputType.datetime,
             hintText: strings.dateFormatHint,
@@ -108,8 +106,6 @@ class BasicsPage extends StatelessWidget {
           RequiredLabel(text: strings.genderLabel),
           CustomDropdownButton(
             decoration: customButtonandTextStyles.genderFInputDecoration,
-            width: dimension.d366.w,
-            height: dimension.d48.h,
             hint: strings.genderHint,
             items: genders,
             value: selectedGender,
@@ -122,8 +118,6 @@ class BasicsPage extends StatelessWidget {
           SizedBox(height: dimension.d14.h),
           RequiredLabel(text: strings.ethnicityLabel),
           CustomDropdownButton(
-            width: dimension.d366.w,
-            height: dimension.d48.h,
             decoration: customButtonandTextStyles.genderFInputDecoration,
             hint: strings.ethnicityHint,
             items: ethnicities,
@@ -136,8 +130,6 @@ class BasicsPage extends StatelessWidget {
           SizedBox(height: dimension.d14.h),
           RequiredLabel(text: strings.orientationLabel),
           CustomDropdownButton(
-            width: dimension.d366.w,
-            height: dimension.d48.h,
             decoration: customButtonandTextStyles.genderFInputDecoration,
             hint: strings.orientationHint,
             items: orientations,
@@ -152,8 +144,6 @@ class BasicsPage extends StatelessWidget {
               style: customButtonandTextStyles.emailLabelTextStyle),
           SizedBox(height: dimension.d14.h),
           CustomMultiSelectButton(
-            width: dimension.d366.w,
-            height: dimension.d48.h,
             decoration: customButtonandTextStyles.genderFInputDecoration,
             hint: strings.languageHint,
             items: languages,
@@ -172,8 +162,6 @@ class BasicsPage extends StatelessWidget {
             onDisabledPressed: onDisabledTap,
             buttonStyle: customButtonandTextStyles.loginButtonStyle,
             buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
-            height: dimension.d54.h,
-            width: dimension.d366.w,
           ),
         ]),
       ),

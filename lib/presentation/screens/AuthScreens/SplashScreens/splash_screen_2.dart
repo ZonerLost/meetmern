@@ -121,8 +121,6 @@ class _SplashScreen2State extends State<SplashScreen2> {
                       ),
                       SizedBox(height: dimension.d16.h),
                       CustomOutlinedButton(
-                        height: dimension.d54,
-                        width: dimension.d366,
                         onPressed: () {},
                         buttonStyle:
                             customButtonandTextStyles.googleButtonStyle,
@@ -143,8 +141,6 @@ class _SplashScreen2State extends State<SplashScreen2> {
                       ),
                       SizedBox(height: dimension.d10.h),
                       CustomOutlinedButton(
-                        height: dimension.d54,
-                        width: dimension.d366,
                         onPressed: () {},
                         buttonStyle:
                             customButtonandTextStyles.googleButtonStyle,

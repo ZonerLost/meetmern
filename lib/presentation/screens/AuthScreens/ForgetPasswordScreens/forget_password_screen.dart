@@ -71,8 +71,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                           style: customButtonandTextStyles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
                       CustomTextFormField(
-                        height: dimension.d52,
-                        width: dimension.d366,
                         controller: _emailController,
                         textStyle: customButtonandTextStyles.userNameTextStyle,
                         validator: (value) {
@@ -88,8 +86,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       SizedBox(height: dimension.d24.h),
                       CustomElevatedButton(
-                        height: dimension.d52,
-                        width: dimension.d366,
                         text: strings.sendResetLinkButtonText,
                         buttonTextStyle:
                             customButtonandTextStyles.loginButtonTextStyle,
@@ -123,8 +119,6 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ),
                       SizedBox(height: dimension.d16.h),
                       CustomOutlinedButton(
-                        height: dimension.d52.h,
-                        width: dimension.d366.w,
                         onPressed: () {},
                         buttonStyle:
                             customButtonandTextStyles.googleButtonStyle,

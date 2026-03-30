@@ -36,21 +36,21 @@ class OnboardingTopbar extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: List.generate(total, (i) {
                   return Container(
-                    margin: EdgeInsets.symmetric(horizontal: 6.w),
-                    width: i == current ? 10.w : 6.w,
-                    height: 6.h,
+                    margin: EdgeInsets.symmetric(horizontal: dimension.d6.w),
+                    width: i == current ? dimension.d10.w : dimension.d6.w,
+                    height: dimension.d6.h,
                     decoration: BoxDecoration(
                       color: i == current
                           ? appTheme.b_Primary
                           : appTheme.neutral_300,
-                      borderRadius: BorderRadius.circular(6.r),
+                      borderRadius: BorderRadius.circular(dimension.d6.r),
                     ),
                   );
                 }),
               ),
             ),
           ),
-          SizedBox(width: 48.w),
+          SizedBox(width: dimension.d48.w),
         ],
       ),
     );

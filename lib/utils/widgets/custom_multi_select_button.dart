@@ -1,216 +1,5 @@
-// import 'package:flutter/material.dart';
-// import 'package:meetmern/utils/widgets/custom_text_form_field.dart';
-
-// class CustomMultiSelectButton extends StatelessWidget {
-//   final String hint;
-//   final List<String> items;
-//   final List<String> selectedValues;
-//   final ValueChanged<List<String>> onSelectionChanged;
-//   final InputDecoration? decoration;
-//   final double? width;
-//   final double? height;
-//   final EdgeInsetsGeometry? contentPadding;
-//   final double chipAreaHeight;
-//   const CustomMultiSelectButton({
-//     super.key,
-//     required this.hint,
-//     required this.items,
-//     required this.selectedValues,
-//     required this.onSelectionChanged,
-//     this.decoration,
-//     this.width,
-//     this.height,
-//     this.contentPadding,
-//     this.chipAreaHeight = 56,
-//   });
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final InputDecoration baseDecoration = decoration ??
-//         InputDecoration(
-//           contentPadding:
-//               contentPadding ?? EdgeInsets.symmetric(horizontal: dimension.d20),
-//           border: OutlineInputBorder(
-//             borderRadius: BorderRadius.circular(dimension.d30),
-//           ),
-//         );
-//     final InputDecoration effectiveDecoration =
-//         baseDecoration.copyWith(hintText: hint);
-//     Widget field = GestureDetector(
-//       behavior: HitTestBehavior.opaque,
-//       onTap: () async {
-//         final temp = Set<String>.from(selectedValues);
-
-//         final result = await showModalBottomSheet<List<String>>(
-//           context: context,
-//           isScrollControlled: true,
-//           builder: (ctx) {
-//             return StatefulBuilder(
-//               builder: (ctx2, setStateSB) {
-//                 return SafeArea(
-//                   child: Padding(
-//                     padding: EdgeInsets.only(
-//                         bottom: MediaQuery.of(ctx).viewInsets.bottom),
-//                     child: SizedBox(
-//                       height: MediaQuery.of(ctx).size.height * dimension.d0_6,
-//                       child: Column(
-//                         children: [
-//                           Padding(
-//                             padding: EdgeInsets.all(dimension.d12),
-//                             child: Row(
-//                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//                               children: [
-//                                 Text(
-//                                   "Select",
-//                                   style: Theme.of(ctx).textTheme.bodyLarge,
-//                                 ),
-//                                 TextButton(
-//                                   onPressed: () {
-//                                     Navigator.pop(ctx, temp.toList());
-//                                   },
-//                                   child: const Text("Done"),
-//                                 )
-//                               ],
-//                             ),
-//                           ),
-//                           const Divider(height: 1),
-
-//                           /// OPTIONS LIST
-//                           Expanded(
-//                             child: ListView.builder(
-//                               itemCount: items.length,
-//                               itemBuilder: (c, i) {
-//                                 final it = items[i];
-//                                 final checked = temp.contains(it);
-
-//                                 return CheckboxListTile(
-//                                   title: Text(it),
-//                                   value: checked,
-//                                   onChanged: (v) {
-//                                     setStateSB(() {
-//                                       if (v == true) {
-//                                         temp.add(it);
-//                                       } else {
-//                                         temp.remove(it);
-//                                       }
-//                                     });
-//                                   },
-//                                 );
-//                               },
-//                             ),
-//                           ),
-//                         ],
-//                       ),
-//                     ),
-//                   ),
-//                 );
-//               },
-//             );
-//           },
-//         );
-
-//         if (result != null) {
-//           onSelectionChanged(result);
-//         }
-//       },
-//       child: InputDecorator(
-//         decoration: effectiveDecoration,
-//         isEmpty: true,
-//         child: const Row(
-//           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-//           children: [
-//             Expanded(child: SizedBox()),
-//             SizedBox(width: 8),
-//             Icon(Icons.arrow_drop_down),
-//           ],
-//         ),
-//       ),
-//     );
-
-//     if (height != null) {
-//       field = ConstrainedBox(
-//         constraints: BoxConstraints(
-//           minHeight: height!,
-//           maxHeight: height!,
-//         ),
-//         child: field,
-//       );
-//     }
-//     final chipsArea = SizedBox(
-//       height: chipAreaHeight,
-//       child: selectedValues.isEmpty
-//           ? const SizedBox()
-//           : SingleChildScrollView(
-//               child: Padding(
-//                 padding: EdgeInsets.only(top: dimension.d8),
-//                 child: Wrap(
-//                   spacing: 8,
-//                   runSpacing: 8,
-//                   children: selectedValues.map((val) {
-//                     return Container(
-//                       width: 88,
-//                       height: 37,
-//                       decoration: BoxDecoration(
-//                         color: appTheme.b_100,
-//                         borderRadius: BorderRadius.circular(116),
-//                       ),
-//                       padding: const EdgeInsets.symmetric(horizontal: 10),
-//                       child: Row(
-//                         children: [
-//                           GestureDetector(
-//                             onTap: () {
-//                               final newList = List<String>.from(selectedValues)
-//                                 ..remove(val);
-//                               onSelectionChanged(newList);
-//                             },
-//                             child: const Icon(
-//                               Icons.close,
-//                               size: 14,
-//                             ),
-//                           ),
-//                           Expanded(
-//                             child: Text(
-//                               val,
-//                               overflow: TextOverflow.ellipsis,
-//                               style: TextStyle(
-//                                 color: appTheme.b_600,
-//                                 fontSize: 12,
-//                                 fontWeight: FontWeight.w500,
-//                               ),
-//                             ),
-//                           ),
-//                         ],
-//                       ),
-//                     );
-//                   }).toList(),
-//                 ),
-//               ),
-//             ),
-//     );
-
-//     return SizedBox(
-//       width: width,
-//       child: Column(
-//         crossAxisAlignment: CrossAxisAlignment.start,
-//         children: [
-//           const DefaultTextStyle(
-//             style: TextStyle(
-//               fontWeight: FontWeight.w600,
-//               fontSize: 14,
-//             ),
-//             child: SizedBox(height: 8),
-//           ),
-//           const SizedBox(height: 8),
-//           field,
-//           const SizedBox(height: 8),
-//           chipsArea,
-//         ],
-//       ),
-//     );
-//   }
-// }
-
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:meetmern/utils/widgets/custom_text_form_field.dart';
 
 class CustomMultiSelectButton extends StatelessWidget {
@@ -222,7 +11,7 @@ class CustomMultiSelectButton extends StatelessWidget {
   final double? width;
   final double? height;
   final EdgeInsetsGeometry? contentPadding;
-
+  final Color? menuColor;
   const CustomMultiSelectButton({
     super.key,
     required this.hint,
@@ -230,6 +19,7 @@ class CustomMultiSelectButton extends StatelessWidget {
     required this.selectedValues,
     required this.onSelectionChanged,
     this.decoration,
+    this.menuColor,
     this.width,
     this.height,
     this.contentPadding,
@@ -247,7 +37,7 @@ class CustomMultiSelectButton extends StatelessWidget {
         );
 
     final InputDecoration effectiveDecoration =
-        baseDecoration.copyWith(hintText: hint);
+        baseDecoration.copyWith(hintText: selectedValues.isEmpty ? hint : null);
     Widget field = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () async {
@@ -255,84 +45,106 @@ class CustomMultiSelectButton extends StatelessWidget {
 
         final result = await showModalBottomSheet<List<String>>(
           context: context,
+          backgroundColor: menuColor ?? appTheme.coreWhite,
           isScrollControlled: true,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20.r))),
           builder: (ctx) {
             return StatefulBuilder(
               builder: (ctx2, setStateSB) {
-                return SafeArea(
-                  child: Padding(
-                    padding: EdgeInsets.only(
-                      bottom: MediaQuery.of(ctx).viewInsets.bottom,
-                    ),
-                    child: SizedBox(
-                      height: MediaQuery.of(ctx).size.height * dimension.d0_6,
-                      child: Column(
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: MediaQuery.of(ctx).viewInsets.bottom,
+                    left: 16.w,
+                    right: 16.w,
+                    top: 16.h,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                          width: 40.w,
+                          height: 4.h,
+                          decoration: BoxDecoration(
+                              color: Colors.grey[300],
+                              borderRadius: BorderRadius.circular(4.r))),
+                      SizedBox(height: 12.h),
+                      const Text('Select',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                      SizedBox(height: 12.h),
+                      Flexible(
+                        child: ListView(
+                          shrinkWrap: true,
+                          children: items.map((lang) {
+                            final selected = temp.contains(lang);
+                            return CheckboxListTile(
+                              title: Text(lang),
+                              value: selected,
+                              onChanged: (v) => setStateSB(() {
+                                if (v == true)
+                                  temp.add(lang);
+                                else
+                                  temp.remove(lang);
+                              }),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      SizedBox(height: 12.h),
+                      Row(
                         children: [
-                          Padding(
-                            padding: EdgeInsets.all(dimension.d12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  "Select",
-                                  style: Theme.of(ctx).textTheme.bodyLarge,
-                                ),
-                                TextButton(
-                                  onPressed: () {
-                                    Navigator.pop(ctx, temp.toList());
-                                  },
-                                  child: const Text("Done"),
-                                )
-                              ],
-                            ),
-                          ),
-                          const Divider(height: 1),
                           Expanded(
-                            child: ListView.builder(
-                              itemCount: items.length,
-                              itemBuilder: (c, i) {
-                                final it = items[i];
-                                final checked = temp.contains(it);
-
-                                return CheckboxListTile(
-                                  title: Text(it),
-                                  value: checked,
-                                  onChanged: (v) {
-                                    setStateSB(() {
-                                      if (v == true) {
-                                        temp.add(it);
-                                      } else {
-                                        temp.remove(it);
-                                      }
-                                    });
-                                  },
-                                );
+                            child: OutlinedButton(
+                                onPressed: () => Navigator.pop(ctx),
+                                child: const Text('Cancel')),
+                          ),
+                          SizedBox(width: 12.w),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: appTheme.b_Primary),
+                              onPressed: () {
+                                Navigator.pop(ctx, temp.toList());
                               },
+                              child: Text(
+                                'Done',
+                                style: TextStyle(color: appTheme.coreWhite),
+                              ),
                             ),
                           ),
                         ],
                       ),
-                    ),
+                      SizedBox(height: 12.h),
+                    ],
                   ),
                 );
               },
             );
           },
         );
-
         if (result != null) {
           onSelectionChanged(result);
         }
       },
       child: InputDecorator(
         decoration: effectiveDecoration,
-        isEmpty: true,
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        isEmpty: selectedValues.isEmpty,
+        child: Row(
           children: [
-            Expanded(child: SizedBox()),
-            SizedBox(width: 8),
-            Icon(Icons.arrow_drop_down),
+            Expanded(
+              child: selectedValues.isEmpty
+                  ? const SizedBox.shrink()
+                  : Text(
+                      selectedValues.join(', '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: appTheme.b_600,
+                      ),
+                    ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_drop_down),
           ],
         ),
       ),
@@ -349,7 +161,6 @@ class CustomMultiSelectButton extends StatelessWidget {
       );
     }
 
-    /// CHIPS AREA (DYNAMIC HEIGHT)
     final chipsArea = selectedValues.isEmpty
         ? const SizedBox()
         : Padding(
@@ -359,14 +170,15 @@ class CustomMultiSelectButton extends StatelessWidget {
               runSpacing: 8,
               children: selectedValues.map((val) {
                 return Container(
-                  width: 88,
+                  constraints: const BoxConstraints(minWidth: 56),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   height: 37,
                   decoration: BoxDecoration(
                     color: appTheme.b_100,
                     borderRadius: BorderRadius.circular(116),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
                   child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       GestureDetector(
                         onTap: () {
@@ -379,7 +191,9 @@ class CustomMultiSelectButton extends StatelessWidget {
                           size: 14,
                         ),
                       ),
-                      Expanded(
+                      SizedBox(width: 8.w),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: width ?? 120.w),
                         child: Text(
                           val,
                           overflow: TextOverflow.ellipsis,

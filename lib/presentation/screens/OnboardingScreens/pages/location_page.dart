@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:meetmern/presentation/screens/OnboardingScreens/pages/onboarding_topbar.dart';
 import 'package:meetmern/utils/strings/strings.dart';
 import 'package:meetmern/utils/theme/theme.dart';
 import 'package:meetmern/utils/widgets/custom_button_style_text_style.dart';
+import 'package:meetmern/utils/widgets/custom_elevated_button.dart';
 import 'package:meetmern/utils/widgets/custom_outlined_button.dart';
 
 const strings = Strings();
@@ -68,34 +70,27 @@ class _LocationPageState extends State<LocationPage> {
           ),
           SizedBox(height: dimension.d58.h),
           CustomOutlinedButton(
-            width: dimension.d366.w,
-            height: dimension.d54.h,
             onPressed: () {
-              Navigator.of(context).maybePop();
+              SystemNavigator.pop();
             },
-            text: 'Exit App',
+            text: strings.exitApptext,
             buttonTextStyle: customButtonandTextStyles.googleButtonTextStyle,
             buttonStyle: customButtonandTextStyles.googleButtonStyle,
           ),
           SizedBox(height: dimension.d20.h),
           SizedBox(
-            width: dimension.d366.w,
-            height: dimension.d54.h,
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: widget.stepValid
                   ? _enableLocationAndOpenMap
                   : widget.onDisabledTap,
-              child: ElevatedButton(
-                onPressed: widget.stepValid ? _enableLocationAndOpenMap : null,
-                style: customButtonandTextStyles.loginButtonStyle,
-                child: _loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : Text(strings.enableLocationButton,
-                        style: customButtonandTextStyles.loginButtonTextStyle),
+              child: CustomElevatedButton(
+                onPressed: widget.stepValid && !_loading
+                    ? _enableLocationAndOpenMap
+                    : null,
+                buttonStyle: customButtonandTextStyles.loginButtonStyle,
+                text: _loading ? "Loading..." : strings.enableLocationButton,
+                buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
               ),
             ),
           ),

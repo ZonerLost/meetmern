@@ -72,11 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           style: customButtonandTextStyles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
                       SizedBox(
-                        width: dimension.d366.w,
-                        height: dimension.d52.h,
                         child: CustomTextFormField(
-                          height: dimension.d52,
-                          width: dimension.d366,
                           controller: _emailController,
                           textStyle:
                               customButtonandTextStyles.userNameTextStyle,
@@ -96,33 +92,26 @@ class _LoginScreenState extends State<LoginScreen> {
                       Text(strings.passwordPrompt,
                           style: customButtonandTextStyles.emailLabelTextStyle),
                       SizedBox(height: dimension.d8.h),
-                      SizedBox(
-                        width: dimension.d366.w,
-                        height: dimension.d52.h,
-                        child: CustomTextFormField(
-                          height: dimension.d52,
-                          width: dimension.d366,
-                          controller: _passwordController,
-                          obscureText: isObscure,
-                          textStyle:
-                              customButtonandTextStyles.userNameTextStyle,
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return strings.pleaseEnterPasswordText;
-                            } else if (value.length < dimension.d6) {
-                              return strings.passwordMinLengthText;
-                            }
-                            return null;
+                      CustomTextFormField(
+                        controller: _passwordController,
+                        obscureText: isObscure,
+                        textStyle: customButtonandTextStyles.userNameTextStyle,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return strings.pleaseEnterPasswordText;
+                          } else if (value.length < dimension.d6) {
+                            return strings.passwordMinLengthText;
+                          }
+                          return null;
+                        },
+                        inputDecoration:
+                            customButtonandTextStyles.passwordInputDecoration(
+                          isObscure: isObscure,
+                          onToggle: () {
+                            setState(() {
+                              isObscure = !isObscure;
+                            });
                           },
-                          inputDecoration:
-                              customButtonandTextStyles.passwordInputDecoration(
-                            isObscure: isObscure,
-                            onToggle: () {
-                              setState(() {
-                                isObscure = !isObscure;
-                              });
-                            },
-                          ),
                         ),
                       ),
                       SizedBox(height: dimension.d12.h),
@@ -139,8 +128,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: dimension.d20.h),
                       CustomElevatedButton(
-                        height: dimension.d52.h,
-                        width: dimension.d366.w,
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {
                             context.navigateToScreen(const OnboardingScreen());
@@ -176,8 +163,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: dimension.d16.h),
                       CustomOutlinedButton(
-                        height: dimension.d52.h,
-                        width: dimension.d366.w,
                         onPressed: () {},
                         buttonStyle:
                             customButtonandTextStyles.googleButtonStyle,
@@ -198,8 +183,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       SizedBox(height: dimension.d10.h),
                       CustomOutlinedButton(
-                        height: dimension.d52.h,
-                        width: dimension.d366.w,
                         onPressed: () {},
                         buttonStyle:
                             customButtonandTextStyles.googleButtonStyle,

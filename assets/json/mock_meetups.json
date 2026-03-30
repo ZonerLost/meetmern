@@ -1,0 +1,260 @@
+{
+    "meetups": [
+        {
+            "id": "m1",
+            "title": "Meet me for Coffee",
+            "hostName": "Michael S.",
+            "time": "2026-03-15T18:00:00",
+            "location": "Starbucks, Downtown",
+            "distanceKm": 2.1,
+            "type": "Coffee",
+            "status": "Open",
+            "icon": "assets/icons/coffe_icon.png",
+            "image": "assets/images/img9.jpg",
+            "isFavorite": false,
+            "description": "Casual coffee and chat.",
+            "languages": [
+                "English"
+            ],
+            "interests": [
+                "Tech",
+                "Startups"
+            ]
+        },
+        {
+            "id": "m2",
+            "title": "Meet me for Drinks",
+            "hostName": "Sarah K.",
+            "time": "2026-03-18T20:00:00",
+            "location": "The Rooftop Bar",
+            "distanceKm": 5.4,
+            "type": "Drinks",
+            "status": "Open",
+            "image": "assets/images/img10.jpg",
+            "icon": "assets/icons/drinks_icon.png",
+            "isFavorite": true,
+            "description": "Chill evening drinks.",
+            "languages": [
+                "English",
+                "Spanish"
+            ],
+            "interests": [
+                "Music",
+                "Art"
+            ]
+        },
+        {
+            "id": "m3",
+            "title": "Meat for Meals",
+            "hostName": "Aamir R.",
+            "time": "2026-03-20T16:00:00",
+            "location": "City Library",
+            "distanceKm": 1.8,
+            "type": "Study",
+            "status": "Closed",
+            "image": "assets/images/img11.jpg",
+            "icon": "assets/icons/meals_icon.png",
+            "isFavorite": false,
+            "description": "Group study for finals.",
+            "languages": [
+                "English",
+                "Urdu"
+            ],
+            "interests": [
+                "Study",
+                "Coding"
+            ]
+        },
+        {
+            "id": "m4",
+            "title": "Meet me for Coffee",
+            "hostName": "Michael S.",
+            "time": "2026-03-15T18:00:00",
+            "location": "Starbucks, Downtown",
+            "distanceKm": 2.1,
+            "type": "Coffee",
+            "status": "Open",
+            "image": "assets/images/img9.jpg",
+            "icon": "assets/icons/coffe_icon.png",
+            "isFavorite": false,
+            "description": "Casual coffee and chat.",
+            "languages": [
+                "English"
+            ],
+            "interests": [
+                "Tech",
+                "Startups"
+            ]
+        },
+        {
+            "id": "m5",
+            "title": "Meet me for Coffee",
+            "hostName": "Michael S.",
+            "time": "2026-03-15T18:00:00",
+            "location": "Starbucks, Downtown",
+            "distanceKm": 2.1,
+            "type": "Coffee",
+            "status": "Open",
+            "image": "assets/images/img9.jpg",
+            "icon": "assets/icons/coffe_icon.png",
+            "isFavorite": false,
+            "description": "Casual coffee and chat.",
+            "languages": [
+                "English"
+            ],
+            "interests": [
+                "Tech",
+                "Startups"
+            ]
+        },
+        {
+            "id": "m6",
+            "title": "Meet me for Coffee",
+            "hostName": "Michael S.",
+            "time": "2026-03-15T18:00:00",
+            "location": "Starbucks, Downtown",
+            "distanceKm": 2.1,
+            "type": "Coffee",
+            "status": "Open",
+            "image": "assets/images/img9.jpg",
+            "icon": "assets/icons/coffe_icon.png",
+            "isFavorite": false,
+            "description": "Casual coffee and chat.",
+            "languages": [
+                "English"
+            ],
+            "interests": [
+                "Tech",
+                "Startups"
+            ]
+        }
+    ],
+    "nearby": [
+        {
+            "id": "p1",
+            "name": "Samantha",
+            "image": "assets/images/img13.jpg",
+            "locationShort": "5 km",
+            "favMeetupType": "Coffee",
+            "time": "2026-03-15T18:00:00",
+            "location": "Starbucks, Downtown",
+            "distanceKm": 2.1,
+            "type": "Coffee",
+            "status": "Open",
+            "icon": "assets/icons/coffe_icon.png",
+            "isFavorite": false,
+            "description": "Casual coffee and chat.",
+            "languages": [
+                "English"
+            ],
+            "interests": [
+                "Tech",
+                "Startups"
+            ]
+        },
+        {
+            "id": "p2",
+            "name": "Amanda",
+            "image": "assets/images/img14.jpg",
+            "locationShort": "1 km",
+            "favMeetupType": "Drinks",
+            "time": "2026-03-18T20:00:00",
+            "location": "The Rooftop Bar",
+            "distanceKm": 5.4,
+            "type": "Drinks",
+            "status": "Open",
+            "icon": "assets/icons/drinks_icon.png",
+            "isFavorite": true,
+            "description": "Chill evening drinks.",
+            "languages": [
+                "English",
+                "Spanish"
+            ],
+            "interests": [
+                "Music",
+                "Art"
+            ]
+        },
+        {
+            "id": "p3",
+            "name": "Jorden",
+            "image": "assets/images/img15.jpg",
+            "locationShort": "1 km",
+            "favMeetupType": "Drinks",
+            "time": "2026-03-18T20:00:00",
+            "location": "The Rooftop Bar",
+            "distanceKm": 5.4,
+            "type": "Drinks",
+            "status": "Open",
+            "icon": "assets/icons/drinks_icon.png",
+            "isFavorite": true,
+            "description": "Chill evening drinks.",
+            "languages": [
+                "English",
+                "Spanish"
+            ],
+            "interests": [
+                "Music",
+                "Art"
+            ]
+        }
+    ],
+    "chats": [
+        {
+            "name": "Jessica",
+            "message": "Let's meet near the entrance...",
+            "time": "09:00",
+            "avatarUrl": "",
+            "status": "accepted",
+            "type": "Coffe"
+        },
+        {
+            "name": "Michael",
+            "message": "Sounds good, see you there.",
+            "time": "09:05",
+            "avatarUrl": "",
+            "status": "rejected",
+            "type": "Drinks"
+        },
+        {
+            "name": "David",
+            "message": "I'll bring the book I'm reading.",
+            "time": "12:00",
+            "avatarUrl": "",
+            "status": "requested",
+            "type": "Meals"
+        },
+        {
+            "name": "Alex",
+            "message": "Works for me",
+            "time": "12:15",
+            "avatarUrl": "",
+            "status": "none",
+            "type": "Drinks"
+        },
+        {
+            "name": "Priya",
+            "message": "Looking forward to it.",
+            "time": "12:15",
+            "avatarUrl": "",
+            "status": "none",
+            "type": "Drinks"
+        },
+        {
+            "name": "Arjun",
+            "message": "Let's discuss the agenda.",
+            "time": "12:15",
+            "avatarUrl": "",
+            "status": "none",
+            "type": "Coffe"
+        },
+        {
+            "name": "Maya",
+            "message": "I'll bring the dessert!",
+            "time": "12:15",
+            "avatarUrl": "",
+            "status": "none",
+            "type": "Coffe"
+        }
+    ]
+}

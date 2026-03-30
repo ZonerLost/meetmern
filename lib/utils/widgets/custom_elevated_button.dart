@@ -28,6 +28,7 @@ class CustomElevatedButton extends StatelessWidget {
     this.margin,
     this.elevation = 2.0,
   });
+
   final BoxDecoration? decoration;
   final Widget? leftIcon;
   final Widget? rightIcon;
@@ -50,6 +51,7 @@ class CustomElevatedButton extends StatelessWidget {
   final double? width;
   final EdgeInsetsGeometry? margin;
   final double elevation;
+
   @override
   Widget build(BuildContext context) {
     final DimensionResource dimension = DimensionResource();
@@ -58,19 +60,14 @@ class CustomElevatedButton extends StatelessWidget {
     final double finalHeight = (height ?? dimension.d56).toDouble();
     final double? finalWidth = width;
 
-    final bool disabled = isDisabled;
+    final bool disabled = isDisabled || onPressed == null;
 
-    /// BUTTON TEXT
     final String label =
         disabled ? (inactiveText ?? text) : (activeText ?? text);
 
-    /// BUTTON COLOR
     final Color enabledColor = activeColor ?? appTheme.b_Primary;
-
-    final Color defaultDisabledBg = (appTheme.neutral_200 != null)
-        ? appTheme.neutral_200
-        : enabledColor.withOpacity(0.35);
-
+    final Color defaultDisabledBg =
+        appTheme.neutral_200 ?? enabledColor.withOpacity(0.35);
     final Color resolvedDisabledBg =
         inactiveColor ?? disabledColor ?? defaultDisabledBg;
 
@@ -83,29 +80,20 @@ class CustomElevatedButton extends StatelessWidget {
         disabledTextColor ??
         Colors.white.withOpacity(0.75);
 
-    final ButtonStyle resolvedStyle = ButtonStyle(
-      minimumSize: WidgetStateProperty.all(
-          Size(finalWidth ?? double.infinity, finalHeight)),
-      padding: WidgetStateProperty.all(
-          EdgeInsets.symmetric(horizontal: dimension.d16)),
-      elevation: WidgetStateProperty.resolveWith<double>(
-        (states) => states.contains(WidgetState.disabled) ? 0 : elevation,
-      ),
-      shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-        RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(dimension.d100)),
-      ),
-      backgroundColor: WidgetStateProperty.resolveWith<Color>(
-        (states) => states.contains(WidgetState.disabled)
-            ? resolvedDisabledBg
-            : enabledColor,
-      ),
-      foregroundColor: WidgetStateProperty.resolveWith<Color>(
-        (states) => states.contains(WidgetState.disabled)
-            ? resolvedDisabledText
-            : resolvedEnabledText,
-      ),
-    );
+    // IMPORTANT:
+    // If buttonStyle is provided, do not override its background, shape, or padding.
+    // Only apply a default style when buttonStyle is null.
+    final ButtonStyle resolvedStyle = buttonStyle ??
+        ElevatedButton.styleFrom(
+          minimumSize: Size(finalWidth ?? double.infinity, finalHeight),
+          padding: EdgeInsets.symmetric(horizontal: dimension.d16),
+          elevation: elevation,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(dimension.d100),
+          ),
+          backgroundColor: enabledColor,
+          foregroundColor: resolvedEnabledText,
+        );
 
     Widget button = Container(
       margin: margin,
@@ -125,9 +113,10 @@ class CustomElevatedButton extends StatelessWidget {
           },
           child: ElevatedButton(
             onPressed: disabled ? null : onPressed,
-            style: buttonStyle ?? resolvedStyle,
+            style: resolvedStyle,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.max,
               children: [
                 if (leftIcon != null)
                   Padding(

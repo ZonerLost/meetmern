@@ -3,9 +3,13 @@ import 'package:flutter/material.dart';
 class LightCodeColors {
   Color get borderColor => const Color(0xFFCFCFCF);
   Color get forgotPasswordColor => const Color(0xFFD83AF0);
+  Color get accentsgreen => const Color(0xFF34C759);
   Color get infieldColor => const Color(0xFFFCFCFC);
   Color get b_Primary => const Color(0xFF7D3AF0);
+  Color get orange => const Color(0xFFFE5E29);
   Color get c_Red => const Color(0xFF3A52F0);
+  Color get redshade => const Color(0xffffffe6e6);
+
   Color get b_900 => const Color(0xFF4C1B97);
   Color get b_800 => const Color(0xFF5A1FB8);
   Color get b_700 => const Color(0xFF6C25DC);
