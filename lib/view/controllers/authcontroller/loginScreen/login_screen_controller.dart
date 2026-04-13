@@ -1,0 +1,48 @@
+﻿import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:meetmern/core/constants/app_strings.dart';
+import 'package:meetmern/core/extensions/validation_extention.dart';
+
+class AuthScreensLoginScreenLoginScreenController extends GetxController {
+  final Strings _strings = const Strings();
+
+  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
+  bool isObscure = true;
+
+  void togglePasswordVisibility() {
+    isObscure = !isObscure;
+    update();
+  }
+
+  String? validateEmail(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return _strings.pleaseEnterYourEmailText;
+    }
+    if (!value.isValidEmail) {
+      return _strings.enterValidEmailText;
+    }
+    return null;
+  }
+
+  String? validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return _strings.pleaseEnterPasswordText;
+    }
+    if (value.length < 6) {
+      return _strings.passwordMinLengthText;
+    }
+    return null;
+  }
+
+  bool validateForm() => formKey.currentState?.validate() ?? false;
+
+  @override
+  void onClose() {
+    emailController.dispose();
+    passwordController.dispose();
+    super.onClose();
+  }
+}
