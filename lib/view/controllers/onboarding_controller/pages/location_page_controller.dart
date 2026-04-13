@@ -1,12 +1,11 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 
-class OnboardingScreensPagesLocationPageController extends GetxController {
+class LocationPageController extends GetxController {
   bool loading = false;
 
   Future<void> enableLocation() async {
     loading = true;
     update();
-
     try {
       await Future<void>.delayed(const Duration(milliseconds: 600));
     } finally {

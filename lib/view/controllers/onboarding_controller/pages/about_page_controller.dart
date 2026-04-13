@@ -1,14 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class OnboardingScreensPagesAboutPageController extends GetxController {
-  bool isStepValid({
-    required String? children,
-    required String? relationship,
-  }) {
-    return (children != null && children.trim().isNotEmpty) &&
-        (relationship != null && relationship.trim().isNotEmpty);
-  }
+class AboutPageController extends GetxController {
+  bool isStepValid({required String? children, required String? relationship}) =>
+      (children != null && children.trim().isNotEmpty) &&
+      (relationship != null && relationship.trim().isNotEmpty);
 
   String? validateBio(String? value, {required bool showErrors}) {
     if (!showErrors) return null;
@@ -17,7 +13,5 @@ class OnboardingScreensPagesAboutPageController extends GetxController {
     return null;
   }
 
-  void focusNext(BuildContext context) {
-    FocusScope.of(context).nextFocus();
-  }
+  void focusNext(BuildContext context) => FocusScope.of(context).nextFocus();
 }

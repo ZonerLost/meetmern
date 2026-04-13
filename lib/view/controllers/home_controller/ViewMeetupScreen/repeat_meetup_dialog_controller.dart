@@ -1,10 +1,9 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 
-class HomeScreensViewMeetupScreenRepeatMeetupDialogController
-    extends GetxController {
+class RepeatMeetupDialogController extends GetxController {
   int selectedTypeIndex = -1;
 
   final TextEditingController addressController = TextEditingController();
@@ -16,9 +15,8 @@ class HomeScreensViewMeetupScreenRepeatMeetupDialogController
     update();
   }
 
-  String formatDate(DateTime d) {
-    return '${d.day} ${Strings.monthNames[d.month - 1]} ${d.year}';
-  }
+  String formatDate(DateTime d) =>
+      '${d.day} ${Strings.monthNames[d.month - 1]} ${d.year}';
 
   String formatTime(TimeOfDay t) {
     final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
@@ -27,12 +25,11 @@ class HomeScreensViewMeetupScreenRepeatMeetupDialogController
     return '$hour:$minute $period';
   }
 
-  bool get isValid {
-    return selectedTypeIndex != -1 &&
-        addressController.text.trim().isNotEmpty &&
-        dateController.text.trim().isNotEmpty &&
-        timeController.text.trim().isNotEmpty;
-  }
+  bool get isValid =>
+      selectedTypeIndex != -1 &&
+      addressController.text.trim().isNotEmpty &&
+      dateController.text.trim().isNotEmpty &&
+      timeController.text.trim().isNotEmpty;
 
   void toggleType(int index) {
     selectedTypeIndex = selectedTypeIndex == index ? -1 : index;

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/chat_model.dart';
 
@@ -9,7 +9,7 @@ class ChatMessageItem {
   const ChatMessageItem({required this.text, required this.isMe});
 }
 
-class ChatScreensMessageScreenController extends GetxController {
+class MessageController extends GetxController {
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
   final FocusNode focusNode = FocusNode();
@@ -23,18 +23,8 @@ class ChatScreensMessageScreenController extends GetxController {
     chat = initialChat;
     messages
       ..clear()
-      ..add(
-        ChatMessageItem(
-          text: incoming ?? 'Hi, nice to connect with you.',
-          isMe: false,
-        ),
-      )
-      ..add(
-        ChatMessageItem(
-          text: outgoing ?? 'Great, looking forward to meetup.',
-          isMe: true,
-        ),
-      );
+      ..add(ChatMessageItem(text: incoming ?? 'Hi, nice to connect with you.', isMe: false))
+      ..add(ChatMessageItem(text: outgoing ?? 'Great, looking forward to meetup.', isMe: true));
 
     messageController.addListener(_onTextChanged);
     focusNode.addListener(_onFocusChanged);
@@ -74,14 +64,9 @@ class ChatScreensMessageScreenController extends GetxController {
   void sendMessage() {
     final text = messageController.text.trim();
     if (text.isEmpty) return;
-
     messages.add(ChatMessageItem(text: text, isMe: true));
     messageController.clear();
-
-    if (!focusNode.hasFocus) {
-      focusNode.requestFocus();
-    }
-
+    if (!focusNode.hasFocus) focusNode.requestFocus();
     update();
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
   }
@@ -94,7 +79,6 @@ class ChatScreensMessageScreenController extends GetxController {
 
   void scrollToBottom() {
     if (!scrollController.hasClients) return;
-
     try {
       scrollController.animateTo(
         scrollController.position.maxScrollExtent,
@@ -110,7 +94,6 @@ class ChatScreensMessageScreenController extends GetxController {
   void onClose() {
     messageController.removeListener(_onTextChanged);
     focusNode.removeListener(_onFocusChanged);
-
     messageController.dispose();
     scrollController.dispose();
     focusNode.dispose();

@@ -1,11 +1,10 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/service/api_s.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 
-class UserProfileScreensViewProfileScreensViewProfilController
-    extends GetxController {
+class ViewProfileController extends GetxController {
   final Strings strings = const Strings();
 
   String profileName = '';
@@ -43,7 +42,6 @@ class UserProfileScreensViewProfileScreensViewProfilController
   Future<void> loadMeetups() async {
     loading = true;
     update();
-
     try {
       allMeetups = await MockApi.fetchMeetups();
     } finally {
@@ -54,20 +52,14 @@ class UserProfileScreensViewProfileScreensViewProfilController
 
   List<Meetup> get visibleMeetups {
     final hostMeetups = allMeetups
-        .where(
-          (m) =>
-              m.hostName.toLowerCase().trim() ==
-              profileName.toLowerCase().trim(),
-        )
+        .where((m) => m.hostName.toLowerCase().trim() == profileName.toLowerCase().trim())
         .toList();
-
     return hostMeetups.isNotEmpty ? hostMeetups : allMeetups;
   }
 
   void toggleFavorite(String id) {
     final idx = allMeetups.indexWhere((m) => m.id == id);
     if (idx < 0) return;
-
     allMeetups[idx].isFavorite = !allMeetups[idx].isFavorite;
     update();
   }
@@ -88,18 +80,12 @@ class UserProfileScreensViewProfileScreensViewProfilController
     passionTopics = result['passionTopics']?.toString() ?? passionTopics;
 
     final langs = result['languages'];
-    if (langs is List<String>) {
-      languages = langs;
-    } else if (langs is List<dynamic>) {
-      languages = langs.map((e) => e.toString()).toList();
-    }
+    if (langs is List<String>) { languages = langs; }
+    else if (langs is List<dynamic>) { languages = langs.map((e) => e.toString()).toList(); }
 
     final ints = result['interests'];
-    if (ints is List<String>) {
-      interests = ints;
-    } else if (ints is List<dynamic>) {
-      interests = ints.map((e) => e.toString()).toList();
-    }
+    if (ints is List<String>) { interests = ints; }
+    else if (ints is List<dynamic>) { interests = ints.map((e) => e.toString()).toList(); }
 
     update();
   }

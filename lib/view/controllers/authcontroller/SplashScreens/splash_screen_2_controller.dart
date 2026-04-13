@@ -1,6 +1,6 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 
-class AuthScreensSplashScreensSplashScreen2Controller extends GetxController {
+class Splash2Controller extends GetxController {
   bool isBusy = false;
 
   void setBusy(bool value) {

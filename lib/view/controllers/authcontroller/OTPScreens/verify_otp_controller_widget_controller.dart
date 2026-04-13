@@ -1,11 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-class AuthScreensOTPScreensVerifyOtpControllerWidgetController
-    extends GetxController {
+class OtpWidgetController extends GetxController {
   final int length;
 
-  AuthScreensOTPScreensVerifyOtpControllerWidgetController({this.length = 5});
+  OtpWidgetController({this.length = 5});
 
   late final List<TextEditingController> otpControllers;
   late final List<FocusNode> focusNodes;
@@ -20,7 +19,6 @@ class AuthScreensOTPScreensVerifyOtpControllerWidgetController
   }
 
   String get otp => otpControllers.map((c) => c.text).join();
-
   bool get isComplete => otp.length == length;
 
   void setError(bool value) {
@@ -29,9 +27,7 @@ class AuthScreensOTPScreensVerifyOtpControllerWidgetController
   }
 
   void reset() {
-    for (final controller in otpControllers) {
-      controller.clear();
-    }
+    for (final c in otpControllers) c.clear();
     hasError = false;
     update();
   }
@@ -42,18 +38,15 @@ class AuthScreensOTPScreensVerifyOtpControllerWidgetController
       for (int i = 0; i < length; i++) {
         otpControllers[i].text = i < pasted.length ? pasted[i] : '';
       }
-
-      final int nextIndex = pasted.length >= length ? length - 1 : pasted.length;
+      final nextIndex = pasted.length >= length ? length - 1 : pasted.length;
       if (nextIndex < focusNodes.length) {
         focusNodes[nextIndex].requestFocus();
       } else {
         FocusScope.of(context).unfocus();
       }
-
       update();
       return;
     }
-
     if (value.isNotEmpty) {
       if (index + 1 < focusNodes.length) {
         focusNodes[index + 1].requestFocus();
@@ -63,18 +56,13 @@ class AuthScreensOTPScreensVerifyOtpControllerWidgetController
     } else if (index - 1 >= 0) {
       focusNodes[index - 1].requestFocus();
     }
-
     update();
   }
 
   @override
   void onClose() {
-    for (final c in otpControllers) {
-      c.dispose();
-    }
-    for (final f in focusNodes) {
-      f.dispose();
-    }
+    for (final c in otpControllers) c.dispose();
+    for (final f in focusNodes) f.dispose();
     super.onClose();
   }
 }

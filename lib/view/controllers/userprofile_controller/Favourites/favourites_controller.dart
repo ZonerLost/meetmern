@@ -2,7 +2,7 @@ import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/service/meetup_store.dart';
 
-class UserProfileScreensFavouritesFavouritesController extends GetxController {
+class FavouritesController extends GetxController {
   final MeetupStore _store = MeetupStore.instance;
 
   bool isLoading = true;

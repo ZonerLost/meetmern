@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
-import 'package:meetmern/view/screens/ChatScreens/chat_screen.dart';
-import 'package:meetmern/view/screens/HomeScreens/CreateMeetupScreen/create_meetup.dart';
-import 'package:meetmern/view/screens/HomeScreens/FilterScreen/filter_screen.dart';
-import 'package:meetmern/view/screens/HomeScreens/ViewMeetupScreen/view_meetup_screen.dart';
+import 'package:meetmern/view/screens/chatscreens/chat_screen.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
+import 'package:meetmern/view/screens/homescreens/FilterScreen/filter_screen.dart';
+import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_screen.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ManageAds/ads_screen.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ProfileMenuItemsScreens/personal_profile.dart';
@@ -26,8 +26,7 @@ class ExploreMeetupsScreen extends StatefulWidget {
 }
 
 class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
-  final HomeScreensExploreScreenExploreMeetupsScreenController _controller =
-      Get.find<HomeScreensExploreScreenExploreMeetupsScreenController>();
+  final ExploreController _controller = Get.find<ExploreController>();
 
   @override
   void initState() {
@@ -136,8 +135,7 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
         child: Icon(Icons.add, color: appTheme.coreWhite),
       ),
       body: SafeArea(
-        child:
-            GetBuilder<HomeScreensExploreScreenExploreMeetupsScreenController>(
+        child: GetBuilder<ExploreController>(
           builder: (controller) {
             if (controller.loading) {
               return const Center(child: CircularProgressIndicator());
@@ -269,3 +267,4 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
     );
   }
 }
+

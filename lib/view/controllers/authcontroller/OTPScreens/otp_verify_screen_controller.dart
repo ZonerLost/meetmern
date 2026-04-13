@@ -1,31 +1,28 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:meetmern/view/controllers/authcontroller/OTPScreens/verify_otp_controller_widget_controller.dart';
 
-class AuthScreensOTPScreensOtpVerifyScreenController extends GetxController {
-  late final AuthScreensOTPScreensVerifyOtpControllerWidgetController
-      otpController;
+class OtpVerifyController extends GetxController {
+  late final OtpWidgetController otpWidgetController;
 
   Timer? _timer;
   int resendSeconds = 30;
   bool isVerifying = false;
 
   bool get canResend => resendSeconds == 0;
-  bool get canVerify => otpController.isComplete && !isVerifying;
+  bool get canVerify => otpWidgetController.isComplete && !isVerifying;
 
   @override
   void onInit() {
     super.onInit();
-    otpController =
-        Get.find<AuthScreensOTPScreensVerifyOtpControllerWidgetController>();
+    otpWidgetController = Get.find<OtpWidgetController>();
     _startResendCountdown();
   }
 
   void _startResendCountdown() {
     _timer?.cancel();
     resendSeconds = 30;
-
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (resendSeconds == 0) {
         timer.cancel();
@@ -34,29 +31,23 @@ class AuthScreensOTPScreensOtpVerifyScreenController extends GetxController {
         update();
       }
     });
-
     update();
   }
 
   Future<bool> verifyOtp() async {
     if (!canVerify) return false;
-
     isVerifying = true;
     update();
-
     await Future<void>.delayed(const Duration(milliseconds: 450));
-
-    final isValid = otpController.otp.length == otpController.length;
-    otpController.setError(!isValid);
-
+    final isValid = otpWidgetController.otp.length == otpWidgetController.length;
+    otpWidgetController.setError(!isValid);
     isVerifying = false;
     update();
-
     return isValid;
   }
 
   void resendCode() {
-    otpController.reset();
+    otpWidgetController.reset();
     _startResendCountdown();
   }
 

@@ -17,8 +17,7 @@ class FavouritesScreen extends StatefulWidget {
 }
 
 class _FavouritesScreenState extends State<FavouritesScreen> {
-  final UserProfileScreensFavouritesFavouritesController _controller =
-      Get.find<UserProfileScreensFavouritesFavouritesController>();
+  final FavouritesController _controller = Get.find<FavouritesController>();
 
   @override
   void initState() {
@@ -139,8 +138,7 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
             ),
             SizedBox(height: dimension.d16.h),
             Expanded(
-              child:
-                  GetBuilder<UserProfileScreensFavouritesFavouritesController>(
+              child: GetBuilder<FavouritesController>(
                 builder: (controller) {
                   if (controller.isLoading) {
                     return Center(

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
-import 'package:meetmern/view/screens/HomeScreens/CreateMeetupScreen/create_meetup.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/meetup_draft.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ProfileMenuItemsScreens/personal_profile.dart';
 import 'package:meetmern/core/extensions/date_picker_extension.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';

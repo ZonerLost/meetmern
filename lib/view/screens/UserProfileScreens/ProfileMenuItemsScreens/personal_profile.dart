@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:meetmern/view/screens/ChatScreens/chat_screen.dart';
-import 'package:meetmern/view/screens/UserProfileScreens/Favourites/favourites.dart';
-import 'package:meetmern/view/screens/UserProfileScreens/ManageAds/ads_screen.dart';
-import 'package:meetmern/view/screens/UserProfileScreens/ProfileMenuItemsScreens/personal_profile_setting.dart';
-import 'package:meetmern/view/screens/UserProfileScreens/ProfileMenuItemsScreens/setting.dart';
+import 'package:meetmern/view/screens/chatscreens/chat_screen.dart';
+import 'package:meetmern/view/screens/userprofilescreens/Favourites/favourites.dart';
+import 'package:meetmern/view/screens/userprofilescreens/ManageAds/ads_screen.dart';
+import 'package:meetmern/view/screens/userprofilescreens/ProfileMenuItemsScreens/personal_profile_setting.dart';
+import 'package:meetmern/view/screens/userprofilescreens/ProfileMenuItemsScreens/setting.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';

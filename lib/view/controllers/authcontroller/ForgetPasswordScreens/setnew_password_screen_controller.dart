@@ -1,15 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 
-class AuthScreensForgetPasswordScreensSetnewPasswordScreenController
-    extends GetxController {
+class ResetPasswordController extends GetxController {
   final Strings _strings = const Strings();
 
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController newPasswordController = TextEditingController();
-  final TextEditingController confirmPasswordController =
-      TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
 
   bool isObscure1 = true;
   bool isObscure2 = true;
@@ -25,19 +23,13 @@ class AuthScreensForgetPasswordScreensSetnewPasswordScreenController
   }
 
   String? validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return _strings.pleaseEnterPasswordText;
-    }
+    if (value == null || value.isEmpty) return _strings.pleaseEnterPasswordText;
     return null;
   }
 
   String? validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return _strings.pleaseEnterPasswordText;
-    }
-    if (value != newPasswordController.text) {
-      return _strings.passwordNotMatch;
-    }
+    if (value == null || value.isEmpty) return _strings.pleaseEnterPasswordText;
+    if (value != newPasswordController.text) return _strings.passwordNotMatch;
     return null;
   }
 

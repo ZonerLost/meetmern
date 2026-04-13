@@ -1,6 +1,6 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 
-class OnboardingScreensPagesOnboardingTopbarController extends GetxController {
+class OnboardingTopbarController extends GetxController {
   int current = 0;
   int total = 6;
 

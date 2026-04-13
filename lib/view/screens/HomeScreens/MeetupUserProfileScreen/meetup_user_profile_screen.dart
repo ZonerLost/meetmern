@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/MeetupUserProfileScreen/meetup_user_profile_screen_controller.dart';
-import 'package:meetmern/view/screens/HomeScreens/RequestMeetupScreen/request_meetup_screen.dart';
-import 'package:meetmern/view/screens/HomeScreens/ViewMeetupScreen/view_meetup_screen.dart';
+import 'package:meetmern/view/screens/homescreens/RequestMeetupScreen/request_meetup_screen.dart';
+import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_screen.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/pages/onboarding_topbar.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ProfileMenuItemsScreens/personal_profile.dart';
 import 'package:meetmern/core/constants/dimension_resource.dart';
@@ -33,9 +33,7 @@ class MeetupUserProfileScreen extends StatefulWidget {
 }
 
 class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
-  final HomeScreensMeetupUserProfileScreenMeetupUserProfileScreenController
-      _controller = Get.find<
-          HomeScreensMeetupUserProfileScreenMeetupUserProfileScreenController>();
+  final MeetupUserProfileController _controller = Get.find<MeetupUserProfileController>();
   final dimension = DimensionResource();
   final strings = const Strings();
 
@@ -76,8 +74,7 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
       theme: customThemeData,
     );
 
-    return GetBuilder<
-        HomeScreensMeetupUserProfileScreenMeetupUserProfileScreenController>(
+    return GetBuilder<MeetupUserProfileController>(
       builder: (controller) {
         final currentMeetup = _controller.meetup ?? widget.meetup;
 
@@ -276,3 +273,4 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
     );
   }
 }
+

@@ -1,4 +1,4 @@
-﻿import 'dart:typed_data';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -8,20 +8,15 @@ class FeedbackAttachment {
   final Uint8List bytes;
   final String? name;
 
-  const FeedbackAttachment({
-    required this.bytes,
-    this.name,
-  });
+  const FeedbackAttachment({required this.bytes, this.name});
 }
 
-class UserProfileScreensFeedbackSupportFeedbackSupportController
-    extends GetxController {
+class FeedbackSupportController extends GetxController {
   final TextEditingController titleController = TextEditingController();
   final TextEditingController descriptionController = TextEditingController();
   final FocusNode descriptionFocusNode = FocusNode();
 
-  final List<String> types =
-      <String>['Bug', 'Account', 'Feature request', 'Other'];
+  final List<String> types = <String>['Bug', 'Account', 'Feature request', 'Other'];
   final List<String> urgencies = <String>['Low', 'Medium', 'High'];
 
   final ImagePicker picker = ImagePicker();
@@ -30,12 +25,11 @@ class UserProfileScreensFeedbackSupportFeedbackSupportController
   String? urgency;
   List<FeedbackAttachment> attachments = <FeedbackAttachment>[];
 
-  bool get canSubmit {
-    return titleController.text.trim().isNotEmpty &&
-        descriptionController.text.trim().isNotEmpty &&
-        (type != null && type!.trim().isNotEmpty) &&
-        (urgency != null && urgency!.trim().isNotEmpty);
-  }
+  bool get canSubmit =>
+      titleController.text.trim().isNotEmpty &&
+      descriptionController.text.trim().isNotEmpty &&
+      (type != null && type!.trim().isNotEmpty) &&
+      (urgency != null && urgency!.trim().isNotEmpty);
 
   @override
   void onInit() {
@@ -47,38 +41,23 @@ class UserProfileScreensFeedbackSupportFeedbackSupportController
 
   void _onFieldChanged() => update();
 
-  void setType(String? value) {
-    type = value;
-    update();
-  }
-
-  void setUrgency(String? value) {
-    urgency = value;
-    update();
-  }
+  void setType(String? value) { type = value; update(); }
+  void setUrgency(String? value) { urgency = value; update(); }
 
   Future<void> pickImages() async {
     final List<XFile> picked = await picker.pickMultiImage(imageQuality: 80);
     if (picked.isEmpty) return;
-
     final List<FeedbackAttachment> converted = await Future.wait(
-      picked.map(
-        (x) async => FeedbackAttachment(bytes: await x.readAsBytes(), name: x.name),
-      ),
+      picked.map((x) async => FeedbackAttachment(bytes: await x.readAsBytes(), name: x.name)),
     );
-
     attachments.addAll(converted);
     update();
   }
 
   Future<void> takePhoto() async {
-    final XFile? photo =
-        await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+    final XFile? photo = await picker.pickImage(source: ImageSource.camera, imageQuality: 80);
     if (photo == null) return;
-
-    attachments.add(
-      FeedbackAttachment(bytes: await photo.readAsBytes(), name: photo.name),
-    );
+    attachments.add(FeedbackAttachment(bytes: await photo.readAsBytes(), name: photo.name));
     update();
   }
 
@@ -102,7 +81,6 @@ class UserProfileScreensFeedbackSupportFeedbackSupportController
     titleController.removeListener(_onFieldChanged);
     descriptionController.removeListener(_onFieldChanged);
     descriptionFocusNode.removeListener(_onFieldChanged);
-
     titleController.dispose();
     descriptionController.dispose();
     descriptionFocusNode.dispose();

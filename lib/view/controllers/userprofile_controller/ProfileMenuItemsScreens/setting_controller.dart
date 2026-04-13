@@ -1,7 +1,6 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 
-class UserProfileScreensProfileMenuItemsScreensSettingController
-    extends GetxController {
+class SettingController extends GetxController {
   bool logoutRequested = false;
 
   final List<String> menuOrder = const <String>[
@@ -13,13 +12,6 @@ class UserProfileScreensProfileMenuItemsScreensSettingController
     'Logout',
   ];
 
-  void requestLogout() {
-    logoutRequested = true;
-    update();
-  }
-
-  void clearLogoutRequest() {
-    logoutRequested = false;
-    update();
-  }
+  void requestLogout() { logoutRequested = true; update(); }
+  void clearLogoutRequest() { logoutRequested = false; update(); }
 }

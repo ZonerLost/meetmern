@@ -1,9 +1,8 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 
-class UserProfileScreensManageAdsDeleteMeetupScreenController
-    extends GetxController {
+class DeleteMeetupController extends GetxController {
   final Strings _strings = const Strings();
 
   Meetup? meetup;

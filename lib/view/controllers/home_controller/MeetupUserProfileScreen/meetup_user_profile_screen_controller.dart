@@ -2,8 +2,7 @@ import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/service/meetup_store.dart';
 
-class HomeScreensMeetupUserProfileScreenMeetupUserProfileScreenController
-    extends GetxController {
+class MeetupUserProfileController extends GetxController {
   final MeetupStore _store = MeetupStore.instance;
 
   Meetup? meetup;
@@ -26,9 +25,7 @@ class HomeScreensMeetupUserProfileScreenMeetupUserProfileScreenController
 
   Meetup get currentMeetup {
     final m = meetup;
-    if (m == null) {
-      throw StateError('Meetup controller is not initialized');
-    }
+    if (m == null) throw StateError('Meetup controller is not initialized');
     return _store.byId(m.id) ?? m;
   }
 

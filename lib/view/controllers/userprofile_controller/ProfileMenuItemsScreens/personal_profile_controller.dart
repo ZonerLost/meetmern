@@ -1,4 +1,4 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 
 class ProfileMenuItemData {
   final String title;
@@ -7,8 +7,7 @@ class ProfileMenuItemData {
   const ProfileMenuItemData({required this.title, required this.routeKey});
 }
 
-class UserProfileScreensProfileMenuItemsScreensPersonalProfileController
-    extends GetxController {
+class PersonalProfileController extends GetxController {
   final List<ProfileMenuItemData> menuItems = const <ProfileMenuItemData>[
     ProfileMenuItemData(title: 'Profile', routeKey: 'profile_settings'),
     ProfileMenuItemData(title: 'Messages', routeKey: 'chat'),

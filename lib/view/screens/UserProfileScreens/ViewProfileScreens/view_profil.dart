@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:meetmern/data/service/api_s.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
-import 'package:meetmern/view/screens/HomeScreens/ViewMeetupScreen/view_meetup_screen.dart';
+import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_screen.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/pages/onboarding_topbar.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ManageAds/delete_meetup_screen.dart';
@@ -347,3 +347,4 @@ class _ViewProfileScreenState extends State<ViewProfileScreen> {
     );
   }
 }
+

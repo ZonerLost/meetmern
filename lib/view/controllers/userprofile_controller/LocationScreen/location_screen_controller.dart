@@ -1,9 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 
-class UserProfileScreensLocationScreenLocationScreenController
-    extends GetxController {
+class LocationScreenController extends GetxController {
   final Strings strings = const Strings();
 
   final TextEditingController locationController =

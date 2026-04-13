@@ -1,24 +1,14 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:get/get.dart';
-import 'package:meetmern/core/constants/dimension_resource.dart';
 
-class AuthScreensSplashScreensSplashScreen1Controller extends GetxController {
-  final DimensionResource _constants = DimensionResource();
-
+class SplashController extends GetxController {
   Timer? _timer;
-  bool didTimeout = false;
-
-  int get splashSeconds => 5;
 
   void startTimer(VoidCallback onDone) {
     _timer?.cancel();
-    _timer = Timer(Duration(seconds: splashSeconds), () {
-      didTimeout = true;
-      update();
-      onDone();
-    });
+    _timer = Timer(const Duration(seconds: 5), onDone);
   }
 
   @override

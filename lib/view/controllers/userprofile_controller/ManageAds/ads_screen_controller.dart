@@ -1,24 +1,21 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/service/api_s.dart';
 
-class UserProfileScreensManageAdsAdsScreenController extends GetxController {
+class AdsScreenController extends GetxController {
   List<Meetup> meetups = <Meetup>[];
   bool isLoading = true;
 
   Future<void> loadMeetups({Meetup? initialMeetup}) async {
     isLoading = true;
     update();
-
     try {
       final List<Meetup> data = await MockApi.fetchMeetups();
       final List<Meetup> merged = List<Meetup>.from(data);
-
       if (initialMeetup != null) {
         merged.removeWhere((m) => m.id == initialMeetup.id);
         merged.insert(0, initialMeetup);
       }
-
       meetups = merged;
     } finally {
       isLoading = false;

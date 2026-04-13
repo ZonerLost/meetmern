@@ -1,9 +1,9 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/data/service/api_s.dart';
 
-class ChatScreensChatScreenController extends GetxController {
+class ChatListController extends GetxController {
   final Strings _strings = const Strings();
 
   List<Chat> items = <Chat>[];
@@ -20,7 +20,6 @@ class ChatScreensChatScreenController extends GetxController {
     isLoading = true;
     error = null;
     update();
-
     try {
       items = await MockApi.fetchChats();
     } catch (_) {

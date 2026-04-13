@@ -1,4 +1,4 @@
-﻿import 'dart:io';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -6,8 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_model.dart';
 
-class OnboardingScreensOnboardingScreenOnboardingScreenController
-    extends GetxController {
+class OnboardingController extends GetxController {
   final PageController pageController = PageController();
   final OnboardingModel model = OnboardingModel();
 
@@ -48,8 +47,7 @@ class OnboardingScreensOnboardingScreenOnboardingScreenController
 
   Future<void> pickImage() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? file =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
+    final XFile? file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (file != null) {
       pickedImage = File(file.path);
       update();
@@ -63,25 +61,14 @@ class OnboardingScreensOnboardingScreenOnboardingScreenController
 
   bool isValidForPage(int page) {
     if (page == 0) {
-      final dobOk = dobController.text.trim().isNotEmpty;
-      final genderOk = selectedGender != null;
-      final ethnicityOk = selectedEthnicity != null;
-      final orientationOk = selectedOrientation != null;
-      return dobOk && genderOk && ethnicityOk && orientationOk;
+      return dobController.text.trim().isNotEmpty &&
+          selectedGender != null &&
+          selectedEthnicity != null &&
+          selectedOrientation != null;
     }
-
     if (page == 1) return true;
-
-    if (page == 2) {
-      final relationshipOk = selectedRelationship != null;
-      final childrenOk = selectedChildren != null;
-      return relationshipOk && childrenOk;
-    }
-
-    if (page == 3) {
-      return selectedInterests.isNotEmpty || selectedPassions.isNotEmpty;
-    }
-
+    if (page == 2) return selectedRelationship != null && selectedChildren != null;
+    if (page == 3) return selectedInterests.isNotEmpty || selectedPassions.isNotEmpty;
     return true;
   }
 
@@ -98,22 +85,14 @@ class OnboardingScreensOnboardingScreenOnboardingScreenController
 
   void onBack() {
     if (currentPage == 0) return;
-
-    pageController.previousPage(
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-
+    pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     showErrors = false;
     update();
   }
 
   void onNextPressed() {
     showErrors = true;
-    if (!isValidForPage(currentPage)) {
-      update();
-      return;
-    }
+    if (!isValidForPage(currentPage)) { update(); return; }
 
     if (currentPage == 0) {
       model.dob = dobController.text;
@@ -135,70 +114,27 @@ class OnboardingScreensOnboardingScreenOnboardingScreenController
     }
 
     if (currentPage < pages - 1) {
-      pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+      pageController.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     }
-
     update();
   }
 
-  void setGender(String? value) {
-    selectedGender = value;
-    update();
-  }
-
-  void setOrientation(String? value) {
-    selectedOrientation = value;
-    update();
-  }
-
-  void setEthnicity(String? value) {
-    selectedEthnicity = value;
-    update();
-  }
-
-  void setChildren(String? value) {
-    selectedChildren = value;
-    update();
-  }
-
-  void setRelationship(String? value) {
-    selectedRelationship = value;
-    update();
-  }
-
-  void setReligion(String? value) {
-    selectedReligion = value;
-    update();
-  }
-
-  void setLanguages(List<String> values) {
-    selectedLanguages = values;
-    update();
-  }
-
-  void setDietary(List<String> values) {
-    selectedDietary = values;
-    update();
-  }
+  void setGender(String? value) { selectedGender = value; update(); }
+  void setOrientation(String? value) { selectedOrientation = value; update(); }
+  void setEthnicity(String? value) { selectedEthnicity = value; update(); }
+  void setChildren(String? value) { selectedChildren = value; update(); }
+  void setRelationship(String? value) { selectedRelationship = value; update(); }
+  void setReligion(String? value) { selectedReligion = value; update(); }
+  void setLanguages(List<String> values) { selectedLanguages = values; update(); }
+  void setDietary(List<String> values) { selectedDietary = values; update(); }
 
   void toggleInterest(String interest, bool selected) {
-    if (selected) {
-      selectedInterests.add(interest);
-    } else {
-      selectedInterests.remove(interest);
-    }
+    if (selected) { selectedInterests.add(interest); } else { selectedInterests.remove(interest); }
     update();
   }
 
   void togglePassion(String passion, bool selected) {
-    if (selected) {
-      selectedPassions.add(passion);
-    } else {
-      selectedPassions.remove(passion);
-    }
+    if (selected) { selectedPassions.add(passion); } else { selectedPassions.remove(passion); }
     update();
   }
 

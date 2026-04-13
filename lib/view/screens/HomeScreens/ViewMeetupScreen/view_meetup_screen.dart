@@ -1,10 +1,10 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ViewMeetupScreen/view_meetup_screen_controller.dart';
-import 'package:meetmern/view/screens/HomeScreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
-import 'package:meetmern/view/screens/HomeScreens/ViewMeetupScreen/repeat_meetup_dialog.dart';
+import 'package:meetmern/view/screens/homescreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
+import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/repeat_meetup_dialog.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ProfileMenuItemsScreens/personal_profile.dart';
 import 'package:meetmern/core/constants/dimension_resource.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
@@ -26,8 +26,7 @@ class ViewMeetupScreen extends StatefulWidget {
 }
 
 class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
-  final HomeScreensViewMeetupScreenViewMeetupScreenController _controller =
-      Get.find<HomeScreensViewMeetupScreenViewMeetupScreenController>();
+  final ViewMeetupController _controller = Get.find<ViewMeetupController>();
   final dimension = DimensionResource();
   final strings = const Strings();
 
@@ -73,7 +72,7 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
       theme: customThemeData,
     );
 
-    return GetBuilder<HomeScreensViewMeetupScreenViewMeetupScreenController>(
+    return GetBuilder<ViewMeetupController>(
       builder: (controller) {
         final meetup = controller.meetup ?? widget.meetup;
 
@@ -251,3 +250,4 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
     );
   }
 }
+

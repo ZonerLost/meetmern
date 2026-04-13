@@ -3,8 +3,7 @@ import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/service/api_s.dart';
 import 'package:meetmern/data/service/meetup_store.dart';
 
-class HomeScreensExploreScreenExploreMeetupsScreenController
-    extends GetxController {
+class ExploreController extends GetxController {
   final MeetupStore _store = MeetupStore.instance;
 
   List<Nearby> nearby = [];
@@ -15,10 +14,8 @@ class HomeScreensExploreScreenExploreMeetupsScreenController
   Future<void> loadData() async {
     loading = true;
     update();
-
     await _store.load();
     nearby = await MockApi.fetchNearbyPeople();
-
     loading = false;
     update();
   }

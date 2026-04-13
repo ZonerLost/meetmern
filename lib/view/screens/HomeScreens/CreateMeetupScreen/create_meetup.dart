@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
-import 'package:meetmern/view/screens/HomeScreens/CreateMeetupScreen/review_meetup.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/review_meetup.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/meetup_draft.dart';
 import 'package:meetmern/core/extensions/date_picker_extension.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
@@ -9,32 +10,6 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
-
-enum MeetupType { coffee, drink, meal }
-
-class MeetupDraft {
-  MeetupType? type;
-  String address;
-  DateTime? date;
-  TimeOfDay? time;
-  bool repeat;
-  String repeatRule;
-
-  MeetupDraft({
-    this.type,
-    this.address = '',
-    this.date,
-    this.time,
-    this.repeat = false,
-    this.repeatRule = '',
-  });
-
-  DateTime? get dateTime {
-    if (date == null || time == null) return null;
-    return DateTime(
-        date!.year, date!.month, date!.day, time!.hour, time!.minute);
-  }
-}
 
 class CreateMeetupScreen extends StatefulWidget {
   final String? origin;

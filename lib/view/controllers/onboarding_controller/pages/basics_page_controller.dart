@@ -1,16 +1,11 @@
-﻿import 'package:get/get.dart';
+import 'package:get/get.dart';
 
-class OnboardingScreensPagesBasicsPageController extends GetxController {
+class BasicsPageController extends GetxController {
   bool isStepValid({
     required String dob,
     required String? gender,
     required String? ethnicity,
     required String? orientation,
-  }) {
-    final dobOk = dob.trim().isNotEmpty;
-    final genderOk = gender != null;
-    final ethnicityOk = ethnicity != null;
-    final orientationOk = orientation != null;
-    return dobOk && genderOk && ethnicityOk && orientationOk;
-  }
+  }) =>
+      dob.trim().isNotEmpty && gender != null && ethnicity != null && orientation != null;
 }

@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
-import 'package:meetmern/view/screens/HomeScreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
+import 'package:meetmern/view/screens/homescreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/pages/onboarding_topbar.dart';
 import 'package:meetmern/core/constants/dimension_resource.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
@@ -256,3 +256,4 @@ class _ViewMeetupDeleteScreenState extends State<ViewMeetupDeleteScreen> {
     );
   }
 }
+

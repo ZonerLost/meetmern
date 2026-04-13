@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:meetmern/view/screens/HomeScreens/CreateMeetupScreen/create_meetup.dart';
-import 'package:meetmern/view/screens/HomeScreens/ExploreScreen/explore_meetups_screen.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
+import 'package:meetmern/view/screens/homescreens/ExploreScreen/explore_meetups_screen.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_model.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/pages/onboarding_topbar.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
@@ -77,3 +77,4 @@ class FinalPage extends StatelessWidget {
     );
   }
 }
+

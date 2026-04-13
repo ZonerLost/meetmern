@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 
@@ -20,8 +20,7 @@ class CreateMeetupDraftData {
   });
 }
 
-class HomeScreensCreateMeetupScreenCreateMeetupController
-    extends GetxController {
+class CreateMeetupController extends GetxController {
   final TextEditingController addressController = TextEditingController();
   final TextEditingController dateController = TextEditingController();
   final TextEditingController timeController = TextEditingController();
@@ -33,16 +32,14 @@ class HomeScreensCreateMeetupScreenCreateMeetupController
   DateTime? selectedDate;
   TimeOfDay? selectedTime;
 
-  bool get isStepValid {
-    return selectedTypeIndex != -1 &&
-        addressController.text.trim().isNotEmpty &&
-        dateController.text.trim().isNotEmpty &&
-        timeController.text.trim().isNotEmpty;
-  }
+  bool get isStepValid =>
+      selectedTypeIndex != -1 &&
+      addressController.text.trim().isNotEmpty &&
+      dateController.text.trim().isNotEmpty &&
+      timeController.text.trim().isNotEmpty;
 
-  String formatDate(DateTime d) {
-    return '${d.day} ${Strings.monthNames[d.month - 1]} ${d.year}';
-  }
+  String formatDate(DateTime d) =>
+      '${d.day} ${Strings.monthNames[d.month - 1]} ${d.year}';
 
   String formatTime(TimeOfDay t) {
     final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
@@ -60,17 +57,13 @@ class HomeScreensCreateMeetupScreenCreateMeetupController
 
   void setDate(DateTime? date) {
     selectedDate = date;
-    if (date != null) {
-      dateController.text = formatDate(date);
-    }
+    if (date != null) dateController.text = formatDate(date);
     update();
   }
 
   void setTime(TimeOfDay? time) {
     selectedTime = time;
-    if (time != null) {
-      timeController.text = formatTime(time);
-    }
+    if (time != null) timeController.text = formatTime(time);
     update();
   }
 
@@ -84,16 +77,14 @@ class HomeScreensCreateMeetupScreenCreateMeetupController
     update();
   }
 
-  CreateMeetupDraftData buildDraft() {
-    return CreateMeetupDraftData(
-      typeIndex: selectedTypeIndex == -1 ? null : selectedTypeIndex,
-      address: addressController.text.trim(),
-      date: selectedDate,
-      time: selectedTime,
-      repeat: repeat,
-      repeatRule: repeat ? repeatRule : 'Does not repeat',
-    );
-  }
+  CreateMeetupDraftData buildDraft() => CreateMeetupDraftData(
+        typeIndex: selectedTypeIndex == -1 ? null : selectedTypeIndex,
+        address: addressController.text.trim(),
+        date: selectedDate,
+        time: selectedTime,
+        repeat: repeat,
+        repeatRule: repeat ? repeatRule : 'Does not repeat',
+      );
 
   void clearAll() {
     selectedTypeIndex = -1;

@@ -44,134 +44,46 @@ import 'package:meetmern/view/controllers/userprofile_controller/ViewProfileScre
 class AppBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut<AuthScreensForgetPasswordScreensForgetPasswordScreenController>(
-        () => AuthScreensForgetPasswordScreensForgetPasswordScreenController(),
-        fenix: true);
-    Get.lazyPut<AuthScreensForgetPasswordScreensSetnewPasswordScreenController>(
-        () => AuthScreensForgetPasswordScreensSetnewPasswordScreenController(),
-        fenix: true);
-    Get.lazyPut<AuthScreensLoginScreenLoginScreenController>(
-        () => AuthScreensLoginScreenLoginScreenController(),
-        fenix: true);
-    Get.lazyPut<AuthScreensOTPScreensOtpVerifyScreenController>(
-        () => AuthScreensOTPScreensOtpVerifyScreenController(),
-        fenix: true);
-    Get.lazyPut<AuthScreensOTPScreensVerifyOtpControllerWidgetController>(
-        () => AuthScreensOTPScreensVerifyOtpControllerWidgetController(),
-        fenix: true);
-    Get.lazyPut<AuthScreensSignupScreenSignupScreenController>(
-        () => AuthScreensSignupScreenSignupScreenController(),
-        fenix: true);
-    Get.lazyPut<AuthScreensSplashScreensSplashScreen1Controller>(
-        () => AuthScreensSplashScreensSplashScreen1Controller(),
-        fenix: true);
-    Get.lazyPut<AuthScreensSplashScreensSplashScreen2Controller>(
-        () => AuthScreensSplashScreensSplashScreen2Controller(),
-        fenix: true);
-    Get.lazyPut<ChatScreensChatDetailScreenController>(
-        () => ChatScreensChatDetailScreenController(),
-        fenix: true);
-    Get.lazyPut<ChatScreensChatScreenController>(
-        () => ChatScreensChatScreenController(),
-        fenix: true);
-    Get.lazyPut<ChatScreensMessageScreenController>(
-        () => ChatScreensMessageScreenController(),
-        fenix: true);
-    Get.lazyPut<ChatScreensUserMeetupInfoScreenController>(
-        () => ChatScreensUserMeetupInfoScreenController(),
-        fenix: true);
-    Get.lazyPut<HomeScreensCreateMeetupScreenCreateMeetupController>(
-        () => HomeScreensCreateMeetupScreenCreateMeetupController(),
-        fenix: true);
-    Get.lazyPut<HomeScreensCreateMeetupScreenReviewMeetupController>(
-        () => HomeScreensCreateMeetupScreenReviewMeetupController(),
-        fenix: true);
-    Get.lazyPut<HomeScreensExploreScreenExploreMeetupsScreenController>(
-        () => HomeScreensExploreScreenExploreMeetupsScreenController(),
-        fenix: true);
-    Get.lazyPut<HomeScreensFilterScreenFilterScreenController>(
-        () => HomeScreensFilterScreenFilterScreenController(),
-        fenix: true);
-    Get.lazyPut<
-            HomeScreensMeetupUserProfileScreenMeetupUserProfileScreenController>(
-        () =>
-            HomeScreensMeetupUserProfileScreenMeetupUserProfileScreenController(),
-        fenix: true);
-    Get.lazyPut<HomeScreensRequestMeetupScreenRequestMeetupScreenController>(
-        () => HomeScreensRequestMeetupScreenRequestMeetupScreenController(),
-        fenix: true);
-    Get.lazyPut<HomeScreensViewMeetupScreenRepeatMeetupDialogController>(
-        () => HomeScreensViewMeetupScreenRepeatMeetupDialogController(),
-        fenix: true);
-    Get.lazyPut<HomeScreensViewMeetupScreenViewMeetupScreenController>(
-        () => HomeScreensViewMeetupScreenViewMeetupScreenController(),
-        fenix: true);
-    Get.lazyPut<OnboardingScreensOnboardingScreenOnboardingScreenController>(
-        () => OnboardingScreensOnboardingScreenOnboardingScreenController(),
-        fenix: true);
-    Get.lazyPut<OnboardingScreensPagesAboutPageController>(
-        () => OnboardingScreensPagesAboutPageController(),
-        fenix: true);
-    Get.lazyPut<OnboardingScreensPagesBasicsPageController>(
-        () => OnboardingScreensPagesBasicsPageController(),
-        fenix: true);
-    Get.lazyPut<OnboardingScreensPagesFinalPageController>(
-        () => OnboardingScreensPagesFinalPageController(),
-        fenix: true);
-    Get.lazyPut<OnboardingScreensPagesInterestsPageController>(
-        () => OnboardingScreensPagesInterestsPageController(),
-        fenix: true);
-    Get.lazyPut<OnboardingScreensPagesLocationPageController>(
-        () => OnboardingScreensPagesLocationPageController(),
-        fenix: true);
-    Get.lazyPut<OnboardingScreensPagesOnboardingTopbarController>(
-        () => OnboardingScreensPagesOnboardingTopbarController(),
-        fenix: true);
-    Get.lazyPut<OnboardingScreensPagesPhotoPageController>(
-        () => OnboardingScreensPagesPhotoPageController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensAccountPrefrencesAccountPrefrencesController>(
-        () => UserProfileScreensAccountPrefrencesAccountPrefrencesController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensBlockedUserBlockUserController>(
-        () => UserProfileScreensBlockedUserBlockUserController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensFavouritesFavouritesController>(
-        () => UserProfileScreensFavouritesFavouritesController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensFeedbackSupportFeedbackSupportController>(
-        () => UserProfileScreensFeedbackSupportFeedbackSupportController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensLocationScreenLocationScreenController>(
-        () => UserProfileScreensLocationScreenLocationScreenController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensManageAdsAdsScreenController>(
-        () => UserProfileScreensManageAdsAdsScreenController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensManageAdsDeleteMeetupScreenController>(
-        () => UserProfileScreensManageAdsDeleteMeetupScreenController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensNotificationScreensNotificationController>(
-        () => UserProfileScreensNotificationScreensNotificationController(),
-        fenix: true);
-    Get.lazyPut<
-            UserProfileScreensProfileMenuItemsScreensPersonalProfileController>(
-        () =>
-            UserProfileScreensProfileMenuItemsScreensPersonalProfileController(),
-        fenix: true);
-    Get.lazyPut<
-            UserProfileScreensProfileMenuItemsScreensPersonalProfileSettingController>(
-        () =>
-            UserProfileScreensProfileMenuItemsScreensPersonalProfileSettingController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensProfileMenuItemsScreensSettingController>(
-        () => UserProfileScreensProfileMenuItemsScreensSettingController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensViewProfileScreensProfileDetailsController>(
-        () => UserProfileScreensViewProfileScreensProfileDetailsController(),
-        fenix: true);
-    Get.lazyPut<UserProfileScreensViewProfileScreensViewProfilController>(
-        () => UserProfileScreensViewProfileScreensViewProfilController(),
-        fenix: true);
+    Get.lazyPut<SplashController>(() => SplashController(), fenix: true);
+    Get.lazyPut<Splash2Controller>(() => Splash2Controller(), fenix: true);
+    Get.lazyPut<LoginController>(() => LoginController(), fenix: true);
+    Get.lazyPut<SignupController>(() => SignupController(), fenix: true);
+    Get.lazyPut<ForgotPasswordController>(() => ForgotPasswordController(), fenix: true);
+    Get.lazyPut<ResetPasswordController>(() => ResetPasswordController(), fenix: true);
+    Get.lazyPut<OtpWidgetController>(() => OtpWidgetController(), fenix: true);
+    Get.lazyPut<OtpVerifyController>(() => OtpVerifyController(), fenix: true);
+    Get.lazyPut<ChatListController>(() => ChatListController(), fenix: true);
+    Get.lazyPut<ChatDetailController>(() => ChatDetailController(), fenix: true);
+    Get.lazyPut<MessageController>(() => MessageController(), fenix: true);
+    Get.lazyPut<UserMeetupInfoController>(() => UserMeetupInfoController(), fenix: true);
+    Get.lazyPut<CreateMeetupController>(() => CreateMeetupController(), fenix: true);
+    Get.lazyPut<ReviewMeetupController>(() => ReviewMeetupController(), fenix: true);
+    Get.lazyPut<ExploreController>(() => ExploreController(), fenix: true);
+    Get.lazyPut<FilterController>(() => FilterController(), fenix: true);
+    Get.lazyPut<MeetupUserProfileController>(() => MeetupUserProfileController(), fenix: true);
+    Get.lazyPut<RequestMeetupController>(() => RequestMeetupController(), fenix: true);
+    Get.lazyPut<RepeatMeetupDialogController>(() => RepeatMeetupDialogController(), fenix: true);
+    Get.lazyPut<ViewMeetupController>(() => ViewMeetupController(), fenix: true);
+    Get.lazyPut<OnboardingController>(() => OnboardingController(), fenix: true);
+    Get.lazyPut<AboutPageController>(() => AboutPageController(), fenix: true);
+    Get.lazyPut<BasicsPageController>(() => BasicsPageController(), fenix: true);
+    Get.lazyPut<FinalPageController>(() => FinalPageController(), fenix: true);
+    Get.lazyPut<InterestsPageController>(() => InterestsPageController(), fenix: true);
+    Get.lazyPut<LocationPageController>(() => LocationPageController(), fenix: true);
+    Get.lazyPut<OnboardingTopbarController>(() => OnboardingTopbarController(), fenix: true);
+    Get.lazyPut<PhotoPageController>(() => PhotoPageController(), fenix: true);
+    Get.lazyPut<AccountPreferencesController>(() => AccountPreferencesController(), fenix: true);
+    Get.lazyPut<BlockedUserController>(() => BlockedUserController(), fenix: true);
+    Get.lazyPut<FavouritesController>(() => FavouritesController(), fenix: true);
+    Get.lazyPut<FeedbackSupportController>(() => FeedbackSupportController(), fenix: true);
+    Get.lazyPut<LocationScreenController>(() => LocationScreenController(), fenix: true);
+    Get.lazyPut<AdsScreenController>(() => AdsScreenController(), fenix: true);
+    Get.lazyPut<DeleteMeetupController>(() => DeleteMeetupController(), fenix: true);
+    Get.lazyPut<NotificationController>(() => NotificationController(), fenix: true);
+    Get.lazyPut<PersonalProfileController>(() => PersonalProfileController(), fenix: true);
+    Get.lazyPut<PersonalProfileSettingController>(() => PersonalProfileSettingController(), fenix: true);
+    Get.lazyPut<SettingController>(() => SettingController(), fenix: true);
+    Get.lazyPut<ProfileDetailsController>(() => ProfileDetailsController(), fenix: true);
+    Get.lazyPut<ViewProfileController>(() => ViewProfileController(), fenix: true);
   }
 }
