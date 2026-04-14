@@ -11,7 +11,6 @@ class OtpVerifyController extends GetxController {
   Timer? _timer;
   int resendSeconds = 30;
   bool isVerifying = false;
-
   bool get canResend => resendSeconds == 0;
   bool get canVerify => otpWidgetController.isComplete && !isVerifying;
 

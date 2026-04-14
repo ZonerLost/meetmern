@@ -10,6 +10,7 @@ import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_dialog_widget.dart';
 import 'package:meetmern/core/widgets/custom_rounded_tile.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
+import 'package:meetmern/view/screens/userprofilescreens/AccountPrefrences/account_prefrences.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -57,6 +58,21 @@ class SettingsScreen extends StatelessWidget {
                 titletextStyle: customButtonandTextStyles.dobLabelTextStyle,
                 onTap: () {
                   context.navigateToScreen(const BlockedUsersScreen());
+                },
+              ),
+              SizedBox(height: dimension.d20.h),
+              CustomRoundedTile(
+                title: strings.accountPreferencesText,
+                leadingIcon: Icons.settings,
+                borderWidth: dimension.d1.w,
+                borderRadius: BorderRadius.circular(dimension.d100.r),
+                backgroundColor: appTheme.infieldColor,
+                borderColor: appTheme.borderColor,
+                iconBackgroundColor: appTheme.b_Primary,
+                iconColor: appTheme.coreWhite,
+                titletextStyle: customButtonandTextStyles.dobLabelTextStyle,
+                onTap: () {
+                  context.navigateToScreen(const AccountPreferencesScreen());
                 },
               ),
               SizedBox(height: dimension.d20.h),

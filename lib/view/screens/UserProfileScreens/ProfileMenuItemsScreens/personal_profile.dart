@@ -3,13 +3,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:meetmern/view/screens/chatscreens/chat_screen.dart';
 import 'package:meetmern/view/screens/userprofilescreens/Favourites/favourites.dart';
 import 'package:meetmern/view/screens/userprofilescreens/ManageAds/ads_screen.dart';
-import 'package:meetmern/view/screens/userprofilescreens/ProfileMenuItemsScreens/personal_profile_setting.dart';
 import 'package:meetmern/view/screens/userprofilescreens/ProfileMenuItemsScreens/setting.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_rounded_tile.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
+import 'package:meetmern/view/screens/userprofilescreens/ViewProfileScreens/view_profil.dart';
 
 class PersonalProfileScreen extends StatelessWidget {
   const PersonalProfileScreen({super.key});
@@ -59,7 +59,7 @@ class PersonalProfileScreen extends StatelessWidget {
                 titletextStyle: customButtonandTextStyles.dobLabelTextStyle,
                 trailingIcon: Icons.chevron_right,
                 onTap: () {
-                  context.navigateToScreen(const ProfileSettingsScreen());
+                  context.navigateToScreen(const ViewProfileScreen());
                 },
               ),
               SizedBox(height: dimension.d20.h),

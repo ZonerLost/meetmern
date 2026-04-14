@@ -19,8 +19,9 @@ class LoginController extends GetxController {
   }
 
   String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty)
+    if (value == null || value.trim().isEmpty) {
       return _strings.pleaseEnterYourEmailText;
+    }
     if (!value.isValidEmail) return _strings.enterValidEmailText;
     return null;
   }
