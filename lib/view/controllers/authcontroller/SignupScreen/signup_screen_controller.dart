@@ -2,17 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/validation_extention.dart';
+import 'package:meetmern/core/widgets/app_snackbar.dart';
+import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/view/routes/route_names.dart';
 
 class SignupController extends GetxController {
-  final Strings _strings = const Strings();
+  static const _strings = Strings();
 
-  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   bool isObscure = true;
+  bool isLoading = false;
 
   void togglePasswordVisibility() {
     isObscure = !isObscure;
@@ -41,7 +44,32 @@ class SignupController extends GetxController {
     return null;
   }
 
-  bool validateForm() => formKey.currentState?.validate() ?? false;
+  Future<void> signUp(GlobalKey<FormState> formKey) async {
+    if (!formKey.currentState!.validate()) return;
+    isLoading = true;
+    update();
+    try {
+      await AuthService.signUp(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+      AppSnackbar.success('Account created! Please check your email to confirm.');
+      Get.toNamed(Routes.login);
+    } on Exception catch (e) {
+      AppSnackbar.error(_parseError(e));
+    } finally {
+      isLoading = false;
+      update();
+    }
+  }
+
+  String _parseError(Exception e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('already registered')) return 'This email is already registered.';
+    if (msg.contains('weak password')) return 'Password is too weak.';
+    if (msg.contains('network')) return 'Network error. Check your connection.';
+    return 'Sign up failed. Please try again.';
+  }
 
   @override
   void onClose() {

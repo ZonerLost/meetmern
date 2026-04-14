@@ -3,14 +3,13 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
-import 'package:meetmern/view/screens/chatscreens/chat_screen.dart';
 import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
 import 'package:meetmern/view/screens/homescreens/FilterScreen/filter_screen.dart';
 import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_screen.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ManageAds/ads_screen.dart';
-import 'package:meetmern/view/screens/UserProfileScreens/ProfileMenuItemsScreens/personal_profile.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
+import 'package:meetmern/view/routes/route_names.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
@@ -86,9 +85,7 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.chat_bubble_outline),
-                  onPressed: () {
-                    context.navigateToScreen(const ChatScreen());
-                  },
+                  onPressed: () => Get.toNamed(Routes.chat),
                 ),
                 IconButton(
                   icon: const Icon(Icons.more_vert),
@@ -105,10 +102,7 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
                       items: [
                         PopupMenuItem(
                           child: Text(strings.userProfile),
-                          onTap: () {
-                            context.navigateToScreen(
-                                const PersonalProfileScreen());
-                          },
+                          onTap: () => Get.toNamed(Routes.personalProfile),
                         ),
                       ],
                     );

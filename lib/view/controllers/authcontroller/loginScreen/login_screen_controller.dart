@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/validation_extention.dart';
+import 'package:meetmern/view/routes/route_names.dart';
 
 class LoginController extends GetxController {
-  final Strings _strings = const Strings();
+  static const _strings = Strings();
 
-  final GlobalKey<FormState> formKey = GlobalKey<FormState>();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
 
   bool isObscure = true;
+  bool isLoading = false;
 
   void togglePasswordVisibility() {
     isObscure = !isObscure;
@@ -18,7 +19,8 @@ class LoginController extends GetxController {
   }
 
   String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return _strings.pleaseEnterYourEmailText;
+    if (value == null || value.trim().isEmpty)
+      return _strings.pleaseEnterYourEmailText;
     if (!value.isValidEmail) return _strings.enterValidEmailText;
     return null;
   }
@@ -29,7 +31,32 @@ class LoginController extends GetxController {
     return null;
   }
 
-  bool validateForm() => formKey.currentState?.validate() ?? false;
+  Future<void> signIn(GlobalKey<FormState> formKey) async {
+    // if (!formKey.currentState!.validate()) return;
+    // isLoading = true;
+    // update();
+    // try {
+    //   await AuthService.signIn(
+    //     email: emailController.text.trim(),
+    //     password: passwordController.text.trim(),
+    //   );
+    Get.toNamed(Routes.onboarding);
+    // } on Exception catch (e) {
+    //   AppSnackbar.error(_parseError(e));
+    // } finally {
+    //   isLoading = false;
+    //   update();
+    // }
+  }
+
+  String _parseError(Exception e) {
+    final msg = e.toString().toLowerCase();
+    if (msg.contains('invalid login')) return 'Invalid email or password.';
+    if (msg.contains('email not confirmed'))
+      return 'Please confirm your email first.';
+    if (msg.contains('network')) return 'Network error. Check your connection.';
+    return 'Login failed. Please try again.';
+  }
 
   @override
   void onClose() {

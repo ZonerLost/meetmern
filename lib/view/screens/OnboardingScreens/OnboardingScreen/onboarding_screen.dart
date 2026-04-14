@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_model.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/pages/about_page.dart';
@@ -11,7 +10,8 @@ import 'package:meetmern/view/screens/OnboardingScreens/pages/interests_page.dar
 import 'package:meetmern/view/screens/OnboardingScreens/pages/location_page.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/pages/onboarding_topbar.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/pages/photo_page.dart';
-import 'package:meetmern/core/extensions/navigation_extensions.dart';
+import 'package:get/get.dart';
+import 'package:meetmern/view/routes/route_names.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -66,13 +66,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final ImagePicker p = ImagePicker();
-    final XFile? f =
-        await p.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (f != null) setState(() => pickedImage = File(f.path));
-  }
-
   void _removeImage() => setState(() => pickedImage = null);
 
   bool _isValidForPage(int page) {
@@ -121,7 +114,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _pageController.nextPage(
           duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
     } else {
-      context.navigateToScreen(const SizedBox());
+      Get.toNamed(Routes.explore);
     }
   }
 
@@ -228,9 +221,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 ),
                 FinalPage(
                   model: model,
-                  onFinish: () {
-                    context.navigateToScreen(const SizedBox());
-                  },
+                  onFinish: () => Get.toNamed(Routes.explore),
                 ),
               ],
             ),

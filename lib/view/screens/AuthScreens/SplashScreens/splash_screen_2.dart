@@ -2,13 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/view/controllers/authcontroller/SplashScreens/splash_screen_2_controller.dart';
-import 'package:meetmern/view/screens/authscreens/SignupScreen/signup_screen.dart';
-import 'package:meetmern/core/extensions/navigation_extensions.dart';
+import 'package:meetmern/view/routes/route_names.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_outlined_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
+
 
 class SplashScreen2 extends StatelessWidget {
   const SplashScreen2({super.key});
@@ -76,8 +76,7 @@ class SplashScreen2 extends StatelessWidget {
                         child: CustomElevatedButton(
                           height: dimension.d54,
                           width: dimension.d366,
-                          onPressed: () =>
-                              context.navigateToScreen(const SignupScreen()),
+                          onPressed: () => Get.toNamed(Routes.login),
                           buttonStyle: styles.loginButtonStyle,
                           text: strings.continueEmailButtonText,
                           buttonTextStyle: styles.loginButtonTextStyle,

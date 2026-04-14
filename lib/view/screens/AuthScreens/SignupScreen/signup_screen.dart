@@ -3,23 +3,27 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/view/controllers/authcontroller/SignupScreen/signup_screen_controller.dart';
-import 'package:meetmern/view/screens/authscreens/loginScreen/login_screen.dart';
-import 'package:meetmern/core/extensions/navigation_extensions.dart';
+import 'package:meetmern/view/routes/route_names.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/auth_background_image.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 
-class SignupScreen extends StatelessWidget {
+class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
 
   @override
+  State<SignupScreen> createState() => _SignupScreenState();
+}
+
+class _SignupScreenState extends State<SignupScreen> {
+  final _formKey = GlobalKey<FormState>();
+
+  @override
   Widget build(BuildContext context) {
-    final customThemeData =
-        ThemeHelper(appThemeName: strings.lightCode).themeData;
-    final styles = CustomButtonStyles(
-        apppTheme: Theme.of(context), theme: customThemeData);
+    final customThemeData = ThemeHelper(appThemeName: strings.lightCode).themeData;
+    final styles = CustomButtonStyles(apppTheme: Theme.of(context), theme: customThemeData);
 
     return GetBuilder<SignupController>(
       builder: (c) => Scaffold(
@@ -35,8 +39,8 @@ class SignupScreen extends StatelessWidget {
               right: dimension.d0,
               bottom: dimension.d0,
               child: Container(
-                padding: EdgeInsets.fromLTRB(dimension.d32.w, dimension.d28.h,
-                    dimension.d32.w, dimension.d36.h),
+                padding: EdgeInsets.fromLTRB(
+                    dimension.d32.w, dimension.d28.h, dimension.d32.w, dimension.d36.h),
                 decoration: BoxDecoration(
                   color: appTheme.coreWhite,
                   borderRadius: BorderRadius.only(
@@ -46,19 +50,16 @@ class SignupScreen extends StatelessWidget {
                 ),
                 child: SingleChildScrollView(
                   child: Form(
-                    key: c.formKey,
+                    key: _formKey,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: dimension.d8.h),
-                        Text(strings.signUpScreenTitle,
-                            style: styles.titleTextStyle),
+                        Text(strings.signUpScreenTitle, style: styles.titleTextStyle),
                         SizedBox(height: dimension.d8.h),
-                        Text(strings.signUpScreenSubtitle,
-                            style: styles.subtitleTextStyle),
+                        Text(strings.signUpScreenSubtitle, style: styles.subtitleTextStyle),
                         SizedBox(height: dimension.d16.h),
-                        Text(strings.nameLabel,
-                            style: styles.emailLabelTextStyle),
+                        Text(strings.nameLabel, style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.nameController,
@@ -67,8 +68,7 @@ class SignupScreen extends StatelessWidget {
                           inputDecoration: styles.userNameInputDecoration,
                         ),
                         SizedBox(height: dimension.d12.h),
-                        Text(strings.emailPrompt,
-                            style: styles.emailLabelTextStyle),
+                        Text(strings.emailPrompt, style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.emailController,
@@ -77,32 +77,26 @@ class SignupScreen extends StatelessWidget {
                           inputDecoration: styles.emailInputDecoration,
                         ),
                         SizedBox(height: dimension.d12.h),
-                        Text(strings.phoneNumberLabel,
-                            style: styles.emailLabelTextStyle),
+                        Text(strings.phoneNumberLabel, style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.phoneController,
                           textStyle: styles.userNameTextStyle,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly
-                          ],
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                           textInputType: TextInputType.number,
                           validator: c.validatePhone,
                           inputDecoration: styles.emailInputDecoration.copyWith(
                             prefixIcon: Padding(
                               padding: EdgeInsets.only(
                                   left: dimension.d12.w, right: dimension.d8.w),
-                              child: Icon(Icons.call_outlined,
-                                  size: dimension.d20.w),
+                              child: Icon(Icons.call_outlined, size: dimension.d20.w),
                             ),
                             prefixIconConstraints: BoxConstraints(
-                                minWidth: dimension.d32.w,
-                                minHeight: dimension.d32.h),
+                                minWidth: dimension.d32.w, minHeight: dimension.d32.h),
                           ),
                         ),
                         SizedBox(height: dimension.d12.h),
-                        Text(strings.passwordPrompt,
-                            style: styles.emailLabelTextStyle),
+                        Text(strings.passwordPrompt, style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.passwordController,
@@ -117,18 +111,24 @@ class SignupScreen extends StatelessWidget {
                         SizedBox(height: dimension.d20.h),
                         Center(
                           child: CustomElevatedButton(
-                            onPressed: () =>
-                                context.navigateToScreen(const LoginScreen()),
+                            onPressed: c.isLoading ? null : () => c.signUp(_formKey),
                             buttonStyle: styles.loginButtonStyle,
-                            text: strings.createAccountText,
+                            text: c.isLoading ? '' : strings.createAccountText,
                             buttonTextStyle: styles.loginButtonTextStyle,
+                            child: c.isLoading
+                                ? SizedBox(
+                                    height: dimension.d20.h,
+                                    width: dimension.d20.h,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: appTheme.coreWhite),
+                                  )
+                                : null,
                           ),
                         ),
                         SizedBox(height: dimension.d16.h),
                         Center(
                           child: GestureDetector(
-                            onTap: () =>
-                                context.navigateToScreen(const LoginScreen()),
+                            onTap: () => Get.toNamed(Routes.login),
                             child: RichText(
                               text: TextSpan(
                                 style: styles.textSpanTextStyle,

@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/view/controllers/authcontroller/ForgetPasswordScreens/forget_password_screen_controller.dart';
 import 'package:meetmern/view/controllers/authcontroller/OTPScreens/otp_verify_screen_controller.dart';
 import 'package:meetmern/view/controllers/authcontroller/OTPScreens/verify_otp_controller_widget_controller.dart';
-import 'package:meetmern/view/screens/authscreens/ForgetPasswordScreens/forget_password_screen.dart';
-import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/auth_background_image.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
@@ -17,10 +16,9 @@ class VerifyOtpScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final customThemeData =
-        ThemeHelper(appThemeName: strings.lightCode).themeData;
-    final styles = CustomButtonStyles(
-        apppTheme: Theme.of(context), theme: customThemeData);
+    final customThemeData = ThemeHelper(appThemeName: strings.lightCode).themeData;
+    final styles = CustomButtonStyles(apppTheme: Theme.of(context), theme: customThemeData);
+    final email = Get.find<ForgotPasswordController>().emailController.text.trim();
 
     return GetBuilder<OtpVerifyController>(
       initState: (_) {
@@ -61,37 +59,11 @@ class VerifyOtpScreen extends StatelessWidget {
                         SizedBox(height: dimension.d8.h),
                         Text(strings.verifyTitle, style: styles.titleTextStyle),
                         SizedBox(height: dimension.d8.h),
-                        Text(strings.verifySubtitle,
-                            style: styles.subtitleTextStyle),
+                        Text(strings.verifySubtitle, style: styles.subtitleTextStyle),
                         SizedBox(height: dimension.d24.h),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: List.generate(otpWidget.length, (index) {
-                            final boxDecoration = InputDecoration(
-                              counterText: '',
-                              filled: true,
-                              fillColor: appTheme.coreWhite,
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(dimension.d12.r),
-                                borderSide: BorderSide(
-                                  color: otpWidget.hasError
-                                      ? appTheme.red
-                                      : appTheme.borderColor,
-                                  width: dimension.d1.w,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius:
-                                    BorderRadius.circular(dimension.d8.r),
-                                borderSide: BorderSide(
-                                  color: otpWidget.hasError
-                                      ? appTheme.red
-                                      : appTheme.borderColor,
-                                  width: dimension.d1.w,
-                                ),
-                              ),
-                            );
                             return CustomTextFormField(
                               width: dimension.d60.w,
                               height: dimension.d68.h,
@@ -102,10 +74,30 @@ class VerifyOtpScreen extends StatelessWidget {
                                   ? TextInputAction.done
                                   : TextInputAction.next,
                               maxLength: 1,
-                              inputFormatters: [
-                                FilteringTextInputFormatter.digitsOnly
-                              ],
-                              inputDecoration: boxDecoration,
+                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                              inputDecoration: InputDecoration(
+                                counterText: '',
+                                filled: true,
+                                fillColor: appTheme.coreWhite,
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(dimension.d12.r),
+                                  borderSide: BorderSide(
+                                    color: otpWidget.hasError
+                                        ? appTheme.red
+                                        : appTheme.borderColor,
+                                    width: dimension.d1.w,
+                                  ),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(dimension.d8.r),
+                                  borderSide: BorderSide(
+                                    color: otpWidget.hasError
+                                        ? appTheme.red
+                                        : appTheme.borderColor,
+                                    width: dimension.d1.w,
+                                  ),
+                                ),
+                              ),
                               contentPadding: EdgeInsets.zero,
                               textAlign: TextAlign.center,
                               textAlignVertical: TextAlignVertical.center,
@@ -118,24 +110,29 @@ class VerifyOtpScreen extends StatelessWidget {
                         CustomElevatedButton(
                           height: dimension.d54.h,
                           width: dimension.d366.w,
-                          onPressed: () => context
-                              .navigateToScreen(const ForgotPasswordScreen()),
+                          onPressed: c.isVerifying ? null : () => c.verifyOtp(email),
                           buttonStyle: styles.loginButtonStyle,
-                          text: strings.verifyButtonText,
+                          text: c.isVerifying ? '' : strings.verifyButtonText,
                           buttonTextStyle: styles.loginButtonTextStyle,
+                          child: c.isVerifying
+                              ? SizedBox(
+                                  height: dimension.d20.h,
+                                  width: dimension.d20.h,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: appTheme.coreWhite),
+                                )
+                              : null,
                         ),
                         SizedBox(height: dimension.d24.h),
                         Center(
                           child: GestureDetector(
-                            onTap: c.canResend ? c.resendCode : null,
+                            onTap: c.canResend ? () => c.resendCode(email) : null,
                             child: RichText(
                               text: TextSpan(
                                 style: styles.textSpanTextStyle,
                                 children: [
                                   TextSpan(
-                                    text: c.canResend
-                                        ? ''
-                                        : '${c.resendSeconds}s  ',
+                                    text: c.canResend ? '' : '${c.resendSeconds}s  ',
                                     style: styles.donotHaveAccontTextStyle,
                                   ),
                                   TextSpan(

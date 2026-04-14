@@ -2,11 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/view/binding/app_binding.dart';
-import 'package:meetmern/view/screens/authscreens/SplashScreens/splash_screen_1.dart';
+import 'package:meetmern/view/routes/app_routes.dart';
+import 'package:meetmern/view/routes/route_names.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: 'https://hczijzxdgmqkcektnvxm.supabase.co',
+    anonKey: 'sb_publishable_PMYj-KdaUddRFMdQCBtMqg_dHQ-gmXa',
+  );
+
   runApp(const MyApp());
 }
+
+final supabase = Supabase.instance.client;
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -17,7 +28,8 @@ class MyApp extends StatelessWidget {
       builder: (_, __) => GetMaterialApp(
         debugShowCheckedModeBanner: false,
         initialBinding: AppBinding(),
-        home: const SplashScreen1(),
+        initialRoute: Routes.splash1,
+        getPages: AppRoutes.pages,
       ),
     );
   }

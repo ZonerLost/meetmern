@@ -27,6 +27,7 @@ class CustomElevatedButton extends StatelessWidget {
     this.width,
     this.margin,
     this.elevation = 2.0,
+    this.child,
   });
 
   final BoxDecoration? decoration;
@@ -51,6 +52,7 @@ class CustomElevatedButton extends StatelessWidget {
   final double? width;
   final EdgeInsetsGeometry? margin;
   final double elevation;
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) {
@@ -80,20 +82,22 @@ class CustomElevatedButton extends StatelessWidget {
         disabledTextColor ??
         Colors.white.withOpacity(0.75);
 
-    // IMPORTANT:
-    // If buttonStyle is provided, do not override its background, shape, or padding.
-    // Only apply a default style when buttonStyle is null.
-    final ButtonStyle resolvedStyle = buttonStyle ??
-        ElevatedButton.styleFrom(
-          minimumSize: Size(finalWidth ?? double.infinity, finalHeight),
-          padding: EdgeInsets.symmetric(horizontal: dimension.d16),
-          elevation: elevation,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(dimension.d100),
-          ),
-          backgroundColor: enabledColor,
-          foregroundColor: resolvedEnabledText,
-        );
+    // Always enforce minimumSize so height is respected even when buttonStyle is provided.
+    final ButtonStyle resolvedStyle = (buttonStyle ??
+            ElevatedButton.styleFrom(
+              padding: EdgeInsets.symmetric(horizontal: dimension.d16),
+              elevation: elevation,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(dimension.d100),
+              ),
+              backgroundColor: enabledColor,
+              foregroundColor: resolvedEnabledText,
+            ))
+        .copyWith(
+      minimumSize: WidgetStateProperty.all(
+        Size(finalWidth ?? double.infinity, finalHeight),
+      ),
+    );
 
     Widget button = Container(
       margin: margin,
@@ -114,45 +118,46 @@ class CustomElevatedButton extends StatelessWidget {
           child: ElevatedButton(
             onPressed: disabled ? null : onPressed,
             style: resolvedStyle,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.max,
-              children: [
-                if (leftIcon != null)
-                  Padding(
-                    padding: EdgeInsets.only(right: dimension.d8),
-                    child: SizedBox(
-                      height: finalHeight * 0.6,
-                      child: leftIcon,
+            child: child ??
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.max,
+                  children: [
+                    if (leftIcon != null)
+                      Padding(
+                        padding: EdgeInsets.only(right: dimension.d8),
+                        child: SizedBox(
+                          height: finalHeight * 0.6,
+                          child: leftIcon,
+                        ),
+                      ),
+                    Flexible(
+                      fit: FlexFit.tight,
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.center,
+                        child: Text(
+                          label,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          style: buttonTextStyle ??
+                              TextStyle(
+                                fontSize: dimension.d16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
                     ),
-                  ),
-                Flexible(
-                  fit: FlexFit.tight,
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.center,
-                    child: Text(
-                      label,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      style: buttonTextStyle ??
-                          TextStyle(
-                            fontSize: dimension.d16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
+                    if (rightIcon != null)
+                      Padding(
+                        padding: EdgeInsets.only(left: dimension.d8),
+                        child: SizedBox(
+                          height: finalHeight * 0.6,
+                          child: rightIcon,
+                        ),
+                      ),
+                  ],
                 ),
-                if (rightIcon != null)
-                  Padding(
-                    padding: EdgeInsets.only(left: dimension.d8),
-                    child: SizedBox(
-                      height: finalHeight * 0.6,
-                      child: rightIcon,
-                    ),
-                  ),
-              ],
-            ),
           ),
         ),
       ),

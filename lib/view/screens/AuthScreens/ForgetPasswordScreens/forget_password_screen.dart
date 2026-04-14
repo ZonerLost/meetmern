@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/view/controllers/authcontroller/ForgetPasswordScreens/forget_password_screen_controller.dart';
-import 'package:meetmern/view/screens/authscreens/ForgetPasswordScreens/setnew_password_screen.dart';
-import 'package:meetmern/view/screens/authscreens/loginScreen/login_screen.dart';
-import 'package:meetmern/core/extensions/navigation_extensions.dart';
+import 'package:meetmern/view/routes/route_names.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/auth_background_image.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
@@ -12,8 +10,15 @@ import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_outlined_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 
-class ForgotPasswordScreen extends StatelessWidget {
+class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
+
+  @override
+  State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+}
+
+class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +49,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                   ),
                 ),
                 child: Form(
-                  key: c.formKey,
+                  key: _formKey,
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,14 +71,23 @@ class ForgotPasswordScreen extends StatelessWidget {
                         ),
                         SizedBox(height: dimension.d24.h),
                         CustomElevatedButton(
-                          text: strings.sendResetLinkButtonText,
+                          text: c.isLoading
+                              ? ''
+                              : strings.sendResetLinkButtonText,
                           buttonTextStyle: styles.loginButtonTextStyle,
                           buttonStyle: styles.loginButtonStyle,
-                          onPressed: () {
-                            if (c.validateForm())
-                              context.navigateToScreen(
-                                  const ResetPasswordScreen());
-                          },
+                          onPressed: c.isLoading
+                              ? null
+                              : () => c.sendResetLink(_formKey),
+                          child: c.isLoading
+                              ? SizedBox(
+                                  height: dimension.d20.h,
+                                  width: dimension.d20.h,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: appTheme.coreWhite),
+                                )
+                              : null,
                         ),
                         SizedBox(height: dimension.d20.h),
                         Row(
@@ -107,8 +121,7 @@ class ForgotPasswordScreen extends StatelessWidget {
                         SizedBox(height: dimension.d16.h),
                         Center(
                           child: GestureDetector(
-                            onTap: () =>
-                                context.navigateToScreen(const LoginScreen()),
+                            onTap: () => Get.toNamed(Routes.login),
                             child: RichText(
                               text: TextSpan(
                                 style: styles.textSpanTextStyle,
