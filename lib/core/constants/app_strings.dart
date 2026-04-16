@@ -372,6 +372,8 @@ class Strings {
   final String profileUpdatedSnackText;
   final String noMeetupsAvailableText;
   final String addNewAdText;
+  final String savingText;
+  final String errorSavingPreferencesText;
   static const List<String> monthNames = [
     'Jan',
     'Feb',
@@ -800,5 +802,7 @@ class Strings {
           '10 km — 100 km',
           '50 km — 500 km',
         ],
-        noNearbyPeople = 'No nearby people available';
+        noNearbyPeople = 'No nearby people available',
+        savingText = 'Saving...',
+        errorSavingPreferencesText = 'Failed to save preferences';
 }

@@ -10,9 +10,10 @@ class SplashScreen1 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GetBuilder<SplashController>(
-      initState: (_) => Get.find<SplashController>().startTimer(
-        () => Get.toNamed(Routes.splash2),
-      ),
+      initState: (_) {
+        final controller = Get.find<SplashController>();
+        controller.startTimer(() => controller.checkAuthAndNavigate());
+      },
       builder: (_) => Scaffold(
         backgroundColor: appTheme.b_Primary,
         body: Center(child: Image.asset(strings.img5)),

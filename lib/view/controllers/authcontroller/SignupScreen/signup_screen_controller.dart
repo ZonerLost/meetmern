@@ -49,13 +49,20 @@ class SignupController extends GetxController {
     isLoading = true;
     update();
     try {
+      // Store signup data so LoginController can save it after confirmed login
+      AuthService.pendingName = nameController.text.trim();
+      AuthService.pendingPhone = phoneController.text.trim();
+
       await AuthService.signUp(
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+
       AppSnackbar.success('Account created! Please check your email to confirm.');
       Get.toNamed(Routes.login);
     } on Exception catch (e) {
+      AuthService.pendingName = null;
+      AuthService.pendingPhone = null;
       AppSnackbar.error(_parseError(e));
     } finally {
       isLoading = false;

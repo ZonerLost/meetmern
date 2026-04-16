@@ -68,9 +68,10 @@ class PhotoPage extends StatelessWidget {
                           border: Border.all(color: appTheme.neutral_300),
                         ),
                         child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Icon(Icons.cloud_upload_outlined,
-                                size: dimension.d20.sp,
+                                size: dimension.d48.sp,
                                 color: appTheme.neutral_600),
                             SizedBox(height: dimension.d8.h),
                             Text(strings.uploadLabel,
@@ -85,8 +86,8 @@ class PhotoPage extends StatelessWidget {
                       ),
                     )
                   : Container(
-                      height: dimension.d200.h,
-                      width: dimension.d100.w,
+                      height: dimension.d350.h,
+                      width: dimension.d336.w,
                       decoration: BoxDecoration(
                         color: appTheme.neutral_50,
                         borderRadius: BorderRadius.circular(dimension.d12.r),
@@ -98,51 +99,67 @@ class PhotoPage extends StatelessWidget {
                       ),
                     ),
             ),
-            SizedBox(width: dimension.d18.w),
-            if (pickedImage != null)
+          ]),
+          if (pickedImage != null) ...[
+            SizedBox(height: dimension.d16.h),
+            Row(children: [
               GestureDetector(
                 onTap: () => _pick(context),
                 child: Container(
-                  height: dimension.d300.h,
-                  width: dimension.d100.w,
-                  decoration: BoxDecoration(
-                    color: appTheme.infieldColor,
-                    borderRadius: BorderRadius.circular(dimension.d12.r),
-                    border: Border.all(color: appTheme.neutral_300),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: dimension.d16.w,
+                    vertical: dimension.d8.h,
                   ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: appTheme.neutral_300),
+                    borderRadius: BorderRadius.circular(dimension.d8.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.cloud_upload_outlined,
-                          size: dimension.d28.sp, color: appTheme.neutral_600),
-                      SizedBox(height: dimension.d8.h),
-                      Text(strings.uploadLabel,
-                          style: customButtonandTextStyles.userNameTextStyle),
+                      Icon(Icons.edit,
+                          size: dimension.d16.sp, color: appTheme.neutral_800),
+                      SizedBox(width: dimension.d8.w),
+                      Text('Change Photo',
+                          style: TextStyle(color: appTheme.neutral_800)),
                     ],
                   ),
                 ),
               ),
-          ]),
-          if (pickedImage != null)
-            Padding(
-              padding: EdgeInsets.only(top: dimension.d8.h),
-              child: Row(children: [
-                GestureDetector(
-                  onTap: onRemove,
-                  child: Icon(Icons.delete, color: appTheme.red),
+              SizedBox(width: dimension.d12.w),
+              GestureDetector(
+                onTap: onRemove,
+                child: Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: dimension.d16.w,
+                    vertical: dimension.d8.h,
+                  ),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: appTheme.red),
+                    borderRadius: BorderRadius.circular(dimension.d8.r),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.delete,
+                          size: dimension.d16.sp, color: appTheme.red),
+                      SizedBox(width: dimension.d8.w),
+                      Text(strings.removePhotoLabel,
+                          style: TextStyle(color: appTheme.red)),
+                    ],
+                  ),
                 ),
-                SizedBox(width: dimension.d8.w),
-                Text(strings.removePhotoLabel,
-                    style: TextStyle(color: appTheme.neutral_800)),
-              ]),
-            ),
-          SizedBox(height: dimension.d450.h),
+              ),
+            ]),
+          ],
+          SizedBox(height: dimension.d40.h),
           CustomElevatedButton(
             onPressed: stepValid ? onNext : null,
             buttonStyle: customButtonandTextStyles.loginButtonStyle,
             text: strings.nextButtonText,
             buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
           ),
+          SizedBox(height: dimension.d20.h),
         ]),
       ),
     );

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/validation_extention.dart';
+import 'package:meetmern/core/widgets/app_snackbar.dart';
+import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/view/routes/route_names.dart';
 
 class LoginController extends GetxController {
@@ -33,21 +35,28 @@ class LoginController extends GetxController {
   }
 
   Future<void> signIn(GlobalKey<FormState> formKey) async {
-    // if (!formKey.currentState!.validate()) return;
-    // isLoading = true;
-    // update();
-    // try {
-    //   await AuthService.signIn(
-    //     email: emailController.text.trim(),
-    //     password: passwordController.text.trim(),
-    //   );
-    Get.toNamed(Routes.onboarding);
-    // } on Exception catch (e) {
-    //   AppSnackbar.error(_parseError(e));
-    // } finally {
-    //   isLoading = false;
-    //   update();
-    // }
+    if (!formKey.currentState!.validate()) return;
+    isLoading = true;
+    update();
+    try {
+      await AuthService.signIn(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      final profile = await AuthService.loadProfile();
+
+      if (profile == null || profile.showOnboarding) {
+        Get.offAllNamed(Routes.onboarding);
+      } else {
+        Get.offAllNamed(Routes.explore);
+      }
+    } on Exception catch (e) {
+      AppSnackbar.error(_parseError(e));
+    } finally {
+      isLoading = false;
+      update();
+    }
   }
 
   String _parseError(Exception e) {

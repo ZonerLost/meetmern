@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:get/get.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/ProfileMenuItemsScreens/setting_controller.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/BlockedUser/block_user.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/Feedback&Support/feedback&support.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/LocationScreen/location_screen.dart';
@@ -143,9 +145,7 @@ class SettingsScreen extends StatelessWidget {
                 iconBackgroundColor: appTheme.b_Primary,
                 iconColor: appTheme.coreWhite,
                 titletextStyle: customButtonandTextStyles.dobLabelTextStyle,
-                onTap: () {
-                  _showLogoutDialog(context);
-                },
+                onTap: () => _showLogoutDialog(context),
               ),
             ],
           ),
@@ -155,39 +155,36 @@ class SettingsScreen extends StatelessWidget {
   }
 
   void _showLogoutDialog(BuildContext context) {
+    final controller = Get.find<SettingController>();
+    final customThemeData =
+        ThemeHelper(appThemeName: strings.lightCode).themeData;
+    final customButtonandTextStyles = CustomButtonStyles(
+      apppTheme: Theme.of(context),
+      theme: customThemeData,
+    );
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) {
-        final customThemeData =
-            ThemeHelper(appThemeName: strings.lightCode).themeData;
-        final customButtonandTextStyles = CustomButtonStyles(
-          apppTheme: Theme.of(context),
-          theme: customThemeData,
-        );
-        return CustomModalDialog(
-          topRightIcon: IconButton(
-            icon: Icon(Icons.close, size: dimension.d20.sp),
-            onPressed: () => Navigator.of(ctx).pop(),
-          ),
-          topLeftIcon: Icon(Icons.logout, color: appTheme.b_Primary),
-          title: strings.logoutDialogTitle,
-          subtitle: strings.logoutDialogSubtitle,
-          primaryLabel: strings.logoutButtonText,
-          primaryButtonStyle: customButtonandTextStyles.loginButtonStyle,
-          primaryTextStyle: customButtonandTextStyles.loginButtonTextStyle,
-          onPrimary: () {
-            Navigator.of(ctx).pop();
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Logout')),
-            );
-          },
-          secondaryLabel: strings.cancelLabel,
-          secondaryButtonStyle: customButtonandTextStyles.googleButtonStyle,
-          secondaryTextStyle: customButtonandTextStyles.cancelButtonTextStyle,
-          onSecondary: () => Navigator.of(ctx).pop(),
-        );
-      },
+      builder: (ctx) => CustomModalDialog(
+        topRightIcon: IconButton(
+          icon: Icon(Icons.close, size: dimension.d20.sp),
+          onPressed: () => Navigator.of(ctx).pop(),
+        ),
+        topLeftIcon: Icon(Icons.logout, color: appTheme.b_Primary),
+        title: strings.logoutDialogTitle,
+        subtitle: strings.logoutDialogSubtitle,
+        primaryLabel: strings.logoutButtonText,
+        primaryButtonStyle: customButtonandTextStyles.loginButtonStyle,
+        primaryTextStyle: customButtonandTextStyles.loginButtonTextStyle,
+        onPrimary: () {
+          Navigator.of(ctx).pop();
+          controller.performLogout();
+        },
+        secondaryLabel: strings.cancelLabel,
+        secondaryButtonStyle: customButtonandTextStyles.googleButtonStyle,
+        secondaryTextStyle: customButtonandTextStyles.cancelButtonTextStyle,
+        onSecondary: () => Navigator.of(ctx).pop(),
+      ),
     );
   }
 }

@@ -1,8 +1,14 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
+import 'package:meetmern/core/widgets/app_snackbar.dart';
+import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/data/service/profile_service.dart';
+import 'package:meetmern/data/service/storage_service.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 
 class ProfileDetailsController extends GetxController {
@@ -14,79 +20,103 @@ class ProfileDetailsController extends GetxController {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController bioController = TextEditingController();
   final TextEditingController dobController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
 
   String? gender;
   String? ethnicity;
   List<String> languages = <String>[];
 
+  // Holds newly picked image bytes for preview
   Uint8List? imageBytes;
-  bool isObscure = true;
+  // Holds the actual File for upload
+  File? _pickedFile;
+  // Existing remote photo URL
+  String? existingPhotoUrl;
+
+  bool isSaving = false;
 
   @override
   void onInit() {
     super.onInit();
-    initialize();
+    _loadFromProfile();
   }
 
-  void initialize({
-    String? initialName,
-    String? initialEmail,
-    String? initialBio,
-    String? initialDob,
-    String? initialGender,
-    String? initialEthnicity,
-    List<String>? initialLanguages,
-  }) {
-    nameController.text = initialName ?? _strings.initialProfileNameText;
-    emailController.text = initialEmail ?? _strings.initialProfileEmailText;
-    bioController.text = initialBio ?? '';
-    dobController.text = initialDob ?? _strings.initialProfileDobText;
-    passwordController.text = '123456';
-    gender = initialGender ?? OnboardingMockData.genders.first;
-    ethnicity = initialEthnicity ?? OnboardingMockData.ethnicities.first;
-    languages = initialLanguages ?? <String>['English', 'Spanish'];
+  void _loadFromProfile() {
+    final profile = AuthService.currentProfile.value;
+    if (profile == null) return;
+    nameController.text = profile.name ?? '';
+    emailController.text = profile.email ?? '';
+    bioController.text = profile.shortBio ?? '';
+    dobController.text = profile.dob ?? '';
+    gender = profile.gender?.isNotEmpty == true
+        ? profile.gender
+        : OnboardingMockData.genders.first;
+    ethnicity = profile.ethnicity?.isNotEmpty == true
+        ? profile.ethnicity
+        : OnboardingMockData.ethnicities.first;
+    languages = profile.languages ?? [];
+    existingPhotoUrl = profile.photoUrl;
     update();
   }
 
-  String? validateName(String? value) {
-    if (value == null || value.trim().isEmpty) return _strings.pleaseEnterYourNameText;
-    return null;
+  Future<void> pickImage() async {
+    final picker = ImagePicker();
+    final XFile? file =
+        await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (file == null) return;
+    _pickedFile = File(file.path);
+    imageBytes = await file.readAsBytes();
+    update();
   }
 
-  String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return _strings.pleaseEnterYourEmailText;
-    if (!value.contains('@')) return _strings.enterValidEmailText;
-    return null;
-  }
-
-  String? validatePassword(String? value) {
-    if (value == null || value.isEmpty) return _strings.pleaseEnterPasswordText;
-    if (value.length < 6) return _strings.passwordMinLengthText;
-    return null;
-  }
-
-  void setImageBytes(Uint8List? bytes) { imageBytes = bytes; update(); }
-  void togglePasswordVisibility() { isObscure = !isObscure; update(); }
-  void setDobText(String value) { dobController.text = value; update(); }
   void setGender(String? value) { gender = value; update(); }
   void setEthnicity(String? value) { ethnicity = value; update(); }
   void setLanguages(List<String> values) { languages = values; update(); }
+  void setDobText(String value) { dobController.text = value; update(); }
 
   bool validateForm() => formKey.currentState?.validate() ?? false;
 
-  Map<String, dynamic> buildResultMap() => <String, dynamic>{
+  Future<bool> saveProfile() async {
+    if (!validateForm()) return false;
+
+    final user = AuthService.currentUser;
+    if (user == null) {
+      AppSnackbar.error('Not authenticated');
+      return false;
+    }
+
+    isSaving = true;
+    update();
+
+    try {
+      final updates = <String, dynamic>{
         'name': nameController.text.trim(),
         'email': emailController.text.trim(),
-        'bio': bioController.text.trim(),
+        'short_bio': bioController.text.trim(),
         'dob': dobController.text.trim(),
         'gender': gender,
         'ethnicity': ethnicity,
-        'languages': List<String>.from(languages),
-        'relationship': _strings.initialProfileRelationshipText,
-        'password': passwordController.text.trim(),
-        'imageBytes': imageBytes,
+        'languages': languages,
       };
+
+      // Upload new image if one was picked
+      if (_pickedFile != null) {
+        final url =
+            await StorageService.uploadProfileImage(user.id, _pickedFile!);
+        if (url != null) updates['photo_url'] = url;
+      }
+
+      await ProfileService.updateProfile(user.id, updates);
+      await AuthService.loadProfile();
+      AppSnackbar.success(_strings.profileUpdatedSnackText);
+      return true;
+    } catch (e) {
+      AppSnackbar.error('Failed to save profile: $e');
+      return false;
+    } finally {
+      isSaving = false;
+      update();
+    }
+  }
 
   @override
   void onClose() {
@@ -94,7 +124,6 @@ class ProfileDetailsController extends GetxController {
     emailController.dispose();
     bioController.dispose();
     dobController.dispose();
-    passwordController.dispose();
     super.onClose();
   }
 }
