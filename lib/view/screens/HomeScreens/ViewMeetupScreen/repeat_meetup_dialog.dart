@@ -39,7 +39,6 @@ class _RepeatMeetupDialogContent extends StatefulWidget {
     required this.dialogContext,
     required this.meetup,
     this.onRepeat,
-    super.key,
   });
 
   @override

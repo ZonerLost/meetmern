@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/view/controllers/authcontroller/loginScreen/login_screen_controller.dart';
-import 'package:meetmern/view/routes/route_names.dart';
+import 'package:meetmern/core/routes/route_names.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/auth_background_image.dart';
@@ -22,8 +22,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customThemeData = ThemeHelper(appThemeName: strings.lightCode).themeData;
-    final styles = CustomButtonStyles(apppTheme: Theme.of(context), theme: customThemeData);
+    final customThemeData =
+        ThemeHelper(appThemeName: strings.lightCode).themeData;
+    final styles = CustomButtonStyles(
+        apppTheme: Theme.of(context), theme: customThemeData);
 
     return GetBuilder<LoginController>(
       builder: (c) => Scaffold(
@@ -39,8 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
               right: dimension.d0,
               bottom: dimension.d0,
               child: Container(
-                padding: EdgeInsets.fromLTRB(
-                    dimension.d32.w, dimension.d28.h, dimension.d32.w, dimension.d36.h),
+                padding: EdgeInsets.fromLTRB(dimension.d32.w, dimension.d28.h,
+                    dimension.d32.w, dimension.d36.h),
                 decoration: BoxDecoration(
                   color: appTheme.coreWhite,
                   borderRadius: BorderRadius.only(
@@ -55,11 +57,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: dimension.d8.h),
-                        Text(strings.loginScreenTitle, style: styles.titleTextStyle),
+                        Text(strings.loginScreenTitle,
+                            style: styles.titleTextStyle),
                         SizedBox(height: dimension.d8.h),
-                        Text(strings.loginScreenSubtitle, style: styles.subtitleTextStyle),
+                        Text(strings.loginScreenSubtitle,
+                            style: styles.subtitleTextStyle),
                         SizedBox(height: dimension.d16.h),
-                        Text(strings.emailPrompt, style: styles.emailLabelTextStyle),
+                        Text(strings.emailPrompt,
+                            style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.emailController,
@@ -68,7 +73,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           inputDecoration: styles.emailInputDecoration,
                         ),
                         SizedBox(height: dimension.d12.h),
-                        Text(strings.passwordPrompt, style: styles.emailLabelTextStyle),
+                        Text(strings.passwordPrompt,
+                            style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.passwordController,
@@ -91,7 +97,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         SizedBox(height: dimension.d20.h),
                         CustomElevatedButton(
-                          onPressed: c.isLoading ? null : () => c.signIn(_formKey),
+                          onPressed:
+                              c.isLoading ? null : () => c.signIn(_formKey),
                           buttonStyle: styles.loginButtonStyle,
                           text: c.isLoading ? '' : strings.loginButtonText,
                           buttonTextStyle: styles.loginButtonTextStyle,
@@ -100,7 +107,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   height: dimension.d20.h,
                                   width: dimension.d20.h,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: appTheme.coreWhite),
+                                      strokeWidth: 2,
+                                      color: appTheme.coreWhite),
                                 )
                               : null,
                         ),
@@ -128,7 +136,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Image.asset(strings.googleIconPath,
-                                    width: dimension.d20.w, height: dimension.d20.h),
+                                    width: dimension.d20.w,
+                                    height: dimension.d20.h),
                                 SizedBox(width: dimension.d10.w),
                               ]),
                           text: strings.googleText,
@@ -142,7 +151,8 @@ class _LoginScreenState extends State<LoginScreen> {
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Image.asset(strings.appleIconPath,
-                                    width: dimension.d20.w, height: dimension.d20.h),
+                                    width: dimension.d20.w,
+                                    height: dimension.d20.h),
                                 SizedBox(width: dimension.d10.w),
                               ]),
                           text: strings.appleText,

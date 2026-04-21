@@ -60,7 +60,6 @@ class AccountPreferencesScreen extends StatelessWidget {
                   ),
                   SizedBox(height: dimension.d20.h),
 
-                  // Interests
                   RequiredLabel(text: strings.interestsLabel),
                   SizedBox(height: dimension.d8.h),
                   Wrap(
@@ -76,7 +75,6 @@ class AccountPreferencesScreen extends StatelessWidget {
                   ),
                   SizedBox(height: dimension.d16.h),
 
-                  // Passion Topics
                   RequiredLabel(text: strings.passionTopicsLabel),
                   SizedBox(height: dimension.d8.h),
                   Wrap(
@@ -92,7 +90,6 @@ class AccountPreferencesScreen extends StatelessWidget {
                   ),
                   SizedBox(height: dimension.d16.h),
 
-                  // Dietary
                   _sectionHeader(
                     strings.dietaryPreferencesText,
                     showClear: c.dietary.isNotEmpty,
@@ -178,11 +175,9 @@ class AccountPreferencesScreen extends StatelessWidget {
                       horizontal: dimension.d12.w,
                       vertical: dimension.d12.h,
                     ),
-                    inputDecoration:
-                        styles.messagefInputDecoration.copyWith(
+                    inputDecoration: styles.messagefInputDecoration.copyWith(
                       labelStyle: TextStyle(color: appTheme.neutral_400),
-                      floatingLabelStyle:
-                          TextStyle(color: appTheme.black90001),
+                      floatingLabelStyle: TextStyle(color: appTheme.black90001),
                     ),
                     onChanged: c.onBioChanged,
                   ),
@@ -197,8 +192,7 @@ class AccountPreferencesScreen extends StatelessWidget {
                         text: c.isSaving.value
                             ? strings.savingText
                             : strings.saveDetailsText,
-                        buttonTextStyle:
-                            styles.loginButtonTextStyle.copyWith(
+                        buttonTextStyle: styles.loginButtonTextStyle.copyWith(
                           color: c.canSave
                               ? appTheme.coreWhite
                               : appTheme.neutral_500,
@@ -322,8 +316,7 @@ class AccountPreferencesScreen extends StatelessWidget {
           Navigator.of(ctx).pop();
           c.resetAllFields();
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(strings.allSelectionsClearedSnackText)),
+            SnackBar(content: Text(strings.allSelectionsClearedSnackText)),
           );
         },
         onSecondary: () => Navigator.of(ctx).pop(),

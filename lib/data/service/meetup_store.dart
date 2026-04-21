@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:meetmern/data/service/api_s.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
+import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/data/service/meetup_service.dart';
 
 class MeetupStore extends ChangeNotifier {
   MeetupStore._();
@@ -9,52 +10,64 @@ class MeetupStore extends ChangeNotifier {
 
   final List<Meetup> _meetups = [];
   bool _loaded = false;
+  String? lastError;
 
   List<Meetup> get meetups => List.unmodifiable(_meetups);
 
   List<Meetup> get favourites =>
-      _meetups.where((m) => m.isFavorite == true).toList(growable: false);
+      _meetups.where((m) => m.isFavorite).toList(growable: false);
 
   Meetup? byId(String id) {
-    for (final meetup in _meetups) {
-      if (meetup.id == id) return meetup;
+    for (final m in _meetups) {
+      if (m.id == id) return m;
     }
     return null;
   }
 
-  Future<void> load() async {
-    if (_loaded) return;
+  Future<void> load({bool forceReload = false}) async {
+    if (_loaded && !forceReload) return;
+    lastError = null;
+    try {
+      final rows = await MeetupService.fetchMeetups();
+      _meetups
+        ..clear()
+        ..addAll(rows.map(Meetup.fromSupabase));
 
-    final data = await MockApi.fetchMeetups();
-    _meetups
-      ..clear()
-      ..addAll(data);
+      // Sync favourite flags from Supabase
+      final uid = AuthService.currentUser?.id;
+      if (uid != null) {
+        try {
+          final favIds = await MeetupService.fetchFavouriteMeetupIds(uid);
+          for (final m in _meetups) {
+            m.isFavorite = favIds.contains(m.id);
+          }
+        } catch (_) {}
+      }
 
-    _loaded = true;
+      _loaded = true;
+    } catch (e) {
+      lastError = e.toString();
+      _loaded = false;
+    }
     notifyListeners();
   }
 
-  void setFavorite(String id, bool value) {
-    final meetup = byId(id);
-    if (meetup == null) return;
+  Future<void> reload() => load(forceReload: true);
 
-    meetup.isFavorite = value;
+  void setFavorite(String id, bool value) {
+    byId(id)?.isFavorite = value;
     notifyListeners();
   }
 
   void toggleFavorite(String id) {
-    final meetup = byId(id);
-    if (meetup == null) return;
-
-    meetup.isFavorite = !(meetup.isFavorite ?? false);
+    final m = byId(id);
+    if (m == null) return;
+    m.isFavorite = !m.isFavorite;
     notifyListeners();
   }
 
   void setJoinRequested(String id, bool value) {
-    final meetup = byId(id);
-    if (meetup == null) return;
-
-    meetup.joinRequested = value;
+    byId(id)?.joinRequested = value;
     notifyListeners();
   }
 }

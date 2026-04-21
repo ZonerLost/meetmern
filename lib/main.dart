@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/view/binding/app_binding.dart';
-import 'package:meetmern/view/routes/app_routes.dart';
-import 'package:meetmern/view/routes/route_names.dart';
+import 'package:meetmern/core/routes/app_routes.dart';
+import 'package:meetmern/core/routes/route_names.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {

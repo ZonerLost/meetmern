@@ -2,6 +2,21 @@ import 'package:meetmern/data/models/explore_meetup_model.dart';
 
 enum RequestStatus { none, accepted, rejected, requested }
 
+/// Maps DB status strings to [RequestStatus].
+RequestStatus requestStatusFromDbString(String? s) {
+  switch (s?.toLowerCase()) {
+    case 'accepted':
+      return RequestStatus.accepted;
+    case 'rejected':
+      return RequestStatus.rejected;
+    case 'pending':
+    case 'requested':
+      return RequestStatus.requested;
+    default:
+      return RequestStatus.none;
+  }
+}
+
 RequestStatus requestStatusFromString(String? s) {
   if (s == null) return RequestStatus.none;
   switch (s.toLowerCase()) {
@@ -39,6 +54,15 @@ class Chat {
   String avatarUrl;
   RequestStatus status;
 
+  // Supabase-backed fields (null for mock/local chats)
+  final String? id;           // chats.id
+  final String? chatType;     // 'meetup' | 'direct'
+  final String? dbStatus;     // raw DB status: pending/accepted/rejected
+  final String? meetupId;
+  final String? meetupRequestId;
+  final String? userOne;
+  final String? userTwo;
+
   Chat({
     required this.name,
     required this.message,
@@ -46,6 +70,13 @@ class Chat {
     required this.type,
     this.avatarUrl = '',
     this.status = RequestStatus.requested,
+    this.id,
+    this.chatType,
+    this.dbStatus,
+    this.meetupId,
+    this.meetupRequestId,
+    this.userOne,
+    this.userTwo,
   });
 
   factory Chat.fromJson(Map<String, dynamic> json) {
@@ -57,6 +88,38 @@ class Chat {
       avatarUrl: json['avatarUrl'] as String? ?? '',
       status: requestStatusFromString(json['status'] as String?),
     );
+  }
+
+  /// Build a [Chat] from a Supabase `chats` row.
+  /// [otherUserName] and [otherUserAvatar] must be resolved by the caller.
+  factory Chat.fromSupabase(
+    Map<String, dynamic> row, {
+    required String otherUserName,
+    String otherUserAvatar = '',
+    String lastMessage = '',
+  }) {
+    final dbStatus = row['status']?.toString() ?? 'pending';
+    return Chat(
+      id: row['id']?.toString(),
+      name: otherUserName,
+      message: lastMessage,
+      time: row['updated_at']?.toString() ?? '',
+      type: row['chat_type']?.toString() ?? 'meetup',
+      avatarUrl: otherUserAvatar,
+      status: requestStatusFromDbString(dbStatus),
+      chatType: row['chat_type']?.toString(),
+      dbStatus: dbStatus,
+      meetupId: row['meetup_id']?.toString(),
+      meetupRequestId: row['meetup_request_id']?.toString(),
+      userOne: row['user_one']?.toString(),
+      userTwo: row['user_two']?.toString(),
+    );
+  }
+
+  /// Returns true when normal messaging is allowed.
+  bool get canSendMessages {
+    if (chatType == 'meetup') return dbStatus == 'accepted';
+    return true; // direct chats are always open
   }
 
   Map<String, dynamic> toJson() {

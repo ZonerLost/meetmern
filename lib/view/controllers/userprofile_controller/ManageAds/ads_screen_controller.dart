@@ -1,35 +1,63 @@
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
-import 'package:meetmern/data/service/api_s.dart';
+import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/data/service/meetup_service.dart';
 
 class AdsScreenController extends GetxController {
   List<Meetup> meetups = <Meetup>[];
   bool isLoading = true;
+  String? error;
 
   Future<void> loadMeetups({Meetup? initialMeetup}) async {
     isLoading = true;
+    error = null;
     update();
+
+    final uid = AuthService.currentUser?.id;
+    if (uid == null) {
+      isLoading = false;
+      update();
+      return;
+    }
+
     try {
-      final List<Meetup> data = await MockApi.fetchMeetups();
-      final List<Meetup> merged = List<Meetup>.from(data);
+      final rows = await MeetupService.fetchMeetupsForUser(uid);
+      final List<Meetup> loaded = rows.map(Meetup.fromSupabase).toList();
+
       if (initialMeetup != null) {
-        merged.removeWhere((m) => m.id == initialMeetup.id);
-        merged.insert(0, initialMeetup);
+        loaded.removeWhere((m) => m.id == initialMeetup.id);
+        loaded.insert(0, initialMeetup);
       }
-      meetups = merged;
+
+      meetups = loaded;
+    } catch (_) {
+      error = 'Failed to load ads.';
     } finally {
       isLoading = false;
       update();
     }
   }
 
-  void addNewMeetup(Meetup meetup) {
-    meetups.insert(0, meetup);
+  /// Deletes from Supabase via [MeetupService] then removes from local list.
+  Future<bool> deleteMeetup(String id) async {
+    try {
+      await MeetupService.deleteMeetup(id);
+      meetups.removeWhere((m) => m.id == id);
+      update();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  void removeById(String id) {
+    meetups.removeWhere((m) => m.id == id);
     update();
   }
 
-  void removeMeetupById(String id) {
-    meetups.removeWhere((m) => m.id == id);
+  void addNewMeetup(Meetup meetup) {
+    meetups.removeWhere((m) => m.id == meetup.id);
+    meetups.insert(0, meetup);
     update();
   }
 

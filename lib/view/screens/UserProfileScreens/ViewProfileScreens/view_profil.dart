@@ -30,157 +30,164 @@ class ViewProfileScreen extends StatelessWidget {
     return GetBuilder<ViewProfileController>(
       builder: (controller) {
         return Scaffold(
+          extendBodyBehindAppBar: true,
           backgroundColor: appTheme.coreWhite,
-          body: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () async {
-                await controller.refreshProfile();
-                await controller.loadMeetups();
-              },
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Profile image header
-                    _ProfileHeader(controller: controller),
+          appBar: AppBar(
+            backgroundColor: appTheme.blacktransparent,
+            leading: SafeArea(
+              child: IconButton(
+                icon: Icon(Icons.arrow_back, color: appTheme.coreWhite),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+            ),
+          ),
+          body: RefreshIndicator(
+            onRefresh: () async {
+              await controller.refreshProfile();
+              await controller.loadMeetups();
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Profile image header
+                  _ProfileHeader(controller: controller),
 
-                    Padding(
-                      padding: EdgeInsets.all(dimension.d16.w),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Name
-                          if (controller.profileName.isNotEmpty)
-                            Text(
-                              controller.profileName,
-                              style: styles.titleTextStyle,
-                            ),
+                  Padding(
+                    padding: EdgeInsets.all(dimension.d16.w),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Name
+                        if (controller.profileName.isNotEmpty)
+                          Text(
+                            controller.profileName,
+                            style: styles.titleTextStyle,
+                          ),
 
-                          // Email
-                          if (controller.email.isNotEmpty) ...[
-                            SizedBox(height: dimension.d4.h),
-                            Text(
-                              controller.email,
+                        // Email
+                        if (controller.email.isNotEmpty) ...[
+                          SizedBox(height: dimension.d4.h),
+                          Text(
+                            controller.email,
+                            style: styles.subtitleTextStyle,
+                          ),
+                        ],
+
+                        SizedBox(height: dimension.d12.h),
+
+                        // Bio
+                        _Section(
+                          label: strings.bioLabel,
+                          value: controller.bio,
+                          styles: styles,
+                        ),
+
+                        // Gender
+                        _Section(
+                          label: strings.genderLabel,
+                          value: controller.gender,
+                          styles: styles,
+                        ),
+
+                        // DOB
+                        _Section(
+                          label: strings.dateOfBirthLabel,
+                          value: controller.dob,
+                          styles: styles,
+                        ),
+
+                        // Relationship
+                        _Section(
+                          label: strings.relationshipStatusLabel,
+                          value: controller.relationship,
+                          styles: styles,
+                        ),
+
+                        // Children
+                        _Section(
+                          label: strings.childrenLabel,
+                          value: controller.children,
+                          styles: styles,
+                        ),
+
+                        // Religion
+                        _Section(
+                          label: strings.religionLabel,
+                          value: controller.religion,
+                          styles: styles,
+                        ),
+
+                        // Languages
+                        if (controller.languages.isNotEmpty) ...[
+                          Text(strings.languagesLabel,
+                              style: styles.titleTextStyle),
+                          SizedBox(height: dimension.d6.h),
+                          _PillWrap(items: controller.languages),
+                          SizedBox(height: dimension.d12.h),
+                        ],
+
+                        // Passion Topics
+                        if (controller.passionTopics.isNotEmpty) ...[
+                          Text(strings.passionTopicsLabel,
+                              style: styles.titleTextStyle),
+                          SizedBox(height: dimension.d6.h),
+                          _PillWrap(items: controller.passionTopics),
+                          SizedBox(height: dimension.d12.h),
+                        ],
+
+                        // Interests
+                        if (controller.interests.isNotEmpty) ...[
+                          Text(strings.interestsLabel,
+                              style: styles.titleTextStyle),
+                          SizedBox(height: dimension.d8.h),
+                          _PillWrap(items: controller.interests),
+                          SizedBox(height: dimension.d12.h),
+                        ],
+
+                        // Meetups
+                        Text(strings.meetupsLabel,
+                            style: styles.titleTextStyle),
+                        SizedBox(height: dimension.d10.h),
+
+                        if (controller.loading)
+                          const Center(child: CircularProgressIndicator())
+                        else if (controller.allMeetups.isEmpty)
+                          Padding(
+                            padding:
+                                EdgeInsets.symmetric(vertical: dimension.d20.h),
+                            child: Text(
+                              strings.noMeetupsAvailableText,
                               style: styles.subtitleTextStyle,
                             ),
-                          ],
-
-                          SizedBox(height: dimension.d12.h),
-
-                          // Bio
-                          _Section(
-                            label: strings.bioLabel,
-                            value: controller.bio,
-                            styles: styles,
-                          ),
-
-                          // Gender
-                          _Section(
-                            label: strings.genderLabel,
-                            value: controller.gender,
-                            styles: styles,
-                          ),
-
-                          // DOB
-                          _Section(
-                            label: strings.dateOfBirthLabel,
-                            value: controller.dob,
-                            styles: styles,
-                          ),
-
-                          // Relationship
-                          _Section(
-                            label: strings.relationshipStatusLabel,
-                            value: controller.relationship,
-                            styles: styles,
-                          ),
-
-                          // Children
-                          _Section(
-                            label: strings.childrenLabel,
-                            value: controller.children,
-                            styles: styles,
-                          ),
-
-                          // Religion
-                          _Section(
-                            label: strings.religionLabel,
-                            value: controller.religion,
-                            styles: styles,
-                          ),
-
-                          // Languages
-                          if (controller.languages.isNotEmpty) ...[
-                            Text(strings.languagesLabel,
-                                style: styles.titleTextStyle),
-                            SizedBox(height: dimension.d6.h),
-                            _PillWrap(items: controller.languages),
-                            SizedBox(height: dimension.d12.h),
-                          ],
-
-                          // Passion Topics
-                          if (controller.passionTopics.isNotEmpty) ...[
-                            Text(strings.passionTopicsLabel,
-                                style: styles.titleTextStyle),
-                            SizedBox(height: dimension.d6.h),
-                            _PillWrap(items: controller.passionTopics),
-                            SizedBox(height: dimension.d12.h),
-                          ],
-
-                          // Interests
-                          if (controller.interests.isNotEmpty) ...[
-                            Text(strings.interestsLabel,
-                                style: styles.titleTextStyle),
-                            SizedBox(height: dimension.d8.h),
-                            _PillWrap(items: controller.interests),
-                            SizedBox(height: dimension.d12.h),
-                          ],
-
-                          // Meetups
-                          Text(strings.meetupsLabel,
-                              style: styles.titleTextStyle),
-                          SizedBox(height: dimension.d10.h),
-
-                          if (controller.loading)
-                            const Center(child: CircularProgressIndicator())
-                          else if (controller.allMeetups.isEmpty)
-                            Padding(
-                              padding: EdgeInsets.symmetric(
-                                  vertical: dimension.d20.h),
-                              child: Text(
-                                strings.noMeetupsAvailableText,
-                                style: styles.subtitleTextStyle,
-                              ),
-                            )
-                          else
-                            ...controller.allMeetups.map(
-                              (m) => MeetupCard(
-                                meetup: m,
-                                onFavorite: () =>
-                                    controller.toggleFavorite(m.id),
-                                onTap: () =>
-                                    _openMeetupDetails(context, m, controller),
-                                showFavorite: false,
-                              ),
+                          )
+                        else
+                          ...controller.allMeetups.map(
+                            (m) => MeetupCard(
+                              meetup: m,
+                              onFavorite: () => controller.toggleFavorite(m.id),
+                              onTap: () =>
+                                  _openMeetupDetails(context, m, controller),
+                              showFavorite: false,
                             ),
-
-                          SizedBox(height: dimension.d20.h),
-
-                          // Edit Profile button
-                          CustomElevatedButton(
-                            onPressed: () => _editProfile(context, controller),
-                            buttonStyle: styles.loginButtonStyle,
-                            text: strings.editProfileText,
-                            buttonTextStyle: styles.loginButtonTextStyle,
                           ),
 
-                          SizedBox(height: dimension.d20.h),
-                        ],
-                      ),
+                        SizedBox(height: dimension.d20.h),
+
+                        // Edit Profile button
+                        CustomElevatedButton(
+                          onPressed: () => _editProfile(context, controller),
+                          buttonStyle: styles.loginButtonStyle,
+                          text: strings.editProfileText,
+                          buttonTextStyle: styles.loginButtonTextStyle,
+                        ),
+
+                        SizedBox(height: dimension.d20.h),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -230,7 +237,7 @@ class _ProfileHeader extends StatelessWidget {
     final photoUrl = controller.photoUrl;
     return SizedBox(
       width: double.infinity,
-      height: 300.h,
+      height: 400.h,
       child: photoUrl.isNotEmpty
           ? Image.network(
               photoUrl,

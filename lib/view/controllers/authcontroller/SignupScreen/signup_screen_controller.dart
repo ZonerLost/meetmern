@@ -4,7 +4,7 @@ import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
-import 'package:meetmern/view/routes/route_names.dart';
+import 'package:meetmern/core/routes/route_names.dart';
 
 class SignupController extends GetxController {
   static const _strings = Strings();
@@ -23,18 +23,21 @@ class SignupController extends GetxController {
   }
 
   String? validateName(String? value) {
-    if (value == null || value.trim().isEmpty) return _strings.pleaseEnterYourNameText;
+    if (value == null || value.trim().isEmpty)
+      return _strings.pleaseEnterYourNameText;
     return null;
   }
 
   String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return _strings.pleaseEnterYourEmailText;
+    if (value == null || value.trim().isEmpty)
+      return _strings.pleaseEnterYourEmailText;
     if (!value.isValidEmail) return _strings.enterValidEmailText;
     return null;
   }
 
   String? validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty) return _strings.pleaseEnterYourPhoneText;
+    if (value == null || value.trim().isEmpty)
+      return _strings.pleaseEnterYourPhoneText;
     return null;
   }
 
@@ -58,7 +61,8 @@ class SignupController extends GetxController {
         password: passwordController.text.trim(),
       );
 
-      AppSnackbar.success('Account created! Please check your email to confirm.');
+      AppSnackbar.success(
+          'Account created! Please check your email to confirm.');
       Get.toNamed(Routes.login);
     } on Exception catch (e) {
       AuthService.pendingName = null;
@@ -72,7 +76,8 @@ class SignupController extends GetxController {
 
   String _parseError(Exception e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('already registered')) return 'This email is already registered.';
+    if (msg.contains('already registered'))
+      return 'This email is already registered.';
     if (msg.contains('weak password')) return 'Password is too weak.';
     if (msg.contains('network')) return 'Network error. Check your connection.';
     return 'Sign up failed. Please try again.';

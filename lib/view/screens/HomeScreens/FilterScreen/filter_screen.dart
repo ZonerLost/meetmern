@@ -10,10 +10,12 @@ import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 
 class FilterScreen extends StatefulWidget {
   final Map<String, dynamic> options;
+  final Map<String, dynamic>? initialValues;
 
   const FilterScreen({
     super.key,
     required this.options,
+    this.initialValues,
   });
 
   @override
@@ -21,6 +23,10 @@ class FilterScreen extends StatefulWidget {
 }
 
 class _FilterModalState extends State<FilterScreen> {
+  static const double _defaultDistanceKm = 15;
+  static const double _defaultAgeMin = 20;
+  static const double _defaultAgeMax = 45;
+
   final _formKey = GlobalKey<FormState>();
   final TextEditingController dateRangeController = TextEditingController();
   DateTimeRange? _selectedRange;
@@ -31,8 +37,8 @@ class _FilterModalState extends State<FilterScreen> {
     super.dispose();
   }
 
-  double _distanceKm = dimension.d15;
-  RangeValues _ageRange = RangeValues(dimension.d20, dimension.d45);
+  double _distanceKm = _defaultDistanceKm;
+  RangeValues _ageRange = const RangeValues(_defaultAgeMin, _defaultAgeMax);
 
   final List<String> _orientationsSelected = [];
   String? _religion;
@@ -84,23 +90,10 @@ class _FilterModalState extends State<FilterScreen> {
   @override
   void initState() {
     super.initState();
+    _restoreInitialValues();
   }
 
-  bool get _canApply {
-    return _ageRange.start <= _ageRange.end &&
-        _distanceKm > 0 &&
-        _gender != null &&
-        _orientationsSelected.isNotEmpty &&
-        _religion != null &&
-        _religion!.trim().isNotEmpty &&
-        _relationship != null &&
-        _relationship!.trim().isNotEmpty &&
-        _languages.isNotEmpty &&
-        _interests.isNotEmpty &&
-        _dateRange != null &&
-        _hostRating != null &&
-        _hostRating!.trim().isNotEmpty;
-  }
+  bool get _canApply => _ageRange.start <= _ageRange.end && _distanceKm > 0;
 
   Future<void> _pickDateRange() async {
     final picked = await showDateRangePicker(
@@ -125,7 +118,7 @@ class _FilterModalState extends State<FilterScreen> {
       String fmt(DateTime d) =>
           "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
 
-      final formatted = "${fmt(picked.start)}  →  ${fmt(picked.end)}";
+      final formatted = "${fmt(picked.start)} -> ${fmt(picked.end)}";
 
       dateRangeController.text = formatted;
 
@@ -147,6 +140,153 @@ class _FilterModalState extends State<FilterScreen> {
     final s = _dateRange!.start;
     final e = _dateRange!.end;
     return '${s.day}/${s.month}/${s.year} - ${e.day}/${e.month}/${e.year}';
+  }
+
+  void _restoreInitialValues() {
+    final initial = widget.initialValues;
+    if (initial == null || initial.isEmpty) return;
+
+    _distanceKm = (initial['distanceKm'] as num?)?.toDouble() ?? _distanceKm;
+
+    final minAge = (initial['ageMin'] as num?)?.toDouble();
+    final maxAge = (initial['ageMax'] as num?)?.toDouble();
+    if (minAge != null && maxAge != null && minAge <= maxAge) {
+      _ageRange = RangeValues(minAge, maxAge);
+    }
+
+    final gender = initial['gender']?.toString().trim();
+    _gender = (gender == null || gender.isEmpty) ? null : gender;
+
+    final orientationRaw = initial['orientation'];
+    if (orientationRaw is String) {
+      _orientationsSelected
+        ..clear()
+        ..addAll(orientationRaw
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty));
+    } else if (orientationRaw is List) {
+      _orientationsSelected
+        ..clear()
+        ..addAll(orientationRaw
+            .map((e) => e.toString().trim())
+            .where((e) => e.isNotEmpty));
+    }
+
+    final religion = initial['religion']?.toString().trim();
+    _religion = (religion == null || religion.isEmpty) ? null : religion;
+
+    final relationship = initial['relationship']?.toString().trim();
+    _relationship =
+        (relationship == null || relationship.isEmpty) ? null : relationship;
+
+    final languages = initial['languages'];
+    if (languages is List) {
+      _languages = languages
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
+    }
+
+    final interests = initial['interests'];
+    if (interests is List) {
+      _interests
+        ..clear()
+        ..addAll(interests
+            .map((e) => e.toString().trim())
+            .where((e) => e.isNotEmpty));
+    }
+
+    final hostRating = initial['hostRating']?.toString().trim();
+    _hostRating =
+        (hostRating == null || hostRating.isEmpty) ? null : hostRating;
+
+    final dateRange = initial['dateRange'];
+    if (dateRange is Map) {
+      final start = DateTime.tryParse(dateRange['start']?.toString() ?? '');
+      final end = DateTime.tryParse(dateRange['end']?.toString() ?? '');
+      if (start != null && end != null) {
+        _dateRange = DateTimeRange(start: start, end: end);
+        _selectedRange = _dateRange;
+        dateRangeController.text = _formatDateRange();
+      }
+    }
+  }
+
+  String? _normalizedAny(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    if (trimmed.toLowerCase() == strings.any.toLowerCase()) return null;
+    return trimmed;
+  }
+
+  List<String> _normalizedList(List<String> values) {
+    return values
+        .map((e) => e.trim())
+        .where(
+          (e) => e.isNotEmpty && e.toLowerCase() != strings.any.toLowerCase(),
+        )
+        .toList(growable: false);
+  }
+
+  Map<String, dynamic> _buildResultMap() {
+    final map = <String, dynamic>{};
+
+    if ((_distanceKm - _defaultDistanceKm).abs() > 0.001) {
+      map['distanceKm'] = _distanceKm;
+    }
+    if ((_ageRange.start - _defaultAgeMin).abs() > 0.001 ||
+        (_ageRange.end - _defaultAgeMax).abs() > 0.001) {
+      map['ageMin'] = _ageRange.start.toInt();
+      map['ageMax'] = _ageRange.end.toInt();
+    }
+
+    final gender = _normalizedAny(_gender);
+    if (gender != null) map['gender'] = gender;
+
+    final orientation = _normalizedList(_orientationsSelected);
+    if (orientation.isNotEmpty) map['orientation'] = orientation;
+
+    final religion = _normalizedAny(_religion);
+    if (religion != null) map['religion'] = religion;
+
+    final relationship = _normalizedAny(_relationship);
+    if (relationship != null) map['relationship'] = relationship;
+
+    final languages = _normalizedList(_languages);
+    if (languages.isNotEmpty) map['languages'] = languages;
+
+    final interests = _normalizedList(_interests);
+    if (interests.isNotEmpty) map['interests'] = interests;
+
+    final hostRating = _normalizedAny(_hostRating);
+    if (hostRating != null) map['hostRating'] = hostRating;
+
+    if (_dateRange != null) {
+      map['dateRange'] = {
+        'start': _dateRange!.start.toIso8601String(),
+        'end': _dateRange!.end.toIso8601String(),
+      };
+    }
+
+    return map;
+  }
+
+  void _resetFilters() {
+    setState(() {
+      _distanceKm = _defaultDistanceKm;
+      _ageRange = const RangeValues(_defaultAgeMin, _defaultAgeMax);
+      _gender = null;
+      _orientationsSelected.clear();
+      _religion = null;
+      _relationship = null;
+      _languages = <String>[];
+      _interests.clear();
+      _hostRating = null;
+      _dateRange = null;
+      _selectedRange = null;
+      dateRangeController.clear();
+    });
   }
 
   Widget _buildSelectableChip(String label, List<String> list) {
@@ -269,6 +409,16 @@ class _FilterModalState extends State<FilterScreen> {
             Expanded(
                 child: Text(strings.applySearchFilters,
                     style: customButtonandTextStyles.emailLabelTextStyle)),
+            TextButton(
+              onPressed: _resetFilters,
+              child: Text(
+                'Clear',
+                style: customButtonandTextStyles.sliderTextStyle.copyWith(
+                  color: appTheme.b_Primary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
             IconButton(
                 onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.close))
@@ -593,27 +743,7 @@ class _FilterModalState extends State<FilterScreen> {
             ),
             onPressed: _canApply
                 ? () {
-                    final resultMap = <String, dynamic>{
-                      'distanceKm': _distanceKm,
-                      'ageMin': _ageRange.start.toInt(),
-                      'ageMax': _ageRange.end.toInt(),
-                      'gender': _gender,
-                      'orientation': _orientationsSelected.isEmpty
-                          ? null
-                          : _orientationsSelected.join(','),
-                      'religion': _religion,
-                      'relationship': _relationship,
-                      'languages': _languages,
-                      'interests': _interests,
-                      'hostRating': _hostRating,
-                      'dateRange': _dateRange == null
-                          ? null
-                          : {
-                              'start': _dateRange!.start.toIso8601String(),
-                              'end': _dateRange!.end.toIso8601String(),
-                            },
-                    };
-                    Navigator.of(context).pop(resultMap);
+                    Navigator.of(context).pop(_buildResultMap());
                   }
                 : null,
           ),

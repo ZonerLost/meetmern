@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/view/controllers/authcontroller/SignupScreen/signup_screen_controller.dart';
-import 'package:meetmern/view/routes/route_names.dart';
+import 'package:meetmern/core/routes/route_names.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/auth_background_image.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
@@ -22,8 +22,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final customThemeData = ThemeHelper(appThemeName: strings.lightCode).themeData;
-    final styles = CustomButtonStyles(apppTheme: Theme.of(context), theme: customThemeData);
+    final customThemeData =
+        ThemeHelper(appThemeName: strings.lightCode).themeData;
+    final styles = CustomButtonStyles(
+        apppTheme: Theme.of(context), theme: customThemeData);
 
     return GetBuilder<SignupController>(
       builder: (c) => Scaffold(
@@ -39,8 +41,8 @@ class _SignupScreenState extends State<SignupScreen> {
               right: dimension.d0,
               bottom: dimension.d0,
               child: Container(
-                padding: EdgeInsets.fromLTRB(
-                    dimension.d32.w, dimension.d28.h, dimension.d32.w, dimension.d36.h),
+                padding: EdgeInsets.fromLTRB(dimension.d32.w, dimension.d28.h,
+                    dimension.d32.w, dimension.d36.h),
                 decoration: BoxDecoration(
                   color: appTheme.coreWhite,
                   borderRadius: BorderRadius.only(
@@ -55,11 +57,14 @@ class _SignupScreenState extends State<SignupScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(height: dimension.d8.h),
-                        Text(strings.signUpScreenTitle, style: styles.titleTextStyle),
+                        Text(strings.signUpScreenTitle,
+                            style: styles.titleTextStyle),
                         SizedBox(height: dimension.d8.h),
-                        Text(strings.signUpScreenSubtitle, style: styles.subtitleTextStyle),
+                        Text(strings.signUpScreenSubtitle,
+                            style: styles.subtitleTextStyle),
                         SizedBox(height: dimension.d16.h),
-                        Text(strings.nameLabel, style: styles.emailLabelTextStyle),
+                        Text(strings.nameLabel,
+                            style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.nameController,
@@ -68,7 +73,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           inputDecoration: styles.userNameInputDecoration,
                         ),
                         SizedBox(height: dimension.d12.h),
-                        Text(strings.emailPrompt, style: styles.emailLabelTextStyle),
+                        Text(strings.emailPrompt,
+                            style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.emailController,
@@ -77,26 +83,32 @@ class _SignupScreenState extends State<SignupScreen> {
                           inputDecoration: styles.emailInputDecoration,
                         ),
                         SizedBox(height: dimension.d12.h),
-                        Text(strings.phoneNumberLabel, style: styles.emailLabelTextStyle),
+                        Text(strings.phoneNumberLabel,
+                            style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.phoneController,
                           textStyle: styles.userNameTextStyle,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly
+                          ],
                           textInputType: TextInputType.number,
                           validator: c.validatePhone,
                           inputDecoration: styles.emailInputDecoration.copyWith(
                             prefixIcon: Padding(
                               padding: EdgeInsets.only(
                                   left: dimension.d12.w, right: dimension.d8.w),
-                              child: Icon(Icons.call_outlined, size: dimension.d20.w),
+                              child: Icon(Icons.call_outlined,
+                                  size: dimension.d20.w),
                             ),
                             prefixIconConstraints: BoxConstraints(
-                                minWidth: dimension.d32.w, minHeight: dimension.d32.h),
+                                minWidth: dimension.d32.w,
+                                minHeight: dimension.d32.h),
                           ),
                         ),
                         SizedBox(height: dimension.d12.h),
-                        Text(strings.passwordPrompt, style: styles.emailLabelTextStyle),
+                        Text(strings.passwordPrompt,
+                            style: styles.emailLabelTextStyle),
                         SizedBox(height: dimension.d8.h),
                         CustomTextFormField(
                           controller: c.passwordController,
@@ -111,7 +123,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         SizedBox(height: dimension.d20.h),
                         Center(
                           child: CustomElevatedButton(
-                            onPressed: c.isLoading ? null : () => c.signUp(_formKey),
+                            onPressed:
+                                c.isLoading ? null : () => c.signUp(_formKey),
                             buttonStyle: styles.loginButtonStyle,
                             text: c.isLoading ? '' : strings.createAccountText,
                             buttonTextStyle: styles.loginButtonTextStyle,
@@ -120,7 +133,8 @@ class _SignupScreenState extends State<SignupScreen> {
                                     height: dimension.d20.h,
                                     width: dimension.d20.h,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: appTheme.coreWhite),
+                                        strokeWidth: 2,
+                                        color: appTheme.coreWhite),
                                   )
                                 : null,
                           ),

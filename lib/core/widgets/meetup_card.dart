@@ -139,9 +139,7 @@ class MeetupCard extends StatelessWidget {
                               SizedBox(width: 8.w),
                               Expanded(
                                 child: Text(
-                                  meetup.time is DateTime
-                                      ? _formatMeetupTime(meetup.time)
-                                      : meetup.time.toString(),
+                                  _formatMeetupTime(meetup.time),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: customButtonandTextStyles
@@ -189,6 +187,7 @@ class MeetupCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12.r),
                     child: SizedBox(
                       width: imageWidth,
+                      height: imageWidth * 1.1,
                       child: Stack(
                         fit: StackFit.expand,
                         children: [

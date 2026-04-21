@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/view/controllers/authcontroller/SplashScreens/splash_screen_1_controller.dart';
-import 'package:meetmern/view/routes/route_names.dart';
+import 'package:meetmern/core/routes/route_names.dart';
 
 class SplashScreen1 extends StatelessWidget {
   const SplashScreen1({super.key});

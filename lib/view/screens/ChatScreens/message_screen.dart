@@ -34,29 +34,38 @@ class MessageScreen extends StatelessWidget {
             appBar: _buildAppBar(context, c, strings),
             body: SafeArea(
               bottom: false,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: ListView.builder(
-                      controller: c.scrollController,
-                      padding: EdgeInsets.only(
-                          top: dimension.d8, bottom: dimension.d92),
-                      itemCount: c.messages.length + 1,
-                      itemBuilder: (context, index) {
-                        if (index == 0) return _buildStatusHeader(c, strings);
-                        final msg = c.messages[index - 1];
-                        return _buildMessageBubble(context, msg);
-                      },
+              child: c.isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : Stack(
+                      children: [
+                        Positioned.fill(
+                          child: ListView.builder(
+                            controller: c.scrollController,
+                            padding: EdgeInsets.only(
+                                top: dimension.d8, bottom: dimension.d92),
+                            itemCount: c.messages.length + 1,
+                            itemBuilder: (context, index) {
+                              if (index == 0) {
+                                return _buildStatusHeader(c, strings);
+                              }
+                              final msg = c.messages[index - 1];
+                              if (msg.messageType == 'meetup_request') {
+                                return _buildRequestCard(
+                                    context, c, msg, styles, strings);
+                              }
+                              return _buildMessageBubble(context, msg);
+                            },
+                          ),
+                        ),
+                        Positioned(
+                          left: dimension.d0,
+                          right: dimension.d0,
+                          bottom: dimension.d0,
+                          child: _buildComposer(
+                              context, c, styles, strings),
+                        ),
+                      ],
                     ),
-                  ),
-                  Positioned(
-                    left: dimension.d0,
-                    right: dimension.d0,
-                    bottom: dimension.d0,
-                    child: _buildComposer(context, c, styles, strings),
-                  ),
-                ],
-              ),
             ),
           ),
         );
@@ -125,7 +134,7 @@ class MessageScreen extends StatelessWidget {
                           fontWeight: FontWeight.w600)),
                   SizedBox(height: dimension.d3),
                   Text(
-                    '${chat.type ?? ''}${chat.time.isNotEmpty ? ' ${strings.dotSeparator} ' : ''}${chat.time}',
+                    '${chat.type}${chat.time.isNotEmpty ? ' ${strings.dotSeparator} ' : ''}${chat.time}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -185,6 +194,118 @@ class MessageScreen extends StatelessWidget {
     );
   }
 
+  /// The existing request/status card UI – shown for meetup_request messages.
+  Widget _buildRequestCard(
+    BuildContext context,
+    MessageController c,
+    ChatMessageItem msg,
+    CustomButtonStyles styles,
+    Strings strings,
+  ) {
+    final reqStatus = msg.requestStatus ?? 'pending';
+    Color statusColor;
+    String statusLabel;
+    switch (reqStatus) {
+      case 'accepted':
+        statusColor = appTheme.accentsgreen;
+        statusLabel = strings.acceptedLabel;
+        break;
+      case 'rejected':
+        statusColor = appTheme.red;
+        statusLabel = strings.rejectedLabel;
+        break;
+      default:
+        statusColor = appTheme.b_400;
+        statusLabel = strings.requestedLabel;
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(
+          horizontal: dimension.d16, vertical: dimension.d8),
+      child: Container(
+        padding: EdgeInsets.all(dimension.d16),
+        decoration: BoxDecoration(
+          color: appTheme.infieldColor,
+          borderRadius: BorderRadius.circular(dimension.d16),
+          border: Border.all(color: appTheme.borderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    msg.text.isNotEmpty ? msg.text : 'Meetup request',
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: dimension.d14,
+                        color: appTheme.neutral_800),
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(
+                      horizontal: dimension.d10, vertical: dimension.d4),
+                  decoration: BoxDecoration(
+                    color: statusColor,
+                    borderRadius: BorderRadius.circular(dimension.d20),
+                  ),
+                  child: Text(
+                    statusLabel,
+                    style: TextStyle(
+                        color: appTheme.coreWhite,
+                        fontSize: dimension.d12,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+            // Show Accept/Reject only to the meetup owner when still pending
+            if (c.isOwner && reqStatus == 'pending') ...[
+              SizedBox(height: dimension.d12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () async {
+                        await c.rejectRequest();
+                      },
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: appTheme.red),
+                        shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(dimension.d28)),
+                      ),
+                      child: Text(strings.declineLabel,
+                          style: TextStyle(color: appTheme.red)),
+                    ),
+                  ),
+                  SizedBox(width: dimension.d10),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        await c.acceptRequest();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: appTheme.b_Primary,
+                        shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(dimension.d28)),
+                      ),
+                      child: Text(strings.acceptAndChatLabel,
+                          style:
+                              TextStyle(color: appTheme.coreWhite)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildMessageBubble(BuildContext context, ChatMessageItem message) {
     final isMe = message.isMe;
     return Align(
@@ -212,6 +333,34 @@ class MessageScreen extends StatelessWidget {
 
   Widget _buildComposer(BuildContext context, MessageController c,
       CustomButtonStyles styles, Strings strings) {
+    // Block composer when chat is a meetup chat and not yet accepted
+    if (!c.messagingAllowed) {
+      return SafeArea(
+        top: false,
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+              dimension.d16, dimension.d0, dimension.d16, dimension.d16),
+          child: Container(
+            padding: EdgeInsets.symmetric(
+                horizontal: dimension.d14, vertical: dimension.d14),
+            decoration: BoxDecoration(
+              color: appTheme.infieldColor,
+              borderRadius: BorderRadius.circular(dimension.d28),
+              border: Border.all(color: appTheme.borderColor),
+            ),
+            child: Text(
+              c.isOwner
+                  ? 'Accept the request to start chatting'
+                  : 'Waiting for the host to accept your request',
+              style: TextStyle(
+                  color: appTheme.neutral_400, fontSize: dimension.d14),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+
     return SafeArea(
       top: false,
       child: Padding(
@@ -231,8 +380,8 @@ class MessageScreen extends StatelessWidget {
           focusNode: c.focusNode,
           textInputAction: TextInputAction.send,
           onFieldSubmitted: (_) => c.sendMessage(),
-          suffixConstraints: BoxConstraints.tightFor(
-              width: dimension.d48, height: dimension.d48),
+          suffixConstraints:
+              BoxConstraints.tightFor(width: dimension.d48, height: dimension.d48),
           suffix: Center(
             child: GestureDetector(
               onTap: c.canSend ? c.sendMessage : null,

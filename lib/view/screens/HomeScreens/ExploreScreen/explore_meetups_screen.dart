@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
 import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
@@ -9,13 +10,11 @@ import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_s
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ManageAds/ads_screen.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
-import 'package:meetmern/view/routes/route_names.dart';
+import 'package:meetmern/core/routes/route_names.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
-import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/core/widgets/meetup_card.dart';
-import 'package:meetmern/core/widgets/near_by_card.dart';
 
 class ExploreMeetupsScreen extends StatefulWidget {
   const ExploreMeetupsScreen({super.key});
@@ -33,15 +32,19 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
     _controller.loadData();
   }
 
-  void _openFilter(BuildContext context) {
-    showModalBottomSheet(
+  Future<void> _openFilter(BuildContext context) async {
+    final result = await showModalBottomSheet<Map<String, dynamic>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const FilterScreen(
+      builder: (_) => FilterScreen(
         options: OnboardingMockData.filterOptions,
+        initialValues: _controller.activeFilters,
       ),
     );
+    if (result != null) {
+      _controller.applyFilters(result);
+    }
   }
 
   void _openMeetup(Meetup m) async {
@@ -135,6 +138,23 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
               return const Center(child: CircularProgressIndicator());
             }
 
+            if (controller.error != null) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Failed to load meetups',
+                        style: customButtonandTextStyles.dobLabelTextStyle),
+                    SizedBox(height: dimension.d12.h),
+                    ElevatedButton(
+                      onPressed: _controller.loadData,
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              );
+            }
+
             return Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: dimension.d10.w,
@@ -167,10 +187,7 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
                                 );
                               },
                             )
-                          : _buildFallbackNearbyList(
-                              customButtonandTextStyles,
-                              controller.nearby,
-                            ),
+                          : _buildEmptyState(customButtonandTextStyles),
                     ),
                   ),
                   SizedBox(height: dimension.d12.h),
@@ -183,82 +200,17 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
     );
   }
 
-  Widget _buildFallbackNearbyList(
-    CustomButtonStyles customButtonandTextStyles,
-    List<Nearby> nearby,
-  ) {
+  Widget _buildEmptyState(CustomButtonStyles customButtonandTextStyles) {
     const strings = Strings();
-
-    if (nearby.isEmpty) {
-      return ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          SizedBox(height: dimension.d20.h),
-          Center(child: Text(strings.noMeetupsFound)),
-          SizedBox(height: dimension.d12.h),
-          Center(
-            child: Text(
-              strings.peopleNearbyTitle,
-              style: customButtonandTextStyles.titleTextStyle,
-            ),
-          ),
-          SizedBox(height: dimension.d12.h),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: dimension.d16.w),
-            child: Text(strings.noNearbyPeople),
-          ),
-        ],
-      );
-    }
-
-    return ListView.separated(
+    return ListView(
       padding: EdgeInsets.zero,
-      itemCount: 2 + nearby.length,
-      separatorBuilder: (_, __) => SizedBox(height: dimension.d12.h),
-      itemBuilder: (context, index) {
-        if (index == 0) {
-          return Padding(
-            padding: EdgeInsets.symmetric(horizontal: dimension.d4.w),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(height: dimension.d6.h),
-                SizedBox(height: dimension.d12.h),
-                Text(
-                  strings.peopleNearbyTitle,
-                  style: customButtonandTextStyles.titleTextStyle,
-                ),
-              ],
-            ),
-          );
-        }
-
-        if (index == 1) return const SizedBox.shrink();
-
-        final n = nearby[index - 2];
-        return NearbyCard(
-          nearby: n,
-          onRequest: () {
-            showDialog(
-              context: context,
-              builder: (_) => AlertDialog(
-                title: Text(strings.requestSentTitle),
-                content: Text("${strings.requestSentMessage} ${n.name}"),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(strings.ok),
-                  )
-                ],
-              ),
-            );
-          },
-          onTap: () {
-            _openMeetup(n);
-          },
-        );
-      },
+      children: [
+        SizedBox(height: dimension.d20.h),
+        Center(
+          child: Text(strings.noMeetupsFound,
+              style: customButtonandTextStyles.dobLabelTextStyle),
+        ),
+      ],
     );
   }
 }
-

@@ -4,7 +4,7 @@ import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
-import 'package:meetmern/view/routes/route_names.dart';
+import 'package:meetmern/core/routes/route_names.dart';
 
 class ForgotPasswordController extends GetxController {
   static const _strings = Strings();
@@ -14,7 +14,8 @@ class ForgotPasswordController extends GetxController {
   bool isLoading = false;
 
   String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty) return _strings.pleaseEnterYourEmailText;
+    if (value == null || value.trim().isEmpty)
+      return _strings.pleaseEnterYourEmailText;
     if (!value.isValidEmail) return _strings.enterValidEmailText;
     return null;
   }
@@ -39,7 +40,8 @@ class ForgotPasswordController extends GetxController {
 
   String _parseError(Exception e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('user not found')) return 'No account found with this email.';
+    if (msg.contains('user not found'))
+      return 'No account found with this email.';
     if (msg.contains('network')) return 'Network error. Check your connection.';
     return 'Failed to send reset link. Please try again.';
   }

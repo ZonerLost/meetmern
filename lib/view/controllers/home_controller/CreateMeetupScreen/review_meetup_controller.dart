@@ -8,28 +8,40 @@ class ReviewMeetupController extends GetxController {
 
   String typeLabelFromIndex(int? typeIndex) {
     switch (typeIndex) {
-      case 0: return _strings.typeCoffee;
-      case 1: return _strings.typeDrink;
-      case 2: return _strings.typeMeal;
-      default: return _strings.typeCoffee;
+      case 0:
+        return _strings.typeCoffee;
+      case 1:
+        return _strings.typeDrink;
+      case 2:
+        return _strings.typeMeal;
+      default:
+        return _strings.typeCoffee;
     }
   }
 
   IconData typeIconFromIndex(int? typeIndex) {
     switch (typeIndex) {
-      case 0: return Icons.coffee;
-      case 1: return Icons.local_bar;
-      case 2: return Icons.set_meal;
-      default: return Icons.coffee;
+      case 0:
+        return Icons.coffee;
+      case 1:
+        return Icons.local_bar;
+      case 2:
+        return Icons.set_meal;
+      default:
+        return Icons.coffee;
     }
   }
 
   String defaultAssetIconFromIndex(int? typeIndex) {
     switch (typeIndex) {
-      case 0: return 'assets/icons/coffe_icon.png';
-      case 1: return 'assets/icons/drinks_icon.png';
-      case 2: return 'assets/icons/meals_icon.png';
-      default: return 'assets/icons/coffe_icon.png';
+      case 0:
+        return 'assets/icons/coffe_icon.png';
+      case 1:
+        return 'assets/icons/drinks_icon.png';
+      case 2:
+        return 'assets/icons/meals_icon.png';
+      default:
+        return 'assets/icons/coffe_icon.png';
     }
   }
 
@@ -47,7 +59,7 @@ class ReviewMeetupController extends GetxController {
       location: address.isNotEmpty ? address : _strings.notProvidedLabel,
       distanceKm: 0,
       type: typeLabel,
-      status: 'Open',
+      status: 'open',
       image: _strings.img9,
       description: '',
       icon: defaultAssetIconFromIndex(typeIndex),

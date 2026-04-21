@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:meetmern/data/service/api_s.dart';
+import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/ManageAds/ads_screen_controller.dart';
 import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/pages/onboarding_topbar.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ManageAds/delete_meetup_screen.dart';
@@ -26,39 +27,13 @@ class _ManageAdsState extends State<ManageAds> {
   final ScrollController _scrollController = ScrollController();
   final DimensionResource dimension = DimensionResource();
   final Strings strings = const Strings();
-
-  List<Meetup> _meetups = [];
-  bool _loading = true;
+  late final AdsScreenController _controller;
 
   @override
   void initState() {
     super.initState();
-    _loadMeetups();
-  }
-
-  Future<void> _loadMeetups() async {
-    if (!mounted) return;
-    setState(() => _loading = true);
-
-    try {
-      final data = await MockApi.fetchMeetups();
-      final List<Meetup> merged = List<Meetup>.from(data);
-
-      if (widget.initialMeetup != null) {
-        merged.removeWhere((m) => m.id == widget.initialMeetup!.id);
-        merged.insert(0, widget.initialMeetup!);
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _meetups = merged;
-      });
-    } catch (e) {
-      debugPrint('Failed to load meetups: $e');
-    } finally {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    }
+    _controller = Get.find<AdsScreenController>();
+    _controller.loadMeetups(initialMeetup: widget.initialMeetup);
   }
 
   Future<void> _onAddNewAd() async {
@@ -69,7 +44,7 @@ class _ManageAdsState extends State<ManageAds> {
     if (!mounted) return;
 
     if (created != null) {
-      setState(() => _meetups.insert(0, created));
+      _controller.addNewMeetup(created);
 
       await Future.delayed(const Duration(milliseconds: 50));
       if (_scrollController.hasClients) {
@@ -90,26 +65,15 @@ class _ManageAdsState extends State<ManageAds> {
     );
 
     if (!mounted) return;
-
     if (res is Map<String, dynamic> &&
         res['action'] == 'delete' &&
         res['id'] != null) {
-      final String deletedId = res['id'].toString();
-      setState(() {
-        _meetups.removeWhere((m) => m.id == deletedId);
-      });
+      _controller.removeById(res['id'].toString());
       context.showCustomSnackBar(strings.adDeletedSnackText);
     }
   }
 
-  void _toggleFavorite(String id) {
-    setState(() {
-      final idx = _meetups.indexWhere((m) => m.id == id);
-      if (idx >= 0) {
-        _meetups[idx].isFavorite = !_meetups[idx].isFavorite;
-      }
-    });
-  }
+  void _toggleFavorite(String id) => _controller.toggleFavorite(id);
 
   @override
   Widget build(BuildContext context) {
@@ -139,61 +103,63 @@ class _ManageAdsState extends State<ManageAds> {
             horizontal: dimension.d16.w,
             vertical: dimension.d12.h,
           ),
-          child: RefreshIndicator(
-            onRefresh: _loadMeetups,
-            child: ListView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.zero,
-              children: [
-                Text(
-                  strings.manageAdsTitle,
-                  style: customButtonandTextStyles.titleTextStyle,
-                ),
-                SizedBox(height: dimension.d15.h),
-                if (_loading)
-                  Padding(
-                    padding: EdgeInsets.only(top: dimension.d120.h),
-                    child: const Center(child: CircularProgressIndicator()),
-                  )
-                else if (_meetups.isEmpty)
-                  Padding(
-                    padding: EdgeInsets.only(top: dimension.d120.h),
-                    child: Center(
-                      child: Text(
-                        strings.noAdsFoundText,
-                        style: TextStyle(
-                          fontSize: dimension.d16.sp,
-                          color: appTheme.neutral_800,
+          child: GetBuilder<AdsScreenController>(
+            builder: (c) => RefreshIndicator(
+              onRefresh: () => c.loadMeetups(),
+              child: ListView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: EdgeInsets.zero,
+                children: [
+                  Text(
+                    strings.manageAdsTitle,
+                    style: customButtonandTextStyles.titleTextStyle,
+                  ),
+                  SizedBox(height: dimension.d15.h),
+                  if (c.isLoading)
+                    Padding(
+                      padding: EdgeInsets.only(top: dimension.d120.h),
+                      child: const Center(child: CircularProgressIndicator()),
+                    )
+                  else if (c.meetups.isEmpty)
+                    Padding(
+                      padding: EdgeInsets.only(top: dimension.d120.h),
+                      child: Center(
+                        child: Text(
+                          strings.noAdsFoundText,
+                          style: TextStyle(
+                            fontSize: dimension.d16.sp,
+                            color: appTheme.neutral_800,
+                          ),
+                        ),
+                      ),
+                    )
+                  else
+                    ...c.meetups.map(
+                      (meetup) => Padding(
+                        padding: EdgeInsets.only(bottom: dimension.d12.h),
+                        child: MeetupCard(
+                          meetup: meetup,
+                          onTap: () => _openMeetupDetails(meetup),
+                          onFavorite: () => _toggleFavorite(meetup.id),
+                          showFavorite: false,
                         ),
                       ),
                     ),
-                  )
-                else
-                  ..._meetups.map(
-                    (meetup) => Padding(
-                      padding: EdgeInsets.only(bottom: dimension.d12.h),
-                      child: MeetupCard(
-                        meetup: meetup,
-                        onTap: () => _openMeetupDetails(meetup),
-                        onFavorite: () => _toggleFavorite(meetup.id),
-                        showFavorite: false,
-                      ),
+                  SizedBox(height: dimension.d16.h),
+                  SizedBox(
+                    height: dimension.d56.h,
+                    child: CustomElevatedButton(
+                      onPressed: _onAddNewAd,
+                      buttonStyle: customButtonandTextStyles.deleteButtonStyle,
+                      text: strings.addNewAdText,
+                      buttonTextStyle:
+                          customButtonandTextStyles.loginButtonTextStyle,
                     ),
                   ),
-                SizedBox(height: dimension.d16.h),
-                SizedBox(
-                  height: dimension.d56.h,
-                  child: CustomElevatedButton(
-                    onPressed: _onAddNewAd,
-                    buttonStyle: customButtonandTextStyles.deleteButtonStyle,
-                    text: strings.addNewAdText,
-                    buttonTextStyle:
-                        customButtonandTextStyles.loginButtonTextStyle,
-                  ),
-                ),
-                SizedBox(height: dimension.d12.h),
-              ],
+                  SizedBox(height: dimension.d12.h),
+                ],
+              ),
             ),
           ),
         ),
@@ -207,4 +173,3 @@ class _ManageAdsState extends State<ManageAds> {
     super.dispose();
   }
 }
-

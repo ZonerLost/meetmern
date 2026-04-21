@@ -141,7 +141,7 @@ class CustomRoundedTile extends StatelessWidget {
   Widget? _buildLeading() {
     if (leadingImage != null) {
       return ClipOval(
-        child: Image.asset(
+        child: Image.network(
           leadingImage!,
           fit: BoxFit.cover,
           width: iconBoxWidth ?? 44.w,
