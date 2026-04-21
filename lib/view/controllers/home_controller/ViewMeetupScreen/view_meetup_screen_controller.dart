@@ -229,6 +229,26 @@ class ViewMeetupController extends GetxController {
     update();
 
     try {
+      if (await MeetupService.isProfileDisabled(uid)) {
+        errorMessage = 'Your account is disabled.';
+        return null;
+      }
+
+      if (await MeetupService.isProfileDisabled(m.userId!)) {
+        errorMessage = 'This user account is disabled.';
+        return null;
+      }
+
+      final blocked = await MeetupService.areUsersBlocked(
+        userA: uid,
+        userB: m.userId!,
+      );
+      if (blocked) {
+        errorMessage =
+            'Cannot request meetup because one of you has blocked the other.';
+        return null;
+      }
+
       final existing = await MeetupService.getExistingRequest(
         meetupId: m.id,
         requesterId: uid,

@@ -25,22 +25,23 @@ class MeetupUserProfileController extends GetxController {
   List<String> ownerLanguages = [];
   List<String> ownerInterests = [];
   List<String> ownerPassionTopics = [];
+  bool isOwnerBlockedByMe = false;
 
   String? get _currentUserId => AuthService.currentUser?.id;
 
   @override
   void onInit() {
     super.onInit();
-    _store.addListener(_onStoreChanged);
+    // _store.addListener(_onStoreChanged);
   }
 
   @override
   void onClose() {
-    _store.removeListener(_onStoreChanged);
+    // _store.removeListener(_onStoreChanged);
     super.onClose();
   }
 
-  void _onStoreChanged() => update();
+  // void _onStoreChanged() => update();
 
   Future<void> init(Meetup initialMeetup) async {
     debugPrint(
@@ -60,10 +61,12 @@ class MeetupUserProfileController extends GetxController {
     ownerLanguages = [];
     ownerInterests = [];
     ownerPassionTopics = [];
+    isOwnerBlockedByMe = false;
     isLoading = true;
     update();
 
     await _loadOwnerProfile(initialMeetup.userId);
+    await _loadBlockState();
   }
 
   Future<void> _loadOwnerProfile(String? uid) async {
@@ -125,6 +128,28 @@ class MeetupUserProfileController extends GetxController {
     update();
   }
 
+  Future<void> _loadBlockState() async {
+    final currentUserId = _currentUserId;
+    final ownerId = meetup?.userId;
+
+    if (currentUserId == null ||
+        ownerId == null ||
+        ownerId.trim().isEmpty ||
+        currentUserId == ownerId) {
+      isOwnerBlockedByMe = false;
+      update();
+      return;
+    }
+
+    try {
+      final blockedIds = await MeetupService.fetchBlockedUserIds(currentUserId);
+      isOwnerBlockedByMe = blockedIds.contains(ownerId);
+    } catch (_) {
+      isOwnerBlockedByMe = false;
+    }
+    update();
+  }
+
   Meetup get currentMeetup {
     final m = meetup;
     if (m == null) throw StateError('Meetup controller is not initialized');
@@ -174,5 +199,87 @@ class MeetupUserProfileController extends GetxController {
     meetup!.joinRequested = true;
     _store.setJoinRequested(meetup!.id, true);
     update();
+  }
+
+  Future<String?> blockOwner() async {
+    final blockerId = _currentUserId;
+    final blockedId = meetup?.userId;
+
+    if (blockerId == null) {
+      return 'Please login first.';
+    }
+    if (blockedId == null || blockedId.trim().isEmpty) {
+      return 'Unable to resolve this user.';
+    }
+    if (blockerId == blockedId) {
+      return 'You cannot block yourself.';
+    }
+
+    try {
+      await MeetupService.blockUser(
+        blockerId: blockerId,
+        blockedId: blockedId,
+        reason: 'Blocked from meetup profile',
+      );
+      isOwnerBlockedByMe = true;
+      update();
+      return null;
+    } catch (e) {
+      return 'Failed to block user: $e';
+    }
+  }
+
+  Future<String?> unblockOwner() async {
+    final blockerId = _currentUserId;
+    final blockedId = meetup?.userId;
+
+    if (blockerId == null) {
+      return 'Please login first.';
+    }
+    if (blockedId == null || blockedId.trim().isEmpty) {
+      return 'Unable to resolve this user.';
+    }
+
+    try {
+      await MeetupService.unblockUser(
+        blockerId: blockerId,
+        blockedId: blockedId,
+      );
+      isOwnerBlockedByMe = false;
+      update();
+      return null;
+    } catch (e) {
+      return 'Failed to unblock user: $e';
+    }
+  }
+
+  Future<String> reportOwner({
+    required String reason,
+    String? description,
+  }) async {
+    final reporterId = _currentUserId;
+    final reportedUserId = meetup?.userId;
+
+    if (reporterId == null) {
+      return 'Please login first.';
+    }
+    if (reportedUserId == null || reportedUserId.trim().isEmpty) {
+      return 'Unable to resolve this user.';
+    }
+    if (reporterId == reportedUserId) {
+      return 'You cannot report yourself.';
+    }
+
+    try {
+      final inserted = await MeetupService.reportUser(
+        reporterId: reporterId,
+        reportedUserId: reportedUserId,
+        reason: reason,
+        description: description,
+      );
+      return inserted ? 'Report submitted' : 'You already reported this user.';
+    } catch (e) {
+      return 'Failed to submit report: $e';
+    }
   }
 }

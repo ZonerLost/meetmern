@@ -12,34 +12,29 @@ class ExploreController extends GetxController {
   String? error;
 
   List<Meetup> get meetups {
-    final base = _store.meetups
-        .where((m) => !isOwnMeetup(m))
-        .toList(growable: false);
+    final base =
+        _store.meetups.where((m) => !isOwnMeetup(m)).toList(growable: false);
     if (_activeFilters.isEmpty) return base;
     return base.where(_matchesFilters).toList(growable: false);
   }
+
   Map<String, dynamic> get activeFilters =>
       Map<String, dynamic>.unmodifiable(_activeFilters);
   bool get hasActiveFilters => _activeFilters.isNotEmpty;
   int get activeFilterCount => _activeFilters.length;
   String? get currentUserId => AuthService.currentUser?.id;
 
-  bool isOwnMeetup(Meetup m) =>
-      m.userId != null && m.userId == currentUserId;
+  bool isOwnMeetup(Meetup m) => m.userId != null && m.userId == currentUserId;
 
   @override
   void onInit() {
     super.onInit();
-    _store.addListener(_onStoreChanged);
   }
 
   @override
   void onClose() {
-    _store.removeListener(_onStoreChanged);
     super.onClose();
   }
-
-  void _onStoreChanged() => update();
 
   Future<void> loadData() async {
     loading = true;

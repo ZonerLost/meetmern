@@ -46,6 +46,15 @@ class LoginController extends GetxController {
 
       final profile = await AuthService.loadProfile();
 
+      if (profile != null && profile.isDisabled) {
+        await AuthService.signOut();
+        AppSnackbar.error(
+          'Your account has been disabled due to repeated reports.',
+        );
+        Get.offAllNamed(Routes.login);
+        return;
+      }
+
       if (profile == null || profile.showOnboarding) {
         Get.offAllNamed(Routes.onboarding);
       } else {
@@ -62,8 +71,9 @@ class LoginController extends GetxController {
   String _parseError(Exception e) {
     final msg = e.toString().toLowerCase();
     if (msg.contains('invalid login')) return 'Invalid email or password.';
-    if (msg.contains('email not confirmed'))
+    if (msg.contains('email not confirmed')) {
       return 'Please confirm your email first.';
+    }
     if (msg.contains('network')) return 'Network error. Check your connection.';
     return 'Login failed. Please try again.';
   }

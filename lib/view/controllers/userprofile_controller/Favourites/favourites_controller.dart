@@ -12,24 +12,6 @@ class FavouritesController extends GetxController {
 
   String? get _uid => AuthService.currentUser?.id;
 
-  @override
-  void onInit() {
-    super.onInit();
-    _store.addListener(_onStoreChanged);
-  }
-
-  @override
-  void onClose() {
-    _store.removeListener(_onStoreChanged);
-    super.onClose();
-  }
-
-  void _onStoreChanged() {
-    favourites =
-        _store.meetups.where((m) => m.isFavorite).toList(growable: false);
-    update();
-  }
-
   Future<void> loadFavourites() async {
     isLoading = true;
     update();

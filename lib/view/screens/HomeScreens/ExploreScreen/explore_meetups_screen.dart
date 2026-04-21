@@ -29,7 +29,9 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
   @override
   void initState() {
     super.initState();
-    _controller.loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadData();
+    });
   }
 
   Future<void> _openFilter(BuildContext context) async {

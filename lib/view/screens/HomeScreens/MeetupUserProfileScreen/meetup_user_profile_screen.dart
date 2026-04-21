@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
+import 'package:meetmern/core/routes/route_names.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/extensions/snackbar_extensions.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
@@ -96,20 +97,40 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
                                   ),
                                   padding: EdgeInsets.zero,
                                   color: Colors.white,
-                                  onSelected: (value) {
+                                  onSelected: (value) async {
                                     if (value == 'report') {
-                                      context.showCustomSnackBar(
-                                        _strings.reportSubmittedSnack,
+                                      final msg = await c.reportOwner(
+                                        reason: _strings.reportReasonOtherValue,
+                                        description:
+                                            'Reported from meetup profile screen.',
                                       );
+                                      if (!context.mounted) return;
+                                      context.showCustomSnackBar(msg);
                                     } else if (value == 'block') {
-                                      context.showCustomSnackBar(
-                                        _strings.blockedUserSnack.replaceAll(
-                                          '{name}',
-                                          c.ownerName.isNotEmpty
-                                              ? c.ownerName
-                                              : 'User',
-                                        ),
-                                      );
+                                      final wasBlocked = c.isOwnerBlockedByMe;
+                                      final error = wasBlocked
+                                          ? await c.unblockOwner()
+                                          : await c.blockOwner();
+                                      if (!context.mounted) return;
+                                      if (error != null) {
+                                        context.showCustomSnackBar(error);
+                                      } else {
+                                        final name = c.ownerName.isNotEmpty
+                                            ? c.ownerName
+                                            : 'User';
+                                        if (wasBlocked) {
+                                          context.showCustomSnackBar(
+                                            _strings.unblockedUserSnackText
+                                                .replaceAll('{name}', name),
+                                          );
+                                        } else {
+                                          context.showCustomSnackBar(
+                                            _strings.blockedUserSnack
+                                                .replaceAll('{name}', name),
+                                          );
+                                          Get.offAllNamed(Routes.explore);
+                                        }
+                                      }
                                     }
                                   },
                                   itemBuilder: (_) => [
@@ -123,11 +144,13 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
                                       ),
                                     ),
                                     const PopupMenuDivider(),
-                                    const PopupMenuItem<String>(
+                                    PopupMenuItem<String>(
                                       value: 'block',
                                       child: Text(
-                                        'Block This Person',
-                                        style: TextStyle(
+                                        c.isOwnerBlockedByMe
+                                            ? 'Unblock This Person'
+                                            : 'Block This Person',
+                                        style: const TextStyle(
                                           fontWeight: FontWeight.w600,
                                         ),
                                       ),

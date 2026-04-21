@@ -21,6 +21,16 @@ class SplashController extends GetxController {
 
     final profile = await AuthService.loadProfile();
 
+    if (profile != null && profile.isDisabled) {
+      await AuthService.signOut();
+      Get.offAllNamed(Routes.login);
+      Get.snackbar(
+        'Account disabled',
+        'Your account has been disabled due to repeated reports.',
+      );
+      return;
+    }
+
     if (profile == null) {
       Get.offAllNamed(Routes.onboarding);
     } else if (profile.showOnboarding) {

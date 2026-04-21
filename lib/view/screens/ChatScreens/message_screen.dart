@@ -61,8 +61,7 @@ class MessageScreen extends StatelessWidget {
                           left: dimension.d0,
                           right: dimension.d0,
                           bottom: dimension.d0,
-                          child: _buildComposer(
-                              context, c, styles, strings),
+                          child: _buildComposer(context, c, styles, strings),
                         ),
                       ],
                     ),
@@ -273,8 +272,7 @@ class MessageScreen extends StatelessWidget {
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: appTheme.red),
                         shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(dimension.d28)),
+                            borderRadius: BorderRadius.circular(dimension.d28)),
                       ),
                       child: Text(strings.declineLabel,
                           style: TextStyle(color: appTheme.red)),
@@ -289,12 +287,10 @@ class MessageScreen extends StatelessWidget {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: appTheme.b_Primary,
                         shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(dimension.d28)),
+                            borderRadius: BorderRadius.circular(dimension.d28)),
                       ),
                       child: Text(strings.acceptAndChatLabel,
-                          style:
-                              TextStyle(color: appTheme.coreWhite)),
+                          style: TextStyle(color: appTheme.coreWhite)),
                     ),
                   ),
                 ],
@@ -333,8 +329,9 @@ class MessageScreen extends StatelessWidget {
 
   Widget _buildComposer(BuildContext context, MessageController c,
       CustomButtonStyles styles, Strings strings) {
-    // Block composer when chat is a meetup chat and not yet accepted
+    // Block composer when users are blocked or meetup chat not accepted.
     if (!c.messagingAllowed) {
+      final blockedText = c.blockedConversationText;
       return SafeArea(
         top: false,
         child: Padding(
@@ -349,9 +346,11 @@ class MessageScreen extends StatelessWidget {
               border: Border.all(color: appTheme.borderColor),
             ),
             child: Text(
-              c.isOwner
-                  ? 'Accept the request to start chatting'
-                  : 'Waiting for the host to accept your request',
+              c.isBlockedConversation
+                  ? blockedText
+                  : c.isOwner
+                      ? 'Accept the request to start chatting'
+                      : 'Waiting for the host to accept your request',
               style: TextStyle(
                   color: appTheme.neutral_400, fontSize: dimension.d14),
               textAlign: TextAlign.center,
@@ -380,8 +379,8 @@ class MessageScreen extends StatelessWidget {
           focusNode: c.focusNode,
           textInputAction: TextInputAction.send,
           onFieldSubmitted: (_) => c.sendMessage(),
-          suffixConstraints:
-              BoxConstraints.tightFor(width: dimension.d48, height: dimension.d48),
+          suffixConstraints: BoxConstraints.tightFor(
+              width: dimension.d48, height: dimension.d48),
           suffix: Center(
             child: GestureDetector(
               onTap: c.canSend ? c.sendMessage : null,

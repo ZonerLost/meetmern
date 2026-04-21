@@ -244,13 +244,6 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
                         SizedBox(height: dimension.d12.h),
                         controller.distanceText.isEmpty
                             ? Row(children: [
-                                SizedBox(
-                                  height: dimension.d14,
-                                  width: dimension.d14,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: dimension.d2,
-                                  ),
-                                ),
                                 SizedBox(width: dimension.d8),
                                 Text('Calculating ...',
                                     style: customButtonAndTextStyles

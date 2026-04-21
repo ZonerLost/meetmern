@@ -32,11 +32,13 @@ class MessageController extends GetxController {
   Chat? chat;
   bool canSend = false;
   bool isLoading = false;
+  bool _isBlockedConversation = false;
+  String _blockedConversationText = '';
 
   // Supabase-backed state
   String? _chatId;
-  String? _chatStatus;   // 'pending' | 'accepted' | 'rejected'
-  String? _chatType;     // 'meetup' | 'direct'
+  String? _chatStatus; // 'pending' | 'accepted' | 'rejected'
+  String? _chatType; // 'meetup' | 'direct'
   String? _requestId;
   String? _requestMessageId;
 
@@ -51,9 +53,15 @@ class MessageController extends GetxController {
 
   /// True when normal messaging is allowed.
   bool get messagingAllowed {
+    if (_isBlockedConversation) return false;
     if (_chatType == 'meetup') return _chatStatus == 'accepted';
     return true;
   }
+
+  bool get isBlockedConversation => _isBlockedConversation;
+  String get blockedConversationText => _blockedConversationText.isNotEmpty
+      ? _blockedConversationText
+      : 'You cannot message this user because one of you has blocked the other.';
 
   String get statusText {
     switch (_chatStatus) {
@@ -135,6 +143,8 @@ class MessageController extends GetxController {
           lastMessage: chat?.message ?? '',
         );
       }
+
+      await _refreshBlockState();
 
       // Load request metadata
       final reqRow = await MeetupService.getRequestForChat(_chatId!);
@@ -220,6 +230,33 @@ class MessageController extends GetxController {
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
   }
 
+  Future<void> _refreshBlockState() async {
+    final uid = currentUserId;
+    final c = chat;
+
+    _isBlockedConversation = false;
+    _blockedConversationText = '';
+
+    if (uid == null || c == null) return;
+
+    final otherId = c.userOne == uid ? c.userTwo : c.userOne;
+    if (otherId == null || otherId.isEmpty) return;
+
+    try {
+      final blocked =
+          await MeetupService.areUsersBlocked(userA: uid, userB: otherId);
+      _isBlockedConversation = blocked;
+      if (blocked) {
+        _blockedConversationText =
+            'You cannot message this user because one of you has blocked the other.';
+      }
+    } catch (_) {
+      _isBlockedConversation = false;
+    }
+
+    canSend = messageController.text.trim().isNotEmpty && messagingAllowed;
+  }
+
   Future<void> acceptRequest() async {
     if (_chatId == null || _requestId == null || _requestMessageId == null) {
       return;
@@ -232,8 +269,7 @@ class MessageController extends GetxController {
       );
       _chatStatus = 'accepted';
       // Update the request card message locally
-      final idx =
-          messages.indexWhere((m) => m.messageType == 'meetup_request');
+      final idx = messages.indexWhere((m) => m.messageType == 'meetup_request');
       if (idx != -1) {
         messages[idx] = ChatMessageItem(
           id: messages[idx].id,
@@ -259,8 +295,7 @@ class MessageController extends GetxController {
         requestMessageId: _requestMessageId!,
       );
       _chatStatus = 'rejected';
-      final idx =
-          messages.indexWhere((m) => m.messageType == 'meetup_request');
+      final idx = messages.indexWhere((m) => m.messageType == 'meetup_request');
       if (idx != -1) {
         messages[idx] = ChatMessageItem(
           id: messages[idx].id,

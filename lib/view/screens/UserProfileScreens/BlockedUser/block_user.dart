@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:meetmern/data/service/api_s.dart';
-import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_dialog_widget.dart';
 import 'package:meetmern/core/widgets/custom_rounded_tile.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
+import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/data/service/meetup_service.dart';
 
 class BlockedUsersScreen extends StatefulWidget {
   const BlockedUsersScreen({super.key});
@@ -27,14 +27,26 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
 
   Future<void> _loadBlockedUsers() async {
     try {
-      final List<Nearby> nearby = await MockApi.fetchNearbyPeople();
+      final uid = AuthService.currentUser?.id;
+      if (uid == null) {
+        if (!mounted) return;
+        setState(() {
+          _users = [];
+          _isLoading = false;
+        });
+        return;
+      }
 
-      final users = nearby
+      final rows = await MeetupService.fetchBlockedUsers(uid);
+      final users = rows
           .map(
             (item) => _BlockedUser(
-              name: item.name,
-              subtitle: '${item.favMeetupType} • ${item.locationShort}',
-              avatar: item.image,
+              userId: (item['user_id'] ?? '').toString(),
+              name: (item['name'] ?? 'User').toString(),
+              subtitle: (item['reason']?.toString().trim().isNotEmpty ?? false)
+                  ? 'Reason: ${item['reason']}'
+                  : 'Blocked user',
+              photoUrl: (item['photo_url'] ?? '').toString(),
             ),
           )
           .toList();
@@ -118,7 +130,11 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
                             return CustomRoundedTile(
                               title: user.name,
                               subtitle: user.subtitle,
-                              leadingImage: user.avatar ?? strings.img9,
+                              leadingImage: user.photoUrl.isNotEmpty
+                                  ? user.photoUrl
+                                  : null,
+                              leadingIcon:
+                                  user.photoUrl.isEmpty ? Icons.person : null,
                               trailingIcon: Icons.lock_open,
                               onTap: () => _showUnblockDialog(user, index),
                               backgroundColor: appTheme.infieldColor,
@@ -157,7 +173,25 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
           showLeftIconBackground: false,
           topLeftIcon: CircleAvatar(
             radius: dimension.d20.r,
-            backgroundImage: AssetImage(user.avatar ?? strings.img9),
+            backgroundColor: appTheme.b_200,
+            backgroundImage:
+                user.photoUrl.isNotEmpty ? NetworkImage(user.photoUrl) : null,
+            child: user.photoUrl.isEmpty
+                ? Text(
+                    user.name
+                        .split(' ')
+                        .where((s) => s.isNotEmpty)
+                        .map((s) => s[0])
+                        .take(2)
+                        .join()
+                        .toUpperCase(),
+                    style: TextStyle(
+                      color: appTheme.coreWhite,
+                      fontWeight: FontWeight.w700,
+                      fontSize: dimension.d12.sp,
+                    ),
+                  )
+                : null,
           ),
           showCloseButton: true,
           title: '${strings.unblockUserTitlePrefixText} ${user.name}?',
@@ -180,37 +214,60 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
           borderRadius: dimension.d22.r,
           onPrimary: () {
             Navigator.of(ctx).pop();
-
-            setState(() {
-              _users.removeAt(index);
-            });
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  strings.unblockedUserSnackText.replaceFirst(
-                    '{name}',
-                    user.name,
-                  ),
-                ),
-              ),
-            );
+            _unblockUser(user, index);
           },
           onSecondary: () => Navigator.of(ctx).pop(),
         );
       },
     );
   }
+
+  Future<void> _unblockUser(_BlockedUser user, int index) async {
+    final uid = AuthService.currentUser?.id;
+    if (uid == null) return;
+
+    try {
+      await MeetupService.unblockUser(
+        blockerId: uid,
+        blockedId: user.userId,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _users.removeWhere((u) => u.userId == user.userId);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            strings.unblockedUserSnackText.replaceFirst(
+              '{name}',
+              user.name,
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to unblock user: $e'),
+        ),
+      );
+    }
+  }
 }
 
 class _BlockedUser {
+  final String userId;
   final String name;
   final String subtitle;
-  final String? avatar;
+  final String photoUrl;
 
   const _BlockedUser({
+    required this.userId,
     required this.name,
     required this.subtitle,
-    this.avatar,
+    required this.photoUrl,
   });
 }

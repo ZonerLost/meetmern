@@ -1,9 +1,8 @@
-import 'package:flutter/foundation.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
 
-class MeetupStore extends ChangeNotifier {
+class MeetupStore {
   MeetupStore._();
 
   static final MeetupStore instance = MeetupStore._();
@@ -33,7 +32,6 @@ class MeetupStore extends ChangeNotifier {
         ..clear()
         ..addAll(rows.map(Meetup.fromSupabase));
 
-      // Sync favourite flags from Supabase
       final uid = AuthService.currentUser?.id;
       if (uid != null) {
         try {
@@ -49,25 +47,27 @@ class MeetupStore extends ChangeNotifier {
       lastError = e.toString();
       _loaded = false;
     }
-    notifyListeners();
   }
 
   Future<void> reload() => load(forceReload: true);
 
   void setFavorite(String id, bool value) {
     byId(id)?.isFavorite = value;
-    notifyListeners();
   }
 
   void toggleFavorite(String id) {
     final m = byId(id);
     if (m == null) return;
     m.isFavorite = !m.isFavorite;
-    notifyListeners();
   }
 
   void setJoinRequested(String id, bool value) {
     byId(id)?.joinRequested = value;
-    notifyListeners();
+  }
+
+  void removeFavouritesByUser(String blockedUserId) {
+    for (final m in _meetups) {
+      if (m.userId == blockedUserId) m.isFavorite = false;
+    }
   }
 }

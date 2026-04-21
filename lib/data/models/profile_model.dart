@@ -18,6 +18,8 @@ class ProfileModel {
   final List<String>? passionTopics;
   final String? location;
   final bool showOnboarding;
+  final int reportCount;
+  final bool isDisabled;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -41,6 +43,8 @@ class ProfileModel {
     this.passionTopics,
     this.location,
     this.showOnboarding = true,
+    this.reportCount = 0,
+    this.isDisabled = false,
     this.createdAt,
     this.updatedAt,
   });
@@ -55,19 +59,33 @@ class ProfileModel {
       gender: json['gender'] as String?,
       ethnicity: json['ethnicity'] as String?,
       orientation: json['orientation'] as String?,
-      languages: (json['languages'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      languages: (json['languages'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
       photoUrl: json['photo_url'] as String?,
       children: json['children'] as bool?,
       relationshipStatus: json['relationship_status'] as String?,
-      dietaryPreferences: (json['dietary_preferences'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      dietaryPreferences: (json['dietary_preferences'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
       religion: json['religion'] as String?,
       shortBio: json['short_bio'] as String?,
-      interests: (json['interests'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
-      passionTopics: (json['passion_topics'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      interests: (json['interests'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
+      passionTopics: (json['passion_topics'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .toList(),
       location: json['location'] as String?,
       showOnboarding: json['show_onboarding'] as bool? ?? true,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
-      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : null,
+      reportCount: (json['report_count'] as num?)?.toInt() ?? 0,
+      isDisabled: json['is_disabled'] as bool? ?? false,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : null,
+      updatedAt: json['updated_at'] != null
+          ? DateTime.parse(json['updated_at'] as String)
+          : null,
     );
   }
 
@@ -85,13 +103,17 @@ class ProfileModel {
       if (photoUrl != null) 'photo_url': photoUrl,
       if (children != null) 'children': children,
       if (relationshipStatus != null) 'relationship_status': relationshipStatus,
-      if (dietaryPreferences != null && dietaryPreferences!.isNotEmpty) 'dietary_preferences': dietaryPreferences,
+      if (dietaryPreferences != null && dietaryPreferences!.isNotEmpty)
+        'dietary_preferences': dietaryPreferences,
       if (religion != null) 'religion': religion,
       if (shortBio != null) 'short_bio': shortBio,
       if (interests != null && interests!.isNotEmpty) 'interests': interests,
-      if (passionTopics != null && passionTopics!.isNotEmpty) 'passion_topics': passionTopics,
+      if (passionTopics != null && passionTopics!.isNotEmpty)
+        'passion_topics': passionTopics,
       if (location != null) 'location': location,
       'show_onboarding': showOnboarding,
+      if (reportCount > 0) 'report_count': reportCount,
+      if (isDisabled) 'is_disabled': isDisabled,
       'updated_at': DateTime.now().toIso8601String(),
     };
   }

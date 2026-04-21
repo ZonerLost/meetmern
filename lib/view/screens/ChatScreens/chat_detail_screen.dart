@@ -1,8 +1,13 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/data/service/meetup_store.dart';
+import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/Favourites/favourites_controller.dart';
 import 'package:meetmern/view/controllers/chat_controller/chat_detail_screen_controller.dart';
 import 'package:meetmern/data/models/chat_model.dart';
+import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/data/service/meetup_service.dart';
 import 'package:meetmern/view/screens/chatscreens/user_meetup_info_screen.dart';
 import 'package:meetmern/view/screens/homescreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
 import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
@@ -40,6 +45,10 @@ class ChatsDetailsScreen extends StatelessWidget {
     );
 
     final meetupFromChat = chat.toMeetup();
+    final currentUserId = AuthService.currentUser?.id;
+    final otherUserId = currentUserId == null
+        ? null
+        : (chat.userOne == currentUserId ? chat.userTwo : chat.userOne);
 
     return GetBuilder<ChatDetailController>(
         builder: (_) => Scaffold(
@@ -160,16 +169,55 @@ class ChatsDetailsScreen extends StatelessWidget {
                                     customButtonandTextStyles.loginButtonStyle,
                                 primaryTextStyle: customButtonandTextStyles
                                     .loginButtonTextStyle,
-                                onPrimary: () {
+                                onPrimary: () async {
                                   Navigator.of(ctx).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        strings.blockedUserSnack
-                                            .replaceAll('{name}', chat.name),
+                                  try {
+                                    if (currentUserId == null ||
+                                        otherUserId == null ||
+                                        otherUserId.isEmpty) {
+                                      throw Exception(
+                                          'Unable to resolve this user.');
+                                    }
+                                    await MeetupService.blockUser(
+                                      blockerId: currentUserId,
+                                      blockedId: otherUserId,
+                                      reason: 'Blocked from chat details',
+                                    );
+                                    // Update in-memory store
+                                    MeetupStore.instance.removeFavouritesByUser(otherUserId);
+                                    // Delete from Supabase meetup_favourites
+                                    await MeetupService.removeFavouritesByOwner(
+                                      currentUserId: currentUserId,
+                                      ownerId: otherUserId,
+                                    );
+                                    // Refresh both screens via GetX
+                                    if (Get.isRegistered<ExploreController>()) {
+                                      Get.find<ExploreController>().update();
+                                    }
+                                    if (Get.isRegistered<FavouritesController>()) {
+                                      final fc = Get.find<FavouritesController>();
+                                      fc.favourites = MeetupStore.instance.favourites;
+                                      fc.update();
+                                    }
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          strings.blockedUserSnack
+                                              .replaceAll('{name}', chat.name),
+                                        ),
                                       ),
-                                    ),
-                                  );
+                                    );
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to block user: $e',
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 },
                                 secondaryLabel: strings.cancelLabel,
                                 secondaryButtonStyle:
@@ -302,7 +350,7 @@ class ChatsDetailsScreen extends StatelessWidget {
                                     customButtonandTextStyles.loginButtonStyle,
                                 primaryTextStyle: customButtonandTextStyles
                                     .loginButtonTextStyle,
-                                onPrimary: () {
+                                onPrimary: () async {
                                   if (selectedReason == null ||
                                       descCtrl.text.trim().isEmpty) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -314,13 +362,41 @@ class ChatsDetailsScreen extends StatelessWidget {
                                     return;
                                   }
 
-                                  Navigator.of(ctx).pop();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content:
-                                          Text(strings.reportSubmittedSnack),
-                                    ),
-                                  );
+                                  try {
+                                    if (currentUserId == null ||
+                                        otherUserId == null ||
+                                        otherUserId.isEmpty) {
+                                      throw Exception(
+                                          'Unable to resolve this user.');
+                                    }
+                                    final inserted =
+                                        await MeetupService.reportUser(
+                                      reporterId: currentUserId,
+                                      reportedUserId: otherUserId,
+                                      reason: selectedReason!,
+                                      description: descCtrl.text.trim(),
+                                    );
+                                    if (!context.mounted) return;
+                                    Navigator.of(ctx).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          inserted
+                                              ? strings.reportSubmittedSnack
+                                              : 'You already reported this user.',
+                                        ),
+                                      ),
+                                    );
+                                  } catch (e) {
+                                    if (!context.mounted) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          'Failed to submit report: $e',
+                                        ),
+                                      ),
+                                    );
+                                  }
                                 },
                                 secondaryLabel: strings.cancelLabel,
                                 secondaryButtonStyle:
@@ -412,4 +488,3 @@ class ChatsDetailsScreen extends StatelessWidget {
             ));
   }
 }
-

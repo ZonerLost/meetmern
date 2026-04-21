@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:meetmern/main.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class MeetupService {
   MeetupService._();
@@ -13,6 +14,15 @@ class MeetupService {
       return value.map((e) => e.toString()).toList();
     }
     return const <String>[];
+  }
+
+  static bool _isUniqueViolation(Object e) {
+    if (e is PostgrestException) {
+      return e.code == '23505';
+    }
+    final text = e.toString();
+    return text.contains('23505') ||
+        text.toLowerCase().contains('duplicate key');
   }
 
   static Future<Map<String, dynamic>?> _fetchProfileByUserId({
@@ -178,36 +188,26 @@ class MeetupService {
       'date': date,
       'time': time,
       'repeat': repeat,
-      'status': 'open',
+      'status': 'active',
       if (profilePicUrl.isNotEmpty) 'profile_pic_url': profilePicUrl,
     };
     Map<String, dynamic>? inserted;
-    Object? lastError;
-    final candidateStatuses = <String>['open'];
 
-    for (final status in candidateStatuses) {
-      final attemptPayload = <String, dynamic>{...payload, 'status': status};
-      try {
-        debugPrint(
-          '[MeetupService] createMeetup - inserting meetup with status=$status payload=$attemptPayload',
-        );
-        final row = await supabase
-            .from('meetups')
-            .insert(attemptPayload)
-            .select('id')
-            .single();
-        inserted = Map<String, dynamic>.from(row);
-        break;
-      } catch (e, st) {
-        lastError = e;
-        debugPrint(
-          '[MeetupService] createMeetup - insert failed for status=$status: $e\n$st',
-        );
-      }
-    }
-
-    if (inserted == null) {
-      throw lastError ?? Exception('Failed to insert meetup');
+    try {
+      debugPrint(
+        '[MeetupService] createMeetup - inserting meetup payload=$payload',
+      );
+      final row = await supabase
+          .from('meetups')
+          .insert(payload)
+          .select('id')
+          .single();
+      inserted = Map<String, dynamic>.from(row);
+    } catch (e, st) {
+      debugPrint(
+        '[MeetupService] createMeetup - insert failed: $e\n$st',
+      );
+      throw e;
     }
 
     final meetupId = inserted['id'] as String;
@@ -329,6 +329,181 @@ class MeetupService {
     return normalized;
   }
 
+  // -- Moderation (Blocks / Reports / Disabled) ------------------------------
+
+  static Future<bool> isProfileDisabled(String userId) async {
+    try {
+      final result = await supabase.rpc(
+        'is_profile_disabled',
+        params: {'p_user_id': userId},
+      );
+      if (result is bool) return result;
+      return result?.toString().toLowerCase() == 'true';
+    } catch (_) {
+      try {
+        final row = await supabase
+            .from('profiles')
+            .select('is_disabled')
+            .eq('id', userId)
+            .maybeSingle();
+        return row?['is_disabled'] == true;
+      } catch (_) {
+        return false;
+      }
+    }
+  }
+
+  static Future<bool> areUsersBlocked({
+    required String userA,
+    required String userB,
+  }) async {
+    if (userA.isEmpty || userB.isEmpty) return false;
+    if (userA == userB) return false;
+
+    try {
+      final result = await supabase.rpc(
+        'is_user_blocked_between',
+        params: {
+          'p_user_a': userA,
+          'p_user_b': userB,
+        },
+      );
+      if (result is bool) return result;
+      if (result is num) return result != 0;
+      return result?.toString().toLowerCase() == 'true';
+    } catch (_) {
+      final rows = await supabase
+          .from('user_blocks')
+          .select('id')
+          .or(
+            'and(blocker_id.eq.$userA,blocked_id.eq.$userB),and(blocker_id.eq.$userB,blocked_id.eq.$userA)',
+          )
+          .limit(1);
+      return rows.isNotEmpty;
+    }
+  }
+
+  static Future<void> blockUser({
+    required String blockerId,
+    required String blockedId,
+    String? reason,
+  }) async {
+    if (blockerId.trim().isEmpty || blockedId.trim().isEmpty) {
+      throw Exception('Invalid users for block action.');
+    }
+    if (blockerId == blockedId) {
+      throw Exception('You cannot block yourself.');
+    }
+
+    await supabase.from('user_blocks').upsert(
+      {
+        'blocker_id': blockerId,
+        'blocked_id': blockedId,
+        if ((reason ?? '').trim().isNotEmpty) 'reason': reason!.trim(),
+      },
+      onConflict: 'blocker_id,blocked_id',
+    );
+  }
+
+  static Future<void> unblockUser({
+    required String blockerId,
+    required String blockedId,
+  }) async {
+    await supabase
+        .from('user_blocks')
+        .delete()
+        .eq('blocker_id', blockerId)
+        .eq('blocked_id', blockedId);
+  }
+
+  static Future<Set<String>> fetchBlockedUserIds(String blockerId) async {
+    final rows = await supabase
+        .from('user_blocks')
+        .select('blocked_id')
+        .eq('blocker_id', blockerId);
+
+    return List<Map<String, dynamic>>.from(rows)
+        .map((r) => _text(r['blocked_id']))
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchBlockedUsers(
+    String blockerId,
+  ) async {
+    final blockRows = await supabase
+        .from('user_blocks')
+        .select('blocked_id, created_at, reason')
+        .eq('blocker_id', blockerId)
+        .order('created_at', ascending: false);
+
+    final rows = List<Map<String, dynamic>>.from(blockRows);
+    final blockedIds = rows
+        .map((r) => _text(r['blocked_id']))
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
+
+    if (blockedIds.isEmpty) return const <Map<String, dynamic>>[];
+
+    final profileRows = await supabase
+        .from('profiles')
+        .select('id, name, photo_url')
+        .inFilter('id', blockedIds);
+
+    final profileMap = <String, Map<String, dynamic>>{};
+    for (final raw in List<Map<String, dynamic>>.from(profileRows)) {
+      final row = Map<String, dynamic>.from(raw);
+      final id = _text(row['id']);
+      if (id.isNotEmpty) {
+        profileMap[id] = row;
+      }
+    }
+
+    return rows.map((row) {
+      final blockedId = _text(row['blocked_id']);
+      final p = profileMap[blockedId];
+      final name = _text(p?['name']);
+      final photo = _text(p?['photo_url']);
+      return <String, dynamic>{
+        'user_id': blockedId,
+        'name': name.isNotEmpty ? name : 'User',
+        'photo_url': photo,
+        'reason': _text(row['reason']),
+        'created_at': _text(row['created_at']),
+      };
+    }).toList(growable: false);
+  }
+
+  static Future<bool> reportUser({
+    required String reporterId,
+    required String reportedUserId,
+    required String reason,
+    String? description,
+  }) async {
+    if (reporterId.trim().isEmpty || reportedUserId.trim().isEmpty) {
+      throw Exception('Invalid users for report action.');
+    }
+    if (reporterId == reportedUserId) {
+      throw Exception('You cannot report yourself.');
+    }
+
+    try {
+      await supabase.from('user_reports').insert({
+        'reporter_id': reporterId,
+        'reported_user_id': reportedUserId,
+        'reason': reason.trim().isEmpty ? 'other' : reason.trim(),
+        'description': (description ?? '').trim(),
+      });
+      return true;
+    } catch (e) {
+      if (_isUniqueViolation(e)) {
+        // Already reported by this user. Do not increment counter again.
+        return false;
+      }
+      rethrow;
+    }
+  }
+
   // ── Favourites ─────────────────────────────────────────────────────────────
 
   static Future<Set<String>> fetchFavouriteMeetupIds(String userId) async {
@@ -363,6 +538,30 @@ class MeetupService {
         .eq('meetup_id', meetupId);
   }
 
+  /// Removes all favourites the current user has for meetups owned by [ownerId].
+  static Future<void> removeFavouritesByOwner({
+    required String currentUserId,
+    required String ownerId,
+  }) async {
+    // Get all meetup ids owned by the blocked user
+    final rows = await supabase
+        .from('meetups')
+        .select('id')
+        .eq('user_id', ownerId);
+
+    final meetupIds = List<Map<String, dynamic>>.from(rows)
+        .map((r) => r['id'] as String)
+        .toList();
+
+    if (meetupIds.isEmpty) return;
+
+    await supabase
+        .from('meetup_favourites')
+        .delete()
+        .eq('user_id', currentUserId)
+        .inFilter('meetup_id', meetupIds);
+  }
+
   // ── Requests / Chats ───────────────────────────────────────────────────────
 
   static Future<Map<String, dynamic>?> getExistingRequest({
@@ -384,6 +583,18 @@ class MeetupService {
     required String meetupOwnerId,
     required String requesterId,
   }) async {
+    if (await isProfileDisabled(requesterId)) {
+      throw Exception('Your account is disabled.');
+    }
+    if (await isProfileDisabled(meetupOwnerId)) {
+      throw Exception('This account is disabled.');
+    }
+    if (await areUsersBlocked(userA: requesterId, userB: meetupOwnerId)) {
+      throw Exception(
+        'Cannot send meetup request because one of you has blocked the other.',
+      );
+    }
+
     final existing = await getExistingRequest(
       meetupId: meetupId,
       requesterId: requesterId,
@@ -482,6 +693,22 @@ class MeetupService {
     required String chatStatus,
   }) async {
     if (chatStatus != 'accepted') return;
+
+    if (await isProfileDisabled(senderId)) {
+      throw Exception('Your account is disabled.');
+    }
+
+    final chat = await getChatById(chatId);
+    final userOne = _text(chat?['user_one']);
+    final userTwo = _text(chat?['user_two']);
+
+    if (userOne.isNotEmpty &&
+        userTwo.isNotEmpty &&
+        await areUsersBlocked(userA: userOne, userB: userTwo)) {
+      throw Exception(
+        'Cannot send message because one of you has blocked the other.',
+      );
+    }
 
     await supabase.from('messages').insert({
       'chat_id': chatId,

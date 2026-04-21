@@ -41,3 +41,4 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+supabase/migrations/20260421000100_user_moderation.sql
