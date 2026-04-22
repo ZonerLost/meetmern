@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
+import 'package:meetmern/view/controllers/chat_controller/chat_screen_controller.dart';
 import 'package:meetmern/view/controllers/home_controller/ViewMeetupScreen/view_meetup_screen_controller.dart';
 import 'package:meetmern/view/screens/chatscreens/message_screen.dart';
 import 'package:meetmern/view/screens/homescreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
@@ -69,6 +70,9 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
 
     if (chat != null) {
       context.showCustomSnackBar(strings.requestSentSnack);
+      if (Get.isRegistered<ChatListController>()) {
+        Get.find<ChatListController>().loadChats(showLoader: false);
+      }
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (_) => MessageScreen(chat: chat),

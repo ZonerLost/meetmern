@@ -74,15 +74,16 @@ class MessageScreen extends StatelessWidget {
 
   PreferredSizeWidget _buildAppBar(
       BuildContext context, MessageController c, Strings strings) {
-    final avatarWidget = chat.avatarUrl.isNotEmpty
+    final displayChat = c.chat ?? chat;
+    final avatarWidget = displayChat.avatarUrl.isNotEmpty
         ? CircleAvatar(
             radius: dimension.d18,
-            backgroundImage: NetworkImage(chat.avatarUrl))
+            backgroundImage: NetworkImage(displayChat.avatarUrl))
         : CircleAvatar(
             radius: dimension.d18,
             backgroundColor: appTheme.neutral_400,
             child: Text(
-              chat.name
+              displayChat.name
                   .split(' ')
                   .where((s) => s.isNotEmpty)
                   .map((s) => s[0])
@@ -122,7 +123,7 @@ class MessageScreen extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(chat.name,
+                  Text(displayChat.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -133,7 +134,7 @@ class MessageScreen extends StatelessWidget {
                           fontWeight: FontWeight.w600)),
                   SizedBox(height: dimension.d3),
                   Text(
-                    '${chat.type}${chat.time.isNotEmpty ? ' ${strings.dotSeparator} ' : ''}${chat.time}',
+                    '${displayChat.type}${displayChat.time.isNotEmpty ? ' ${strings.dotSeparator} ' : ''}${displayChat.time}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -157,7 +158,7 @@ class MessageScreen extends StatelessWidget {
                 color: appTheme.neutral_700, size: dimension.d22),
             onPressed: () => context.navigateToScreen(
               ChatsDetailsScreen(
-                  chat: chat, onDeleteConversation: c.clearConversation),
+                  chat: displayChat, onDeleteConversation: c.clearConversation),
             ),
           ),
         ),
@@ -202,6 +203,11 @@ class MessageScreen extends StatelessWidget {
     Strings strings,
   ) {
     final reqStatus = msg.requestStatus ?? 'pending';
+    final cardText = msg.text.isNotEmpty
+        ? msg.text
+        : (msg.isMe
+            ? 'You sent a meetup request'
+            : 'Sent you a meetup request');
     Color statusColor;
     String statusLabel;
     switch (reqStatus) {
@@ -235,7 +241,7 @@ class MessageScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    msg.text.isNotEmpty ? msg.text : 'Meetup request',
+                    cardText,
                     style: TextStyle(
                         fontWeight: FontWeight.w600,
                         fontSize: dimension.d14,
@@ -260,7 +266,7 @@ class MessageScreen extends StatelessWidget {
               ],
             ),
             // Show Accept/Reject only to the meetup owner when still pending
-            if (c.isOwner && reqStatus == 'pending') ...[
+            if (c.canRespondToMeetupRequest && reqStatus == 'pending') ...[
               SizedBox(height: dimension.d12),
               Row(
                 children: [

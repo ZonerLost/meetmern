@@ -249,34 +249,29 @@ class ViewMeetupController extends GetxController {
         return null;
       }
 
-      final existing = await MeetupService.getExistingRequest(
+      final chatRow = await MeetupService.sendMeetupRequest(
         meetupId: m.id,
+        meetupOwnerId: m.userId!,
         requesterId: uid,
       );
-
-      final Map<String, dynamic> chatRow;
-      if (existing != null && existing['chat_id'] != null) {
-        chatRow =
-            await MeetupService.getChatById(existing['chat_id'] as String) ??
-                {};
-      } else {
-        chatRow = await MeetupService.sendMeetupRequest(
-          meetupId: m.id,
-          meetupOwnerId: m.userId!,
-          requesterId: uid,
-        );
-      }
 
       isRequested = true;
       m.joinRequested = true;
       _store.setJoinRequested(m.id, true);
 
-      return Chat.fromSupabase(
+      final chat = Chat.fromSupabase(
         chatRow,
         otherUserName: hostName,
         otherUserAvatar: hostPhotoUrl.startsWith('http') ? hostPhotoUrl : '',
         lastMessage: 'sent you a meetup request',
       );
+      chat.type = m.type;
+      chat.time = formattedTime;
+      final normalizedLocation = m.location.trim();
+      chat.subtitle = normalizedLocation.isEmpty
+          ? formattedTime
+          : '$formattedTime · Near $normalizedLocation';
+      return chat;
     } catch (e, st) {
       debugPrint('[ViewMeetup] requestToJoin — ERROR: $e\n$st');
       errorMessage = 'Failed to send request. Please try again.';

@@ -41,7 +41,6 @@ String requestStatusToString(RequestStatus status) {
     case RequestStatus.requested:
       return 'requested';
     case RequestStatus.none:
-    default:
       return 'none';
   }
 }
@@ -49,15 +48,16 @@ String requestStatusToString(RequestStatus status) {
 class Chat {
   String name;
   String message;
+  String subtitle;
   String type;
   String time;
   String avatarUrl;
   RequestStatus status;
 
   // Supabase-backed fields (null for mock/local chats)
-  final String? id;           // chats.id
-  final String? chatType;     // 'meetup' | 'direct'
-  final String? dbStatus;     // raw DB status: pending/accepted/rejected
+  final String? id; // chats.id
+  final String? chatType; // 'meetup' | 'direct'
+  final String? dbStatus; // raw DB status: pending/accepted/rejected
   final String? meetupId;
   final String? meetupRequestId;
   final String? userOne;
@@ -66,6 +66,7 @@ class Chat {
   Chat({
     required this.name,
     required this.message,
+    this.subtitle = '',
     required this.time,
     required this.type,
     this.avatarUrl = '',
@@ -83,6 +84,7 @@ class Chat {
     return Chat(
       name: json['name'] as String? ?? '',
       message: json['message'] as String? ?? '',
+      subtitle: json['subtitle'] as String? ?? '',
       time: json['time'] as String? ?? '',
       type: json['type'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String? ?? '',
@@ -97,12 +99,14 @@ class Chat {
     required String otherUserName,
     String otherUserAvatar = '',
     String lastMessage = '',
+    String subtitle = '',
   }) {
     final dbStatus = row['status']?.toString() ?? 'pending';
     return Chat(
       id: row['id']?.toString(),
       name: otherUserName,
       message: lastMessage,
+      subtitle: subtitle,
       time: row['updated_at']?.toString() ?? '',
       type: row['chat_type']?.toString() ?? 'meetup',
       avatarUrl: otherUserAvatar,
@@ -126,6 +130,7 @@ class Chat {
     return {
       'name': name,
       'message': message,
+      'subtitle': subtitle,
       'time': time,
       'type': type,
       'avatarUrl': avatarUrl,

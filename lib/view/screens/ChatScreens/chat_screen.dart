@@ -26,56 +26,91 @@ class ChatScreen extends StatelessWidget {
 
     return GetBuilder<ChatListController>(
       initState: (_) => Get.find<ChatListController>().loadChats(),
-      builder: (c) => Scaffold(
-        backgroundColor: appTheme.coreWhite,
-        appBar: AppBar(
+      builder: (c) {
+        final pendingItems = c.pendingRequestItems;
+        final regularItems = c.regularItems;
+
+        return Scaffold(
           backgroundColor: appTheme.coreWhite,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(Icons.arrow_back, color: appTheme.black90001),
-            onPressed: () => Navigator.of(context).maybePop(),
+          appBar: AppBar(
+            backgroundColor: appTheme.coreWhite,
+            elevation: 0,
+            leading: IconButton(
+              icon: Icon(Icons.arrow_back, color: appTheme.black90001),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
           ),
-        ),
-        body: SafeArea(
-          child: c.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : c.error != null
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(c.error!),
-                          SizedBox(height: dimension.d12.h),
-                          CustomElevatedButton(
-                              onPressed: c.loadChats, text: strings.retryText),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: c.loadChats,
-                      child: ListView(
-                        padding: EdgeInsets.only(
-                          top: dimension.d12.h,
-                          bottom: MediaQuery.of(context).padding.bottom +
-                              dimension.d24.h,
+          body: SafeArea(
+            child: c.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : c.error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(c.error!),
+                            SizedBox(height: dimension.d12.h),
+                            CustomElevatedButton(
+                                onPressed: c.loadChats,
+                                text: strings.retryText),
+                          ],
                         ),
-                        children: [
-                          SizedBox(height: dimension.d8.h),
-                          Padding(
-                            padding: EdgeInsets.only(
-                                left: dimension.d16.w, bottom: dimension.d6.h),
-                            child: Text(strings.chatsTitle,
-                                style: styles.titleTextStyle),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: c.loadChats,
+                        child: ListView(
+                          padding: EdgeInsets.only(
+                            top: dimension.d12.h,
+                            bottom: MediaQuery.of(context).padding.bottom +
+                                dimension.d24.h,
                           ),
-                          SizedBox(height: dimension.d6.h),
-                          ...c.items.map((item) => _ChatListItem(
-                              item: item, controller: c, styles: styles)),
-                          SizedBox(height: dimension.d40.h),
-                        ],
+                          children: [
+                            SizedBox(height: dimension.d8.h),
+                            Padding(
+                              padding: EdgeInsets.only(
+                                  left: dimension.d16.w,
+                                  bottom: dimension.d6.h),
+                              child: Text(strings.chatsTitle,
+                                  style: styles.titleTextStyle),
+                            ),
+                            SizedBox(height: dimension.d6.h),
+                            if (c.items.isEmpty)
+                              Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: dimension.d16.w,
+                                  vertical: dimension.d24.h,
+                                ),
+                                child: Text(
+                                  'No chats yet.',
+                                  style: styles.locationTextStyle,
+                                ),
+                              ),
+                            if (pendingItems.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  left: dimension.d16.w,
+                                  right: dimension.d16.w,
+                                  bottom: dimension.d8.h,
+                                ),
+                                child: Text(
+                                  strings.newMeetupRequestsText,
+                                  style: styles.dobLabelTextStyle,
+                                ),
+                              ),
+                            ...pendingItems.map((item) => _ChatListItem(
+                                item: item, controller: c, styles: styles)),
+                            if (pendingItems.isNotEmpty &&
+                                regularItems.isNotEmpty)
+                              SizedBox(height: dimension.d8.h),
+                            ...regularItems.map((item) => _ChatListItem(
+                                item: item, controller: c, styles: styles)),
+                            SizedBox(height: dimension.d40.h),
+                          ],
+                        ),
                       ),
-                    ),
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }
@@ -141,13 +176,13 @@ class _ChatListItem extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                        '${item.name} - ${const Strings().meetForPrefix} ${item.type}',
+                    Text(item.name,
                         style: styles.dobLabelTextStyle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     SizedBox(height: dimension.d4.h),
-                    Text(item.message,
+                    Text(
+                        item.subtitle.isNotEmpty ? item.subtitle : item.message,
                         style: styles.locationTextStyle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
@@ -215,9 +250,13 @@ class _ChatListItem extends StatelessWidget {
         primaryLabel: strings.acceptAndChatLabel,
         primaryButtonStyle: dialogStyles.loginButtonStyle,
         primaryTextStyle: dialogStyles.acceptCahtButtonTextStyle,
-        onPrimary: () {
-          controller.acceptRequest(item);
-          Navigator.of(ctx).pop();
+        onPrimary: () async {
+          final navigator = Navigator.of(ctx);
+          await controller.acceptRequest(item);
+          if (!navigator.mounted) return;
+          navigator.pop();
+          if (!context.mounted) return;
+          context.navigateToScreen(MessageScreen(chat: item));
         },
         primaryBold: true,
         secondaryLabel: strings.declineLabel,

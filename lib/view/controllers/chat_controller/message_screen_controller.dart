@@ -1,16 +1,21 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
+import 'package:meetmern/main.dart';
+import 'package:meetmern/view/controllers/chat_controller/chat_screen_controller.dart';
 
 class ChatMessageItem {
   final String id;
   final String text;
   final bool isMe;
-  final String messageType; // 'text' | 'meetup_request' | 'system'
-  final String? requestStatus; // 'pending' | 'accepted' | 'rejected'
+  final String messageType;
+  final String? requestStatus;
   final String? meetupRequestId;
+  final String? meetupId;
 
   const ChatMessageItem({
     required this.id,
@@ -19,6 +24,7 @@ class ChatMessageItem {
     this.messageType = 'text',
     this.requestStatus,
     this.meetupRequestId,
+    this.meetupId,
   });
 }
 
@@ -41,6 +47,10 @@ class MessageController extends GetxController {
   String? _chatType; // 'meetup' | 'direct'
   String? _requestId;
   String? _requestMessageId;
+  StreamSubscription<List<Map<String, dynamic>>>? _chatSubscription;
+  StreamSubscription<List<Map<String, dynamic>>>? _messageSubscription;
+  bool _isRealtimeReloadInProgress = false;
+  bool _hasPendingRealtimeReload = false;
 
   String? get currentUserId => AuthService.currentUser?.id;
 
@@ -49,6 +59,11 @@ class MessageController extends GetxController {
     final uid = currentUserId;
     if (uid == null || chat == null) return false;
     return chat!.userOne == uid;
+  }
+
+  /// True when request action buttons should be shown.
+  bool get canRespondToMeetupRequest {
+    return isOwner && _chatType == 'meetup' && _chatStatus == 'pending';
   }
 
   /// True when normal messaging is allowed.
@@ -105,6 +120,7 @@ class MessageController extends GetxController {
     focusNode.addListener(_onFocusChanged);
 
     if (_chatId != null) {
+      _startRealtimeListeners();
       await _loadFromSupabase();
     } else {
       // Mock / local chat
@@ -124,10 +140,48 @@ class MessageController extends GetxController {
     update();
   }
 
-  Future<void> _loadFromSupabase() async {
+  void _startRealtimeListeners() {
     if (_chatId == null) return;
-    isLoading = true;
-    update();
+
+    _chatSubscription?.cancel();
+    _messageSubscription?.cancel();
+
+    _chatSubscription = supabase
+        .from('chats')
+        .stream(primaryKey: const ['id'])
+        .eq('id', _chatId!)
+        .listen((_) => _reloadFromRealtime());
+
+    _messageSubscription = supabase
+        .from('messages')
+        .stream(primaryKey: const ['id'])
+        .eq('chat_id', _chatId!)
+        .listen((_) => _reloadFromRealtime());
+  }
+
+  Future<void> _reloadFromRealtime() async {
+    if (_isRealtimeReloadInProgress) {
+      _hasPendingRealtimeReload = true;
+      return;
+    }
+    _isRealtimeReloadInProgress = true;
+    try {
+      await _loadFromSupabase(showLoader: false);
+    } finally {
+      _isRealtimeReloadInProgress = false;
+      if (_hasPendingRealtimeReload) {
+        _hasPendingRealtimeReload = false;
+        _reloadFromRealtime();
+      }
+    }
+  }
+
+  Future<void> _loadFromSupabase({bool showLoader = true}) async {
+    if (_chatId == null) return;
+    if (showLoader) {
+      isLoading = true;
+      update();
+    }
 
     try {
       // Refresh chat status from DB
@@ -158,19 +212,44 @@ class MessageController extends GetxController {
       final uid = currentUserId ?? '';
       messages
         ..clear()
-        ..addAll(rows.map((r) => ChatMessageItem(
-              id: r['id']?.toString() ?? '',
-              text: r['text']?.toString() ?? '',
-              isMe: r['sender_id']?.toString() == uid,
-              messageType: r['message_type']?.toString() ?? 'text',
-              requestStatus: r['request_status']?.toString(),
-              meetupRequestId: r['meetup_request_id']?.toString(),
-            )));
+        ..addAll(rows.map((r) {
+          final isMe = r['sender_id']?.toString() == uid;
+          final messageType = r['message_type']?.toString() ?? 'text';
+          String text = r['text']?.toString() ?? '';
+          String? requestStatus = r['request_status']?.toString();
+
+          if (messageType == 'meetup_request') {
+            if ((requestStatus == null ||
+                    requestStatus.isEmpty ||
+                    requestStatus == 'pending') &&
+                (_chatStatus == 'accepted' || _chatStatus == 'rejected')) {
+              requestStatus = _chatStatus;
+            }
+
+            if (text.trim().toLowerCase() == 'sent you a meetup request') {
+              text = isMe
+                  ? 'You sent a meetup request'
+                  : 'Sent you a meetup request';
+            }
+          }
+
+          return ChatMessageItem(
+            id: r['id']?.toString() ?? '',
+            text: text,
+            isMe: isMe,
+            messageType: messageType,
+            requestStatus: requestStatus,
+            meetupRequestId: r['meetup_request_id']?.toString(),
+            meetupId: r['meetup_id']?.toString(),
+          );
+        }));
     } catch (_) {
       // Keep empty messages on error
     }
 
-    isLoading = false;
+    if (showLoader) {
+      isLoading = false;
+    }
     update();
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
   }
@@ -206,7 +285,7 @@ class MessageController extends GetxController {
           chatStatus: _chatStatus ?? 'pending',
         );
         messageController.clear();
-        await _loadFromSupabase();
+        await _loadFromSupabase(showLoader: false);
       } catch (_) {
         // Optimistic fallback
         messages.add(ChatMessageItem(
@@ -268,17 +347,21 @@ class MessageController extends GetxController {
         requestMessageId: _requestMessageId!,
       );
       _chatStatus = 'accepted';
-      // Update the request card message locally
-      final idx = messages.indexWhere((m) => m.messageType == 'meetup_request');
-      if (idx != -1) {
-        messages[idx] = ChatMessageItem(
-          id: messages[idx].id,
-          text: messages[idx].text,
-          isMe: messages[idx].isMe,
+      for (var i = 0; i < messages.length; i++) {
+        if (messages[i].messageType != 'meetup_request') continue;
+        final m = messages[i];
+        messages[i] = ChatMessageItem(
+          id: m.id,
+          text: m.text,
+          isMe: m.isMe,
           messageType: 'meetup_request',
           requestStatus: 'accepted',
-          meetupRequestId: messages[idx].meetupRequestId,
+          meetupRequestId: m.meetupRequestId,
+          meetupId: m.meetupId,
         );
+      }
+      if (Get.isRegistered<ChatListController>()) {
+        await Get.find<ChatListController>().loadChats(showLoader: false);
       }
       update();
     } catch (_) {}
@@ -295,16 +378,21 @@ class MessageController extends GetxController {
         requestMessageId: _requestMessageId!,
       );
       _chatStatus = 'rejected';
-      final idx = messages.indexWhere((m) => m.messageType == 'meetup_request');
-      if (idx != -1) {
-        messages[idx] = ChatMessageItem(
-          id: messages[idx].id,
-          text: messages[idx].text,
-          isMe: messages[idx].isMe,
+      for (var i = 0; i < messages.length; i++) {
+        if (messages[i].messageType != 'meetup_request') continue;
+        final m = messages[i];
+        messages[i] = ChatMessageItem(
+          id: m.id,
+          text: m.text,
+          isMe: m.isMe,
           messageType: 'meetup_request',
           requestStatus: 'rejected',
-          meetupRequestId: messages[idx].meetupRequestId,
+          meetupRequestId: m.meetupRequestId,
+          meetupId: m.meetupId,
         );
+      }
+      if (Get.isRegistered<ChatListController>()) {
+        await Get.find<ChatListController>().loadChats(showLoader: false);
       }
       update();
     } catch (_) {}
@@ -331,6 +419,8 @@ class MessageController extends GetxController {
 
   @override
   void onClose() {
+    _chatSubscription?.cancel();
+    _messageSubscription?.cancel();
     messageController.removeListener(_onTextChanged);
     focusNode.removeListener(_onFocusChanged);
     messageController.dispose();
