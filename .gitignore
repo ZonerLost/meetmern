@@ -42,3 +42,4 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 supabase/migrations/20260421000100_user_moderation.sql
+supabase/migrations/20260501000000_chat_meetup_flow_fix.sql

@@ -15,7 +15,15 @@ import 'package:meetmern/core/widgets/custom_outlined_button.dart';
 
 class UserMeetupInfoScreen extends StatelessWidget {
   final Meetup meetup;
-  const UserMeetupInfoScreen({required this.meetup, super.key});
+  final String? chatId;
+  final String? requestId;
+
+  const UserMeetupInfoScreen({
+    required this.meetup,
+    this.chatId,
+    this.requestId,
+    super.key,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -26,7 +34,8 @@ class UserMeetupInfoScreen extends StatelessWidget {
         apppTheme: Theme.of(context), theme: customThemeData);
 
     return GetBuilder<UserMeetupInfoController>(
-      initState: (_) => Get.find<UserMeetupInfoController>().init(meetup),
+      initState: (_) => Get.find<UserMeetupInfoController>()
+          .init(meetup, chatId: chatId, requestId: requestId),
       builder: (c) {
         Widget headerImage = meetup.image.startsWith('http')
             ? Image.network(meetup.image,
@@ -123,17 +132,19 @@ class UserMeetupInfoScreen extends StatelessWidget {
                         ),
                         SizedBox(height: dimension.d10.h),
                         Center(
-                          child: CustomElevatedButton(
-                            buttonStyle: styles.cancelMeetupButtonStyle,
-                            buttonTextStyle: styles.loginButtonTextStyle,
-                            onPressed: c.isConfirmed
-                                ? () => _showCancelDialog(
-                                    context, c, styles, strings)
-                                : null,
-                            text: c.isConfirmed
-                                ? strings.cancelMeetupPrimaryLabel
-                                : strings.cancelledLabel,
-                          ),
+                          child: c.isCancelling
+                              ? const CircularProgressIndicator()
+                              : CustomElevatedButton(
+                                  buttonStyle: styles.cancelMeetupButtonStyle,
+                                  buttonTextStyle: styles.loginButtonTextStyle,
+                                  onPressed: c.isConfirmed
+                                      ? () => _showCancelDialog(
+                                          context, c, styles, strings)
+                                      : null,
+                                  text: c.isConfirmed
+                                      ? strings.cancelMeetupPrimaryLabel
+                                      : strings.cancelledLabel,
+                                ),
                         ),
                         SizedBox(height: dimension.d28.h),
                       ],
@@ -167,11 +178,18 @@ class UserMeetupInfoScreen extends StatelessWidget {
         primaryButtonStyle: styles.cancelMeetupButtonStyle,
         primaryTextStyle: styles.loginButtonTextStyle,
         primaryColor: appTheme.red,
-        onPrimary: () {
+        onPrimary: () async {
           Navigator.of(ctx).pop();
-          c.cancelMeetup();
+          final success = await c.cancelMeetup();
+          if (!context.mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(strings.meetupCancelledSnack)));
+            SnackBar(
+              content: Text(success
+                  ? strings.meetupCancelledSnack
+                  : (c.errorMessage ?? 'Failed to cancel meetup.')),
+            ),
+          );
+          if (success) Navigator.of(context).pop();
         },
         secondaryLabel: strings.closeLabel,
         secondaryButtonStyle: styles.googleButtonStyle,

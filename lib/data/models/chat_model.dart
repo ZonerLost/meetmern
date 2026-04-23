@@ -1,6 +1,6 @@
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 
-enum RequestStatus { none, accepted, rejected, requested }
+enum RequestStatus { none, accepted, rejected, requested, completed, cancelled }
 
 /// Maps DB status strings to [RequestStatus].
 RequestStatus requestStatusFromDbString(String? s) {
@@ -9,6 +9,10 @@ RequestStatus requestStatusFromDbString(String? s) {
       return RequestStatus.accepted;
     case 'rejected':
       return RequestStatus.rejected;
+    case 'completed':
+      return RequestStatus.completed;
+    case 'cancelled':
+      return RequestStatus.cancelled;
     case 'pending':
     case 'requested':
       return RequestStatus.requested;
@@ -24,7 +28,12 @@ RequestStatus requestStatusFromString(String? s) {
       return RequestStatus.accepted;
     case 'rejected':
       return RequestStatus.rejected;
+    case 'completed':
+      return RequestStatus.completed;
+    case 'cancelled':
+      return RequestStatus.cancelled;
     case 'requested':
+    case 'pending':
       return RequestStatus.requested;
     case 'none':
     default:
@@ -38,6 +47,10 @@ String requestStatusToString(RequestStatus status) {
       return 'accepted';
     case RequestStatus.rejected:
       return 'rejected';
+    case RequestStatus.completed:
+      return 'completed';
+    case RequestStatus.cancelled:
+      return 'cancelled';
     case RequestStatus.requested:
       return 'requested';
     case RequestStatus.none:
@@ -123,8 +136,14 @@ class Chat {
   /// Returns true when normal messaging is allowed.
   bool get canSendMessages {
     if (chatType == 'meetup') return dbStatus == 'accepted';
-    return true; // direct chats are always open
+    return true;
   }
+
+  /// True when the chat is in a terminal state (no further messaging).
+  bool get isTerminal =>
+      dbStatus == 'closed' ||
+      dbStatus == 'completed' ||
+      dbStatus == 'cancelled';
 
   Map<String, dynamic> toJson() {
     return {

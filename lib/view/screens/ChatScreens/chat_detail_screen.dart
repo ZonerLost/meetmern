@@ -5,6 +5,8 @@ import 'package:meetmern/data/service/meetup_store.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
 import 'package:meetmern/view/controllers/userprofile_controller/Favourites/favourites_controller.dart';
 import 'package:meetmern/view/controllers/chat_controller/chat_detail_screen_controller.dart';
+import 'package:meetmern/view/controllers/chat_controller/chat_screen_controller.dart';
+import 'package:meetmern/view/controllers/chat_controller/message_screen_controller.dart';
 import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
@@ -122,9 +124,19 @@ class ChatsDetailsScreen extends StatelessWidget {
                       subtitleStyle:
                           customButtonandTextStyles.locationTextStyle,
                       onTap: () {
+                        // Resolve the latest request ID for cancel support.
+                        final chatTag = chat.id;
+                        final latestReqId = chatTag != null &&
+                                Get.isRegistered<MessageController>(
+                                    tag: chatTag)
+                            ? Get.find<MessageController>(tag: chatTag)
+                                .latestRequestId
+                            : null;
                         context.navigateToScreen(
                           UserMeetupInfoScreen(
                             meetup: meetupFromChat,
+                            chatId: chat.id,
+                            requestId: latestReqId,
                           ),
                         );
                       },
@@ -184,10 +196,11 @@ class ChatsDetailsScreen extends StatelessWidget {
                                     throw Exception(
                                         'Unable to resolve this user.');
                                   }
-                                  await MeetupService.blockUser(
+                                  await MeetupService.blockUserAndCleanup(
                                     blockerId: currentUserId,
                                     blockedId: otherUserId,
                                     reason: 'Blocked from chat details',
+                                    deleteChat: true,
                                   );
                                   // Update in-memory store
                                   MeetupStore.instance
@@ -208,7 +221,15 @@ class ChatsDetailsScreen extends StatelessWidget {
                                         MeetupStore.instance.favourites;
                                     fc.update();
                                   }
+                                  if (Get.isRegistered<ChatListController>()) {
+                                    await Get.find<ChatListController>()
+                                        .loadChats(showLoader: false);
+                                  }
                                   if (!context.mounted) return;
+                                  // Pop back to chat list after block+delete.
+                                  Navigator.of(context)
+                                    ..pop() // detail screen
+                                    ..pop(); // message screen
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
@@ -461,19 +482,37 @@ class ChatsDetailsScreen extends StatelessWidget {
                                   customButtonandTextStyles.loginButtonStyle,
                               primaryTextStyle: customButtonandTextStyles
                                   .loginButtonTextStyle,
-                              onPrimary: () {
+                              onPrimary: () async {
                                 Navigator.of(ctx).pop();
-
-                                onDeleteConversation?.call();
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content:
-                                        Text(strings.conversationDeletedSnack),
-                                  ),
-                                );
-
-                                Navigator.of(context).pop();
+                                try {
+                                  if (chat.id != null) {
+                                    await MeetupService.deleteConversation(
+                                        chat.id!);
+                                  }
+                                  if (Get.isRegistered<ChatListController>()) {
+                                    await Get.find<ChatListController>()
+                                        .loadChats(showLoader: false);
+                                  }
+                                  onDeleteConversation?.call();
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          strings.conversationDeletedSnack),
+                                    ),
+                                  );
+                                  Navigator.of(context)
+                                    ..pop() // detail screen
+                                    ..pop(); // message screen
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                          'Failed to delete conversation: $e'),
+                                    ),
+                                  );
+                                }
                               },
                               secondaryLabel: strings.cancelLabel,
                               secondaryButtonStyle:

@@ -249,6 +249,17 @@ class ViewMeetupController extends GetxController {
         return null;
       }
 
+      // Guard: block if there is already an active meetup between them.
+      final hasActive = await MeetupService.hasActiveMeetupRequestBetween(
+        userA: uid,
+        userB: m.userId!,
+      );
+      if (hasActive) {
+        errorMessage =
+            'A meetup is already active between you. Wait for it to complete first.';
+        return null;
+      }
+
       final chatRow = await MeetupService.sendMeetupRequest(
         meetupId: m.id,
         meetupOwnerId: m.userId!,
@@ -274,7 +285,7 @@ class ViewMeetupController extends GetxController {
       return chat;
     } catch (e, st) {
       debugPrint('[ViewMeetup] requestToJoin — ERROR: $e\n$st');
-      errorMessage = 'Failed to send request. Please try again.';
+      errorMessage = e.toString().replaceFirst('Exception: ', '');
       return null;
     } finally {
       isLoading = false;

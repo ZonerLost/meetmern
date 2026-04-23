@@ -54,7 +54,6 @@ class AppBinding extends Bindings {
     Get.lazyPut<OtpVerifyController>(() => OtpVerifyController(), fenix: true);
     Get.lazyPut<ChatListController>(() => ChatListController(), fenix: true);
     Get.lazyPut<ChatDetailController>(() => ChatDetailController(), fenix: true);
-    Get.lazyPut<MessageController>(() => MessageController(), fenix: true);
     Get.lazyPut<UserMeetupInfoController>(() => UserMeetupInfoController(), fenix: true);
     Get.lazyPut<CreateMeetupController>(() => CreateMeetupController(), fenix: true);
     Get.lazyPut<ReviewMeetupController>(() => ReviewMeetupController(), fenix: true);

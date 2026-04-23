@@ -17,6 +17,10 @@ class ChatListController extends GetxController {
 
   StreamSubscription<List<Map<String, dynamic>>>? _chatSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _messageSubscription;
+  bool _isLoadInProgress = false;
+  bool _hasPendingLoad = false;
+  bool _pendingLoadWantsLoader = false;
+  Timer? _realtimeReloadDebounce;
 
   List<Chat> get pendingRequestItems => items
       .where((c) => c.status == RequestStatus.requested)
@@ -29,7 +33,6 @@ class ChatListController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    _startRealtimeListeners();
     loadChats();
   }
 
@@ -37,6 +40,7 @@ class ChatListController extends GetxController {
   void onClose() {
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
+    _realtimeReloadDebounce?.cancel();
     super.onClose();
   }
 
@@ -47,167 +51,255 @@ class ChatListController extends GetxController {
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
 
-    _chatSubscription = supabase.from('chats').stream(
-        primaryKey: const ['id']).listen((_) => loadChats(showLoader: false));
+    print(
+        '🔵 [ChatListController] Setting up realtime listeners for user: $uid');
+    bool chatFirstEmit = true;
+    bool messageFirstEmit = true;
 
-    _messageSubscription = supabase.from('messages').stream(
-        primaryKey: const ['id']).listen((_) => loadChats(showLoader: false));
+    // Listen to chat changes - but we can't filter by user in stream, so we reload on any change
+    _chatSubscription =
+        supabase.from('chats').stream(primaryKey: ['id']).listen((data) {
+      if (chatFirstEmit) {
+        chatFirstEmit = false;
+        return;
+      }
+      print('🔔 [ChatListController] Chat realtime update received');
+      _queueRealtimeReload();
+    });
+
+    _messageSubscription =
+        supabase.from('messages').stream(primaryKey: ['id']).listen((data) {
+      if (messageFirstEmit) {
+        messageFirstEmit = false;
+        return;
+      }
+      print('🔔 [ChatListController] Message realtime update received');
+      _queueRealtimeReload();
+    });
+
+    print('🔵 [ChatListController] Realtime listeners active');
+  }
+
+  void _queueRealtimeReload() {
+    _realtimeReloadDebounce?.cancel();
+    _realtimeReloadDebounce = Timer(
+      const Duration(milliseconds: 250),
+      () => unawaited(loadChats(showLoader: false)),
+    );
   }
 
   Future<void> loadChats({bool showLoader = true}) async {
-    if (showLoader) {
-      isLoading = true;
-      error = null;
-      update();
-    } else {
-      error = null;
-    }
-
-    final uid = AuthService.currentUser?.id;
-    if (uid != null &&
-        (_chatSubscription == null || _messageSubscription == null)) {
-      _startRealtimeListeners();
-    }
-
-    if (uid == null) {
-      try {
-        items = await MockApi.fetchChats();
-      } catch (_) {
-        error = _strings.failedToLoadChats;
-      }
-      isLoading = false;
-      update();
+    print('🔵 [ChatListController] loadChats called - showLoader: $showLoader');
+    if (_isLoadInProgress) {
+      print('⚠️ [ChatListController] loadChats already in progress, queueing');
+      _hasPendingLoad = true;
+      _pendingLoadWantsLoader = _pendingLoadWantsLoader || showLoader;
       return;
     }
 
+    _isLoadInProgress = true;
     try {
-      final rows = await MeetupService.fetchChatsForUser(uid);
-      if (rows.isEmpty) {
-        items = <Chat>[];
+      if (showLoader) {
+        isLoading = true;
+        error = null;
+        print(
+            '🔵 [ChatListController] Setting isLoading = true, calling update()');
+        if (!isClosed) {
+          update();
+        }
+      } else {
+        error = null;
+      }
+
+      final uid = AuthService.currentUser?.id;
+      print('🔵 [ChatListController] Current user ID: $uid');
+      if (uid != null &&
+          (_chatSubscription == null || _messageSubscription == null)) {
+        print('🔵 [ChatListController] Starting realtime listeners');
+        _startRealtimeListeners();
+      }
+
+      if (uid == null) {
+        print('🔵 [ChatListController] No user ID, loading mock data');
+        try {
+          items = await MockApi.fetchChats();
+          print(
+              '🔵 [ChatListController] Mock data loaded: ${items.length} items');
+        } catch (_) {
+          error = _strings.failedToLoadChats;
+          print('🔴 [ChatListController] Error loading mock data');
+        }
         isLoading = false;
-        update();
+        print(
+            '🔵 [ChatListController] Setting isLoading = false, calling update()');
+        if (!isClosed) {
+          update();
+        }
         return;
       }
 
-      final chatIds = rows
-          .map((r) => r['id']?.toString() ?? '')
-          .where((id) => id.isNotEmpty)
-          .toSet()
-          .toList(growable: false);
-
-      final otherUserIds = rows
-          .map((r) {
-            final userOne = r['user_one']?.toString() ?? '';
-            final userTwo = r['user_two']?.toString() ?? '';
-            return userOne == uid ? userTwo : userOne;
-          })
-          .where((id) => id.isNotEmpty)
-          .toSet()
-          .toList(growable: false);
-
-      final meetupIds = rows
-          .map((r) => r['meetup_id']?.toString() ?? '')
-          .where((id) => id.isNotEmpty)
-          .toSet()
-          .toList(growable: false);
-
-      final profileRows = await _fetchProfiles(otherUserIds);
-      final messageRows = await _fetchLatestMessages(chatIds);
-      final meetupRows = await _fetchMeetupRows(meetupIds);
-
-      final profileById = <String, Map<String, dynamic>>{};
-      for (final raw in profileRows) {
-        final row = Map<String, dynamic>.from(raw);
-        final id = row['id']?.toString() ?? '';
-        if (id.isNotEmpty) {
-          profileById[id] = row;
-        }
-      }
-
-      final latestMessageByChatId = <String, Map<String, dynamic>>{};
-      for (final raw in messageRows) {
-        final row = Map<String, dynamic>.from(raw);
-        final chatId = row['chat_id']?.toString() ?? '';
-        if (chatId.isEmpty || latestMessageByChatId.containsKey(chatId)) {
-          continue;
-        }
-        latestMessageByChatId[chatId] = row;
-      }
-
-      final meetupById = <String, Map<String, dynamic>>{};
-      for (final raw in meetupRows) {
-        final row = Map<String, dynamic>.from(raw);
-        final id = row['id']?.toString() ?? '';
-        if (id.isNotEmpty) {
-          meetupById[id] = row;
-        }
-      }
-
-      final loaded = <Chat>[];
-      for (final row in rows) {
-        final userOne = row['user_one']?.toString() ?? '';
-        final userTwo = row['user_two']?.toString() ?? '';
-        final otherUserId = userOne == uid ? userTwo : userOne;
-        final profile = profileById[otherUserId];
-        final rawName = profile?['name']?.toString().trim() ?? '';
-        final otherName = rawName.isNotEmpty ? rawName : 'User';
-        final otherAvatar = profile?['photo_url']?.toString() ?? '';
-
-        final chatId = row['id']?.toString() ?? '';
-        final latest = latestMessageByChatId[chatId];
-        final latestMessageType = latest?['message_type']?.toString() ?? '';
-        final latestSenderId = latest?['sender_id']?.toString() ?? '';
-        final lastMessage = latest == null
-            ? ''
-            : latestMessageType == 'meetup_request'
-                ? (latestSenderId == uid
-                    ? 'You sent a meetup request'
-                    : 'Sent you a meetup request')
-                : (latest['text']?.toString() ?? '');
-
-        final chat = Chat.fromSupabase(
-          row,
-          otherUserName: otherName,
-          otherUserAvatar: otherAvatar,
-          lastMessage: lastMessage,
-        );
-
-        final meetupId = row['meetup_id']?.toString() ?? '';
-        final meetup = meetupById[meetupId];
-        if (meetup != null) {
-          final meetupType = meetup['type']?.toString().trim() ?? '';
-          if (meetupType.isNotEmpty) {
-            chat.type = meetupType;
+      try {
+        print('🔵 [ChatListController] Fetching chats from Supabase');
+        final rows = await MeetupService.fetchChatsForUser(uid);
+        print('🔵 [ChatListController] Fetched ${rows.length} chat rows');
+        if (rows.isEmpty) {
+          items = <Chat>[];
+          isLoading = false;
+          print(
+              '🔵 [ChatListController] No chats found, setting isLoading = false, calling update()');
+          if (!isClosed) {
+            update();
           }
+          return;
+        }
 
-          final scheduleText = _formatMeetupSchedule(meetup);
-          if (scheduleText.isNotEmpty) {
-            chat.time = scheduleText;
-          }
+        final chatIds = rows
+            .map((r) => r['id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList(growable: false);
 
-          final subtitleText = _buildChatSubtitle(meetup);
-          if (subtitleText.isNotEmpty) {
-            chat.subtitle = subtitleText;
+        final otherUserIds = rows
+            .map((r) {
+              final userOne = r['user_one']?.toString() ?? '';
+              final userTwo = r['user_two']?.toString() ?? '';
+              return userOne == uid ? userTwo : userOne;
+            })
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList(growable: false);
+
+        final meetupIds = rows
+            .map((r) => r['meetup_id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList(growable: false);
+
+        print(
+            '🔵 [ChatListController] Fetching profiles, messages, and meetups');
+        final profileRows = await _fetchProfiles(otherUserIds);
+        final messageRows = await _fetchLatestMessages(chatIds);
+        final meetupRows = await _fetchMeetupRows(meetupIds);
+        print(
+            '🔵 [ChatListController] Fetched ${profileRows.length} profiles, ${messageRows.length} messages, ${meetupRows.length} meetups');
+
+        final profileById = <String, Map<String, dynamic>>{};
+        for (final raw in profileRows) {
+          final row = Map<String, dynamic>.from(raw);
+          final id = row['id']?.toString() ?? '';
+          if (id.isNotEmpty) {
+            profileById[id] = row;
           }
         }
 
-        if (chat.message.isEmpty && chat.status == RequestStatus.requested) {
-          chat.message = row['user_two']?.toString() == uid
-              ? 'You sent a meetup request'
-              : 'Sent you a meetup request';
+        final latestMessageByChatId = <String, Map<String, dynamic>>{};
+        for (final raw in messageRows) {
+          final row = Map<String, dynamic>.from(raw);
+          final chatId = row['chat_id']?.toString() ?? '';
+          if (chatId.isEmpty || latestMessageByChatId.containsKey(chatId)) {
+            continue;
+          }
+          latestMessageByChatId[chatId] = row;
         }
 
-        loaded.add(chat);
+        final meetupById = <String, Map<String, dynamic>>{};
+        for (final raw in meetupRows) {
+          final row = Map<String, dynamic>.from(raw);
+          final id = row['id']?.toString() ?? '';
+          if (id.isNotEmpty) {
+            meetupById[id] = row;
+          }
+        }
+
+        print('🔵 [ChatListController] Building chat list');
+        final loaded = <Chat>[];
+        for (final row in rows) {
+          final userOne = row['user_one']?.toString() ?? '';
+          final userTwo = row['user_two']?.toString() ?? '';
+          final otherUserId = userOne == uid ? userTwo : userOne;
+          final profile = profileById[otherUserId];
+          final rawName = profile?['name']?.toString().trim() ?? '';
+          final otherName = rawName.isNotEmpty ? rawName : 'User';
+          final otherAvatar = profile?['photo_url']?.toString() ?? '';
+
+          final chatId = row['id']?.toString() ?? '';
+          final latest = latestMessageByChatId[chatId];
+          final latestMessageType = latest?['message_type']?.toString() ?? '';
+          final latestSenderId = latest?['sender_id']?.toString() ?? '';
+          final lastMessage = latest == null
+              ? ''
+              : latestMessageType == 'meetup_request'
+                  ? (latestSenderId == uid
+                      ? 'You sent a meetup request'
+                      : 'Sent you a meetup request')
+                  : (latest['text']?.toString() ?? '');
+
+          final chat = Chat.fromSupabase(
+            row,
+            otherUserName: otherName,
+            otherUserAvatar: otherAvatar,
+            lastMessage: lastMessage,
+          );
+
+          // Normalise 'pending' status to 'requested' for display.
+          if (chat.dbStatus == 'pending') {
+            chat.status = RequestStatus.requested;
+          }
+
+          final meetupId = row['meetup_id']?.toString() ?? '';
+          final meetup = meetupById[meetupId];
+          if (meetup != null) {
+            final meetupType = meetup['type']?.toString().trim() ?? '';
+            if (meetupType.isNotEmpty) {
+              chat.type = meetupType;
+            }
+
+            final scheduleText = _formatMeetupSchedule(meetup);
+            if (scheduleText.isNotEmpty) {
+              chat.time = scheduleText;
+            }
+
+            final subtitleText = _buildChatSubtitle(meetup);
+            if (subtitleText.isNotEmpty) {
+              chat.subtitle = subtitleText;
+            }
+          }
+
+          if (chat.message.isEmpty && chat.status == RequestStatus.requested) {
+            chat.message = row['user_two']?.toString() == uid
+                ? 'You sent a meetup request'
+                : 'Sent you a meetup request';
+          }
+
+          loaded.add(chat);
+        }
+
+        items = loaded;
+        print(
+            '🔵 [ChatListController] Chat list built with ${items.length} items');
+      } catch (e) {
+        error = _strings.failedToLoadChats;
+        items = <Chat>[];
+        print('🔴 [ChatListController] Error loading chats: $e');
       }
 
-      items = loaded;
-    } catch (_) {
-      error = _strings.failedToLoadChats;
-      items = <Chat>[];
+      isLoading = false;
+      print(
+          '🟢 [ChatListController] ✅ LOADING COMPLETE - Setting isLoading = false, calling update()');
+      if (!isClosed) {
+        update();
+      }
+      print(
+          '🟢 [ChatListController] ✅ update() called - UI should rebuild now');
+    } finally {
+      _isLoadInProgress = false;
+      if (_hasPendingLoad) {
+        final nextShowLoader = _pendingLoadWantsLoader;
+        _hasPendingLoad = false;
+        _pendingLoadWantsLoader = false;
+        unawaited(loadChats(showLoader: nextShowLoader));
+      }
     }
-
-    isLoading = false;
-    update();
   }
 
   Future<List<dynamic>> _fetchProfiles(List<String> userIds) async {
@@ -341,50 +433,74 @@ class ChatListController extends GetxController {
   }
 
   Future<void> acceptRequest(Chat item) async {
+    print('🟡 [ChatListController] acceptRequest called for chat: ${item.id}');
+    item.status = RequestStatus.accepted;
+    print(
+        '🟡 [ChatListController] Status changed to accepted, calling update()');
+    update();
+    print(
+        '🟡 [ChatListController] update() called - UI should show accepted status now');
+
     if (item.id == null) {
-      item.status = RequestStatus.accepted;
-      update();
+      print('🟡 [ChatListController] No chat ID, returning');
       return;
     }
+
     try {
-      final requestRow = await MeetupService.getRequestForChat(item.id!);
-      final requestMsgRow = await MeetupService.getRequestMessage(item.id!);
-      if (requestRow != null && requestMsgRow != null) {
+      print('🟡 [ChatListController] Fetching request from backend');
+      final requestRow = await MeetupService.getLatestRequestForChat(item.id!);
+      if (requestRow != null) {
+        final reqId = requestRow['id'] as String;
+        final reqMsg = await MeetupService.getRequestMessageForRequest(reqId);
+        print('🟡 [ChatListController] Calling backend acceptRequest');
         await MeetupService.acceptRequest(
-          requestId: requestRow['id'] as String,
+          requestId: reqId,
           chatId: item.id!,
-          requestMessageId: requestMsgRow['id'] as String,
+          requestMessageId: reqMsg?['id'] as String? ?? '',
         );
+        print('🟡 [ChatListController] Backend accept successful');
       }
-      item.status = RequestStatus.accepted;
+      print('🟡 [ChatListController] Reloading chats from backend');
       await loadChats(showLoader: false);
-    } catch (_) {
-      item.status = RequestStatus.accepted;
-      update();
+      print('🟡 [ChatListController] Chats reloaded');
+    } catch (e) {
+      print('🔴 [ChatListController] Error in acceptRequest: $e');
     }
   }
 
   Future<void> rejectRequest(Chat item) async {
+    print('🟠 [ChatListController] rejectRequest called for chat: ${item.id}');
+    item.status = RequestStatus.rejected;
+    print(
+        '🟠 [ChatListController] Status changed to rejected, calling update()');
+    update();
+    print(
+        '🟠 [ChatListController] update() called - UI should show rejected status now');
+
     if (item.id == null) {
-      item.status = RequestStatus.rejected;
-      update();
+      print('🟠 [ChatListController] No chat ID, returning');
       return;
     }
+
     try {
-      final requestRow = await MeetupService.getRequestForChat(item.id!);
-      final requestMsgRow = await MeetupService.getRequestMessage(item.id!);
-      if (requestRow != null && requestMsgRow != null) {
+      print('🟠 [ChatListController] Fetching request from backend');
+      final requestRow = await MeetupService.getLatestRequestForChat(item.id!);
+      if (requestRow != null) {
+        final reqId = requestRow['id'] as String;
+        final reqMsg = await MeetupService.getRequestMessageForRequest(reqId);
+        print('🟠 [ChatListController] Calling backend rejectRequest');
         await MeetupService.rejectRequest(
-          requestId: requestRow['id'] as String,
+          requestId: reqId,
           chatId: item.id!,
-          requestMessageId: requestMsgRow['id'] as String,
+          requestMessageId: reqMsg?['id'] as String? ?? '',
         );
+        print('🟠 [ChatListController] Backend reject successful');
       }
-      item.status = RequestStatus.rejected;
+      print('🟠 [ChatListController] Reloading chats from backend');
       await loadChats(showLoader: false);
-    } catch (_) {
-      item.status = RequestStatus.rejected;
-      update();
+      print('🟠 [ChatListController] Chats reloaded');
+    } catch (e) {
+      print('🔴 [ChatListController] Error in rejectRequest: $e');
     }
   }
 

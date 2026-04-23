@@ -43,33 +43,78 @@ class MessageController extends GetxController {
 
   // Supabase-backed state
   String? _chatId;
-  String? _chatStatus; // 'pending' | 'accepted' | 'rejected'
+  String?
+      _chatStatus; // 'requested' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'closed'
   String? _chatType; // 'meetup' | 'direct'
-  String? _requestId;
-  String? _requestMessageId;
+  // Latest request metadata (refreshed on every load)
+  String? _latestRequestId;
+  String? _latestRequestMessageId;
+  String? _latestRequestSenderId; // meetup_requests.requester_id
+  String? _latestRequestReceiverId; // meetup_requests.meetup_owner_id
   StreamSubscription<List<Map<String, dynamic>>>? _chatSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _messageSubscription;
-  bool _isRealtimeReloadInProgress = false;
-  bool _hasPendingRealtimeReload = false;
+  bool _isLoadInProgress = false;
+  bool _hasPendingLoad = false;
+  bool _pendingLoadWantsLoader = false;
+  Timer? _realtimeReloadDebounce;
 
   String? get currentUserId => AuthService.currentUser?.id;
 
-  /// True when the current user is the meetup owner for this chat.
+  /// Exposes the latest request ID so the UI can match per-message buttons.
+  String? get latestRequestId => _latestRequestId;
+
+  /// The effective chat status (normalised, never null).
+  String get effectiveChatStatus => _chatStatus ?? 'requested';
+
+  /// True when the current user is the meetup owner (user_one) for this chat.
   bool get isOwner {
     final uid = currentUserId;
     if (uid == null || chat == null) return false;
     return chat!.userOne == uid;
   }
 
-  /// True when request action buttons should be shown.
-  bool get canRespondToMeetupRequest {
-    return isOwner && _chatType == 'meetup' && _chatStatus == 'pending';
+  /// True when current user sent the latest meetup request.
+  bool get isLatestRequestSender {
+    final uid = currentUserId;
+    if (uid == null) return false;
+    if (_latestRequestSenderId != null && _latestRequestSenderId!.isNotEmpty) {
+      return _latestRequestSenderId == uid;
+    }
+    // Fallback for old rows where requester_id may be missing in payload.
+    return chat?.userTwo == uid;
+  }
+
+  /// True when current user received the latest meetup request (host side).
+  bool get isLatestRequestReceiver {
+    final uid = currentUserId;
+    if (uid == null) return false;
+    if (_latestRequestReceiverId != null &&
+        _latestRequestReceiverId!.isNotEmpty) {
+      return _latestRequestReceiverId == uid;
+    }
+    // Fallback for old rows where meetup_owner_id may be missing in payload.
+    return chat?.userOne == uid;
+  }
+
+  /// True when the owner can respond to the LATEST pending request.
+  bool get canRespondToLatestRequest {
+    if (_chatType != 'meetup') return false;
+    if (_latestRequestId == null) return false;
+    if (!isLatestRequestReceiver) return false;
+    // Allow responding when chat is in requested/pending state.
+    return _chatStatus == 'requested' || _chatStatus == 'pending';
   }
 
   /// True when normal messaging is allowed.
   bool get messagingAllowed {
     if (_isBlockedConversation) return false;
-    if (_chatType == 'meetup') return _chatStatus == 'accepted';
+    if (_chatType == 'meetup') {
+      // Allow chatting when accepted, or when cancelled/rejected
+      // (meetup is gone but the conversation stays open).
+      return _chatStatus == 'accepted' ||
+          _chatStatus == 'cancelled' ||
+          _chatStatus == 'rejected';
+    }
     return true;
   }
 
@@ -84,10 +129,15 @@ class MessageController extends GetxController {
         return 'Accepted';
       case 'rejected':
         return 'Rejected';
-      case 'pending':
+      case 'requested':
         return 'Request Pending';
+      case 'completed':
+        return 'Meetup Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'closed':
+        return 'Closed';
       default:
-        // Fallback to enum-based status for mock chats
         switch (chat?.status) {
           case RequestStatus.accepted:
             return 'Accepted';
@@ -95,35 +145,64 @@ class MessageController extends GetxController {
             return 'Rejected';
           case RequestStatus.requested:
             return 'Request Pending';
+          case RequestStatus.completed:
+            return 'Meetup Completed';
+          case RequestStatus.cancelled:
+            return 'Cancelled';
           default:
             return '';
         }
     }
   }
 
-  /// The special meetup_request message, if present.
-  ChatMessageItem? get requestCardMessage {
-    for (final m in messages) {
-      if (m.messageType == 'meetup_request') return m;
-    }
-    return null;
-  }
-
   Future<void> init(Chat initialChat,
       {String? incoming, String? outgoing}) async {
+    print('🔵 [MessageController] init called for chat: ${initialChat.id}');
+    // Cancel stale subscriptions from any previous chat session.
+    _chatSubscription?.cancel();
+    _messageSubscription?.cancel();
+    _chatSubscription = null;
+    _messageSubscription = null;
+
+    // Reset all state so a previous chat's data never bleeds through.
+    messages.clear();
+    _latestRequestId = null;
+    _latestRequestMessageId = null;
+    _latestRequestSenderId = null;
+    _latestRequestReceiverId = null;
+    _isBlockedConversation = false;
+    _blockedConversationText = '';
+    _isLoadInProgress = false;
+    _hasPendingLoad = false;
+    _pendingLoadWantsLoader = false;
+    _realtimeReloadDebounce?.cancel();
+    _realtimeReloadDebounce = null;
+    isLoading = true;
+
     chat = initialChat;
     _chatId = initialChat.id;
     _chatStatus = initialChat.dbStatus;
+    if (_chatStatus == 'pending') _chatStatus = 'requested';
     _chatType = initialChat.chatType;
 
+    print(
+        '🔵 [MessageController] Chat initialized - ID: $_chatId, Status: $_chatStatus, Type: $_chatType');
+    print('🔵 [MessageController] Setting isLoading = true, calling update()');
+
+    // Remove then re-add listeners to avoid duplicates on reuse.
+    messageController.removeListener(_onTextChanged);
+    focusNode.removeListener(_onFocusChanged);
     messageController.addListener(_onTextChanged);
     focusNode.addListener(_onFocusChanged);
 
+    update();
+    print('🔵 [MessageController] update() called - UI should show loading');
+
     if (_chatId != null) {
-      _startRealtimeListeners();
       await _loadFromSupabase();
+      _startRealtimeListeners();
     } else {
-      // Mock / local chat
+      print('🔵 [MessageController] No chat ID, using mock messages');
       messages
         ..clear()
         ..add(ChatMessageItem(
@@ -134,10 +213,11 @@ class MessageController extends GetxController {
             id: '2',
             text: outgoing ?? 'Great, looking forward to meetup.',
             isMe: true));
+      isLoading = false;
+      print(
+          '🟢 [MessageController] ✅ Mock messages loaded, setting isLoading = false, calling update()');
+      update();
     }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
-    update();
   }
 
   void _startRealtimeListeners() {
@@ -146,112 +226,211 @@ class MessageController extends GetxController {
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
 
+    print(
+        '🔵 [MessageController] Setting up realtime listeners for chat: $_chatId');
+
+    // Supabase .stream() always emits once immediately on subscribe — skip it.
+    bool chatFirstEmit = true;
+    bool messageFirstEmit = true;
+
     _chatSubscription = supabase
         .from('chats')
-        .stream(primaryKey: const ['id'])
+        .stream(primaryKey: ['id'])
         .eq('id', _chatId!)
-        .listen((_) => _reloadFromRealtime());
+        .listen((data) {
+          if (chatFirstEmit) {
+            chatFirstEmit = false;
+            return;
+          }
+          _queueRealtimeReload();
+        });
 
     _messageSubscription = supabase
         .from('messages')
-        .stream(primaryKey: const ['id'])
+        .stream(primaryKey: ['id'])
         .eq('chat_id', _chatId!)
-        .listen((_) => _reloadFromRealtime());
+        .listen((data) {
+          if (messageFirstEmit) {
+            messageFirstEmit = false;
+            return;
+          }
+          _queueRealtimeReload();
+        });
+
+    print('🔵 [MessageController] Realtime listeners active');
   }
 
-  Future<void> _reloadFromRealtime() async {
-    if (_isRealtimeReloadInProgress) {
-      _hasPendingRealtimeReload = true;
-      return;
-    }
-    _isRealtimeReloadInProgress = true;
-    try {
-      await _loadFromSupabase(showLoader: false);
-    } finally {
-      _isRealtimeReloadInProgress = false;
-      if (_hasPendingRealtimeReload) {
-        _hasPendingRealtimeReload = false;
-        _reloadFromRealtime();
-      }
-    }
+  void _queueRealtimeReload() {
+    print('🔔 [MessageController] Realtime update received, scheduling reload');
+    _realtimeReloadDebounce?.cancel();
+    _realtimeReloadDebounce = Timer(
+      const Duration(milliseconds: 250),
+      () => unawaited(_loadFromSupabase(showLoader: false)),
+    );
   }
 
   Future<void> _loadFromSupabase({bool showLoader = true}) async {
     if (_chatId == null) return;
-    if (showLoader) {
-      isLoading = true;
-      update();
+    print(
+        '🔵 [MessageController] _loadFromSupabase called - showLoader: $showLoader');
+    if (_isLoadInProgress) {
+      print(
+          '⚠️ [MessageController] Load already in progress, queuing follow-up reload');
+      _hasPendingLoad = true;
+      _pendingLoadWantsLoader = _pendingLoadWantsLoader || showLoader;
+      return;
     }
 
+    _isLoadInProgress = true;
     try {
-      // Refresh chat status from DB
-      final chatRow = await MeetupService.getChatById(_chatId!);
-      if (chatRow != null) {
-        _chatStatus = chatRow['status']?.toString();
-        _chatType = chatRow['chat_type']?.toString();
-        // Sync back to chat object
-        chat = Chat.fromSupabase(
-          chatRow,
-          otherUserName: chat?.name ?? '',
-          otherUserAvatar: chat?.avatarUrl ?? '',
-          lastMessage: chat?.message ?? '',
-        );
+      if (showLoader) {
+        isLoading = true;
+        print(
+            '🔵 [MessageController] Setting isLoading = true, calling update()');
+        if (!isClosed) {
+          update();
+        }
       }
 
-      await _refreshBlockState();
-
-      // Load request metadata
-      final reqRow = await MeetupService.getRequestForChat(_chatId!);
-      _requestId = reqRow?['id']?.toString();
-
-      final reqMsg = await MeetupService.getRequestMessage(_chatId!);
-      _requestMessageId = reqMsg?['id']?.toString();
-
-      // Load all messages
-      final rows = await MeetupService.fetchMessages(_chatId!);
-      final uid = currentUserId ?? '';
-      messages
-        ..clear()
-        ..addAll(rows.map((r) {
-          final isMe = r['sender_id']?.toString() == uid;
-          final messageType = r['message_type']?.toString() ?? 'text';
-          String text = r['text']?.toString() ?? '';
-          String? requestStatus = r['request_status']?.toString();
-
-          if (messageType == 'meetup_request') {
-            if ((requestStatus == null ||
-                    requestStatus.isEmpty ||
-                    requestStatus == 'pending') &&
-                (_chatStatus == 'accepted' || _chatStatus == 'rejected')) {
-              requestStatus = _chatStatus;
-            }
-
-            if (text.trim().toLowerCase() == 'sent you a meetup request') {
-              text = isMe
-                  ? 'You sent a meetup request'
-                  : 'Sent you a meetup request';
-            }
-          }
-
-          return ChatMessageItem(
-            id: r['id']?.toString() ?? '',
-            text: text,
-            isMe: isMe,
-            messageType: messageType,
-            requestStatus: requestStatus,
-            meetupRequestId: r['meetup_request_id']?.toString(),
-            meetupId: r['meetup_id']?.toString(),
+      // 1. Refresh chat row — source of truth for _chatStatus.
+      try {
+        print('🔵 [MessageController] Fetching chat by ID from Supabase');
+        final chatRow = await MeetupService.getChatById(_chatId!);
+        if (chatRow != null) {
+          _chatType = chatRow['chat_type']?.toString();
+          var dbStatus = chatRow['status']?.toString() ?? 'requested';
+          if (dbStatus == 'pending') dbStatus = 'requested';
+          _chatStatus = dbStatus;
+          chat = Chat.fromSupabase(
+            chatRow,
+            otherUserName: chat?.name ?? '',
+            otherUserAvatar: chat?.avatarUrl ?? '',
+            lastMessage: chat?.message ?? '',
           );
-        }));
-    } catch (_) {
-      // Keep empty messages on error
-    }
+          print(
+              '🔵 [MessageController] Chat loaded - Status: $_chatStatus, Type: $_chatType');
+        }
+      } catch (e) {
+        print('🔴 [MessageController] Error fetching chat: $e');
+      }
 
-    if (showLoader) {
+      // 2. Auto-complete if meetup date passed.
+      if (_chatStatus == 'accepted') {
+        try {
+          final resolved =
+              await MeetupService.resolveLatestRequestStatus(_chatId!);
+          if (resolved == 'completed') {
+            _chatStatus = 'completed';
+            print('🔵 [MessageController] Chat status auto-completed');
+          }
+        } catch (e) {
+          print('🔴 [MessageController] Error resolving status: $e');
+        }
+      }
+
+      // 3. Block state.
+      try {
+        await _refreshBlockState();
+      } catch (e) {
+        print('🔴 [MessageController] Error refreshing block state: $e');
+      }
+
+      // 4. Latest request metadata.
+      try {
+        final reqRow = await MeetupService.getLatestRequestForChat(_chatId!);
+        _latestRequestId = reqRow?['id']?.toString();
+        _latestRequestSenderId = reqRow?['requester_id']?.toString();
+        _latestRequestReceiverId = reqRow?['meetup_owner_id']?.toString();
+        if (_latestRequestId != null) {
+          final reqMsg = await MeetupService.getRequestMessageForRequest(
+            _latestRequestId!,
+          );
+          _latestRequestMessageId = reqMsg?['id']?.toString();
+          print(
+              '🔵 [MessageController] Latest request ID: $_latestRequestId, sender: $_latestRequestSenderId, receiver: $_latestRequestReceiverId');
+        } else {
+          _latestRequestMessageId = null;
+          _latestRequestSenderId = null;
+          _latestRequestReceiverId = null;
+        }
+      } catch (e) {
+        print('🔴 [MessageController] Error fetching request metadata: $e');
+      }
+
+      // 5. Load all messages.
+      try {
+        print('🔵 [MessageController] Fetching messages from Supabase');
+        final rows = await MeetupService.fetchMessages(_chatId!);
+        print('🔵 [MessageController] Fetched ${rows.length} messages');
+        final uid = currentUserId ?? '';
+        messages
+          ..clear()
+          ..addAll(rows.map((r) {
+            final isMe = _readString(r, const ['sender_id']) == uid;
+            final rawMessageType =
+                _readString(r, const ['message_type', 'type']).toLowerCase();
+            final messageType =
+                rawMessageType.isEmpty ? 'text' : rawMessageType;
+            String text = _readString(r, const ['text', 'message', 'content']);
+            String? requestStatus = r['request_status']?.toString();
+            final msgRequestId = _readString(r, const ['meetup_request_id']);
+
+            if (messageType == 'meetup_request') {
+              if (requestStatus == 'pending') requestStatus = 'requested';
+              if (msgRequestId == _latestRequestId &&
+                  requestStatus == 'accepted' &&
+                  _chatStatus == 'completed') {
+                requestStatus = 'completed';
+              }
+              if (text.trim().toLowerCase() == 'sent you a meetup request') {
+                text = isMe
+                    ? 'You sent a meetup request'
+                    : 'Sent you a meetup request';
+              }
+            }
+
+            return ChatMessageItem(
+              id: _readString(r, const ['id']),
+              text: text,
+              isMe: isMe,
+              messageType: messageType,
+              requestStatus: requestStatus,
+              meetupRequestId: msgRequestId,
+              meetupId: _readString(r, const ['meetup_id']),
+            );
+          }));
+        print(
+            '🔵 [MessageController] Messages list built with ${messages.length} items');
+      } catch (e) {
+        print('🔴 [MessageController] Error fetching messages: $e');
+      }
+
+      // Always clear loader and rebuild regardless of showLoader flag.
       isLoading = false;
+      canSend = messageController.text.trim().isNotEmpty && messagingAllowed;
+      print(
+          '🟢 [MessageController] ✅ LOADING COMPLETE - Setting isLoading = false, calling update()');
+      print(
+          '🟢 [MessageController] 📊 State before update: isLoading=$isLoading, messages=${messages.length}, canSend=$canSend');
+      if (!isClosed) {
+        update();
+      }
+      print(
+          '🟢 [MessageController] ✅ update() called - UI should show messages now');
+      print(
+          '🟢 [MessageController] ✅ messagingAllowed: $messagingAllowed, canSend: $canSend');
+      if (!isClosed) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
+      }
+    } finally {
+      _isLoadInProgress = false;
+      if (_hasPendingLoad) {
+        final nextShowLoader = _pendingLoadWantsLoader;
+        _hasPendingLoad = false;
+        _pendingLoadWantsLoader = false;
+        unawaited(_loadFromSupabase(showLoader: nextShowLoader));
+      }
     }
-    update();
-    WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
   }
 
   void _onTextChanged() {
@@ -259,6 +438,8 @@ class MessageController extends GetxController {
         messageController.text.trim().isNotEmpty && messagingAllowed;
     if (hasText != canSend) {
       canSend = hasText;
+      print(
+          '📝 [MessageController] Text changed - canSend: $canSend, text length: ${messageController.text.length}');
       update();
     }
   }
@@ -271,42 +452,47 @@ class MessageController extends GetxController {
 
   Future<void> sendMessage() async {
     final text = messageController.text.trim();
-    if (text.isEmpty || !messagingAllowed) return;
+    print('💬 [MessageController] sendMessage called - text: "$text"');
+    if (text.isEmpty || !messagingAllowed) {
+      print(
+          '🔴 [MessageController] Cannot send - empty text or messaging not allowed');
+      return;
+    }
 
     final uid = currentUserId;
+    print(
+        '💬 [MessageController] Clearing text field and disabling send button');
+    messageController.clear();
+    canSend = false;
+
+    // Optimistic UI update
+    final tempId = DateTime.now().millisecondsSinceEpoch.toString();
+    messages.add(ChatMessageItem(id: tempId, text: text, isMe: true));
+    print(
+        '🟢 [MessageController] ✅ Message added to UI optimistically (ID: $tempId), calling update()');
+    update();
+    print(
+        '🟢 [MessageController] ✅ update() called - message should appear in UI now');
+    WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
 
     if (_chatId != null && uid != null) {
-      // Persist to Supabase
       try {
+        print('💬 [MessageController] Sending message to backend');
         await MeetupService.sendTextMessage(
           chatId: _chatId!,
           senderId: uid,
           text: text,
-          chatStatus: _chatStatus ?? 'pending',
+          chatStatus: _chatStatus ?? 'requested',
         );
-        messageController.clear();
+        print('💬 [MessageController] Message sent to backend successfully');
+        print('💬 [MessageController] Reloading messages from backend');
         await _loadFromSupabase(showLoader: false);
-      } catch (_) {
-        // Optimistic fallback
-        messages.add(ChatMessageItem(
-            id: DateTime.now().millisecondsSinceEpoch.toString(),
-            text: text,
-            isMe: true));
-        messageController.clear();
-        update();
+      } catch (e) {
+        print('🔴 [MessageController] Error sending message: $e');
       }
-    } else {
-      // Mock chat
-      messages.add(ChatMessageItem(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          text: text,
-          isMe: true));
-      messageController.clear();
-      update();
     }
 
     if (!focusNode.hasFocus) focusNode.requestFocus();
-    WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
   }
 
   Future<void> _refreshBlockState() async {
@@ -337,71 +523,87 @@ class MessageController extends GetxController {
   }
 
   Future<void> acceptRequest() async {
-    if (_chatId == null || _requestId == null || _requestMessageId == null) {
+    print('🟡 [MessageController] acceptRequest called');
+    if (_chatId == null || _latestRequestId == null) {
+      print(
+          '🔴 [MessageController] Cannot accept - missing chat ID or request ID');
       return;
     }
+
+    _chatStatus = 'accepted';
+    print(
+        '🟡 [MessageController] Status changed to accepted, calling update()');
+    update();
+    print(
+        '🟡 [MessageController] update() called - UI should show accepted status now');
+
     try {
+      print('🟡 [MessageController] Calling backend acceptRequest');
       await MeetupService.acceptRequest(
-        requestId: _requestId!,
+        requestId: _latestRequestId!,
         chatId: _chatId!,
-        requestMessageId: _requestMessageId!,
+        requestMessageId: _latestRequestMessageId ?? '',
       );
-      _chatStatus = 'accepted';
-      for (var i = 0; i < messages.length; i++) {
-        if (messages[i].messageType != 'meetup_request') continue;
-        final m = messages[i];
-        messages[i] = ChatMessageItem(
-          id: m.id,
-          text: m.text,
-          isMe: m.isMe,
-          messageType: 'meetup_request',
-          requestStatus: 'accepted',
-          meetupRequestId: m.meetupRequestId,
-          meetupId: m.meetupId,
-        );
-      }
+      print('🟡 [MessageController] Backend accept successful');
+      await _loadFromSupabase(showLoader: false);
       if (Get.isRegistered<ChatListController>()) {
-        await Get.find<ChatListController>().loadChats(showLoader: false);
+        print('🟡 [MessageController] Updating chat list controller');
+        Get.find<ChatListController>().loadChats(showLoader: false);
       }
-      update();
-    } catch (_) {}
+    } catch (e) {
+      print('🔴 [MessageController] Error in acceptRequest: $e');
+    }
   }
 
   Future<void> rejectRequest() async {
-    if (_chatId == null || _requestId == null || _requestMessageId == null) {
+    print('🟠 [MessageController] rejectRequest called');
+    if (_chatId == null || _latestRequestId == null) {
+      print(
+          '🔴 [MessageController] Cannot reject - missing chat ID or request ID');
       return;
     }
+
+    _chatStatus = 'rejected';
+    print(
+        '🟠 [MessageController] Status changed to rejected, calling update()');
+    update();
+    print(
+        '🟠 [MessageController] update() called - UI should show rejected status now');
+
     try {
+      print('🟠 [MessageController] Calling backend rejectRequest');
       await MeetupService.rejectRequest(
-        requestId: _requestId!,
+        requestId: _latestRequestId!,
         chatId: _chatId!,
-        requestMessageId: _requestMessageId!,
+        requestMessageId: _latestRequestMessageId ?? '',
       );
-      _chatStatus = 'rejected';
-      for (var i = 0; i < messages.length; i++) {
-        if (messages[i].messageType != 'meetup_request') continue;
-        final m = messages[i];
-        messages[i] = ChatMessageItem(
-          id: m.id,
-          text: m.text,
-          isMe: m.isMe,
-          messageType: 'meetup_request',
-          requestStatus: 'rejected',
-          meetupRequestId: m.meetupRequestId,
-          meetupId: m.meetupId,
-        );
-      }
+      print('🟠 [MessageController] Backend reject successful');
+      await _loadFromSupabase(showLoader: false);
       if (Get.isRegistered<ChatListController>()) {
-        await Get.find<ChatListController>().loadChats(showLoader: false);
+        print('🟠 [MessageController] Updating chat list controller');
+        Get.find<ChatListController>().loadChats(showLoader: false);
       }
-      update();
-    } catch (_) {}
+    } catch (e) {
+      print('🔴 [MessageController] Error in rejectRequest: $e');
+    }
   }
 
   void clearConversation() {
     messages.clear();
     update();
     WidgetsBinding.instance.addPostFrameCallback((_) => scrollToBottom());
+  }
+
+  Future<void> reloadMessages() => _loadFromSupabase(showLoader: false);
+
+  String _readString(Map<String, dynamic> row, List<String> keys) {
+    for (final key in keys) {
+      final value = row[key]?.toString().trim() ?? '';
+      if (value.isNotEmpty) {
+        return value;
+      }
+    }
+    return '';
   }
 
   void scrollToBottom() {
@@ -421,6 +623,7 @@ class MessageController extends GetxController {
   void onClose() {
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
+    _realtimeReloadDebounce?.cancel();
     messageController.removeListener(_onTextChanged);
     focusNode.removeListener(_onFocusChanged);
     messageController.dispose();

@@ -25,7 +25,6 @@ class ChatScreen extends StatelessWidget {
         apppTheme: Theme.of(context), theme: customThemeData);
 
     return GetBuilder<ChatListController>(
-      initState: (_) => Get.find<ChatListController>().loadChats(),
       builder: (c) {
         final pendingItems = c.pendingRequestItems;
         final regularItems = c.regularItems;
@@ -129,13 +128,10 @@ class _ChatListItem extends StatelessWidget {
       padding: EdgeInsets.symmetric(
           vertical: dimension.d8.h, horizontal: dimension.d16.w),
       child: GestureDetector(
-        onTap: () {
-          switch (item.status) {
-            case RequestStatus.requested:
-              _openAcceptDialog(context);
-              break;
-            default:
-              context.navigateToScreen(MessageScreen(chat: item));
+        onTap: () => context.navigateToScreen(MessageScreen(chat: item)),
+        onLongPress: () {
+          if (item.status == RequestStatus.requested) {
+            _openAcceptDialog(context);
           }
         },
         child: Container(
@@ -348,6 +344,10 @@ class _StatusPill extends StatelessWidget {
       case RequestStatus.requested:
         return _pill(
             strings.requestedLabel, appTheme.b_400, appTheme.black90001);
+      case RequestStatus.completed:
+        return _pill('Completed', appTheme.accentsgreen, appTheme.b_50);
+      case RequestStatus.cancelled:
+        return _pill('Cancelled', appTheme.neutral_400, appTheme.coreWhite);
       default:
         return const SizedBox.shrink();
     }

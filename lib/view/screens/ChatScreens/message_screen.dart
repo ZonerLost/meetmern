@@ -9,17 +9,45 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 
-class MessageScreen extends StatelessWidget {
+class MessageScreen extends StatefulWidget {
   final Chat chat;
-
   const MessageScreen({required this.chat, super.key});
+
+  @override
+  State<MessageScreen> createState() => _MessageScreenState();
+}
+
+class _MessageScreenState extends State<MessageScreen> {
+  late final MessageController _c;
+  late final String _controllerTag;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllerTag = widget.chat.id ?? 'local_${widget.hashCode}';
+    if (Get.isRegistered<MessageController>(tag: _controllerTag)) {
+      _c = Get.find<MessageController>(tag: _controllerTag);
+    } else {
+      _c = Get.put(MessageController(), tag: _controllerTag);
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _c.init(widget.chat));
+  }
+
+  @override
+  void dispose() {
+    if (Get.isRegistered<MessageController>(tag: _controllerTag)) {
+      Get.delete<MessageController>(tag: _controllerTag);
+    }
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     const strings = Strings();
 
     return GetBuilder<MessageController>(
-      initState: (_) => Get.find<MessageController>().init(chat),
+      tag: _controllerTag,
+      init: _c,
       builder: (c) {
         final customThemeData =
             ThemeHelper(appThemeName: strings.lightCode).themeData;
@@ -34,7 +62,7 @@ class MessageScreen extends StatelessWidget {
             appBar: _buildAppBar(context, c, strings),
             body: SafeArea(
               bottom: false,
-              child: c.isLoading
+              child: c.isLoading && c.messages.isEmpty
                   ? const Center(child: CircularProgressIndicator())
                   : Stack(
                       children: [
@@ -52,6 +80,9 @@ class MessageScreen extends StatelessWidget {
                               if (msg.messageType == 'meetup_request') {
                                 return _buildRequestCard(
                                     context, c, msg, styles, strings);
+                              }
+                              if (msg.messageType == 'system') {
+                                return _buildSystemMessage(msg);
                               }
                               return _buildMessageBubble(context, msg);
                             },
@@ -74,7 +105,7 @@ class MessageScreen extends StatelessWidget {
 
   PreferredSizeWidget _buildAppBar(
       BuildContext context, MessageController c, Strings strings) {
-    final displayChat = c.chat ?? chat;
+    final displayChat = c.chat ?? widget.chat;
     final avatarWidget = displayChat.avatarUrl.isNotEmpty
         ? CircleAvatar(
             radius: dimension.d18,
@@ -194,7 +225,6 @@ class MessageScreen extends StatelessWidget {
     );
   }
 
-  /// The existing request/status card UI – shown for meetup_request messages.
   Widget _buildRequestCard(
     BuildContext context,
     MessageController c,
@@ -202,7 +232,18 @@ class MessageScreen extends StatelessWidget {
     CustomButtonStyles styles,
     Strings strings,
   ) {
-    final reqStatus = msg.requestStatus ?? 'pending';
+    String reqStatus = msg.requestStatus ?? 'requested';
+    if (msg.meetupRequestId != null &&
+        msg.meetupRequestId == c.latestRequestId) {
+      final chatStatus = c.effectiveChatStatus;
+      if (chatStatus == 'accepted' ||
+          chatStatus == 'rejected' ||
+          chatStatus == 'completed' ||
+          chatStatus == 'cancelled') {
+        reqStatus = chatStatus;
+      }
+    }
+    if (reqStatus == 'pending') reqStatus = 'requested';
     final cardText = msg.text.isNotEmpty
         ? msg.text
         : (msg.isMe
@@ -218,6 +259,14 @@ class MessageScreen extends StatelessWidget {
       case 'rejected':
         statusColor = appTheme.red;
         statusLabel = strings.rejectedLabel;
+        break;
+      case 'completed':
+        statusColor = appTheme.accentsgreen;
+        statusLabel = 'Completed';
+        break;
+      case 'cancelled':
+        statusColor = appTheme.neutral_400;
+        statusLabel = 'Cancelled';
         break;
       default:
         statusColor = appTheme.b_400;
@@ -265,8 +314,9 @@ class MessageScreen extends StatelessWidget {
                 ),
               ],
             ),
-            // Show Accept/Reject only to the meetup owner when still pending
-            if (c.canRespondToMeetupRequest && reqStatus == 'pending') ...[
+            if (c.canRespondToLatestRequest &&
+                msg.meetupRequestId == c.latestRequestId &&
+                reqStatus == 'requested') ...[
               SizedBox(height: dimension.d12),
               Row(
                 children: [
@@ -308,6 +358,35 @@ class MessageScreen extends StatelessWidget {
     );
   }
 
+  Widget _buildSystemMessage(ChatMessageItem message) {
+    return Padding(
+      padding: EdgeInsets.symmetric(
+          horizontal: dimension.d16, vertical: dimension.d8),
+      child: Row(
+        children: [
+          Expanded(
+              child: Container(
+                  height: dimension.d1,
+                  color: appTheme.neutral_400.withValues(alpha: 0.25))),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: dimension.d10),
+            child: Text(
+              message.text,
+              style: TextStyle(
+                  color: appTheme.neutral_400,
+                  fontSize: dimension.d12,
+                  fontWeight: FontWeight.w500),
+            ),
+          ),
+          Expanded(
+              child: Container(
+                  height: dimension.d1,
+                  color: appTheme.neutral_400.withValues(alpha: 0.25))),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageBubble(BuildContext context, ChatMessageItem message) {
     final isMe = message.isMe;
     return Align(
@@ -333,9 +412,13 @@ class MessageScreen extends StatelessWidget {
     );
   }
 
+  bool _chatStatusIsCompleted(MessageController c) {
+    return c.effectiveChatStatus == 'completed' ||
+        c.effectiveChatStatus == 'closed';
+  }
+
   Widget _buildComposer(BuildContext context, MessageController c,
       CustomButtonStyles styles, Strings strings) {
-    // Block composer when users are blocked or meetup chat not accepted.
     if (!c.messagingAllowed) {
       final blockedText = c.blockedConversationText;
       return SafeArea(
@@ -354,9 +437,13 @@ class MessageScreen extends StatelessWidget {
             child: Text(
               c.isBlockedConversation
                   ? blockedText
-                  : c.isOwner
-                      ? 'Accept the request to start chatting'
-                      : 'Waiting for the host to accept your request',
+                  : c.isLatestRequestReceiver
+                      ? (_chatStatusIsCompleted(c)
+                          ? 'Meetup completed. Send a new request to chat again.'
+                          : 'Accept the request to start chatting')
+                      : (_chatStatusIsCompleted(c)
+                          ? 'Meetup completed. Send a new request to chat again.'
+                          : 'Waiting for the host to accept your request'),
               style: TextStyle(
                   color: appTheme.neutral_400, fontSize: dimension.d14),
               textAlign: TextAlign.center,
