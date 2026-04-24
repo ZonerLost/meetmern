@@ -1,9 +1,8 @@
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
-import 'package:meetmern/data/service/api_s.dart';
 import 'package:meetmern/data/service/auth_service.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
+import 'package:meetmern/data/service/meetup_service.dart';
 
 class ViewProfileController extends GetxController {
   final Strings strings = const Strings();
@@ -50,7 +49,8 @@ class ViewProfileController extends GetxController {
       gender = profile.gender ?? '';
       relationship = profile.relationshipStatus ?? '';
       dob = profile.dob ?? '';
-      children = profile.children == null ? '' : (profile.children! ? 'Yes' : 'No');
+      children =
+          profile.children == null ? '' : (profile.children! ? 'Yes' : 'No');
       religion = profile.religion ?? '';
       photoUrl = profile.photoUrl ?? '';
       languages = profile.languages ?? [];
@@ -64,7 +64,16 @@ class ViewProfileController extends GetxController {
     loading = true;
     update();
     try {
-      allMeetups = await MockApi.fetchMeetups();
+      final uid = AuthService.currentUser?.id;
+      if (uid == null) {
+        allMeetups = <Meetup>[];
+        return;
+      }
+
+      final rows = await MeetupService.fetchMeetupHistoryForUser(uid);
+      allMeetups = rows.map(Meetup.fromSupabase).toList(growable: false);
+    } catch (_) {
+      allMeetups = <Meetup>[];
     } finally {
       loading = false;
       update();

@@ -234,6 +234,102 @@ class MeetupService {
     return _enrichWithProfiles(List<Map<String, dynamic>>.from(rows));
   }
 
+  /// Returns meetup history for a user based on meetup_requests.
+  /// The result is one row per meetup (latest request cycle first),
+  /// enriched with owner profile data so it can be mapped with Meetup.fromSupabase.
+  static Future<List<Map<String, dynamic>>> fetchMeetupHistoryForUser(
+    String userId,
+  ) async {
+    final requestRowsRaw = await supabase
+        .from('meetup_requests')
+        .select(
+            'id, meetup_id, meetup_owner_id, requester_id, status, created_at')
+        .or('requester_id.eq.$userId,meetup_owner_id.eq.$userId')
+        .order('created_at', ascending: false);
+
+    final requestRows = List<Map<String, dynamic>>.from(requestRowsRaw);
+    if (requestRows.isEmpty) return const <Map<String, dynamic>>[];
+
+    final meetupIds = requestRows
+        .map((r) => _text(r['meetup_id']))
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    final meetupsById = <String, Map<String, dynamic>>{};
+    if (meetupIds.isNotEmpty) {
+      final meetupsRaw =
+          await supabase.from('meetups').select().inFilter('id', meetupIds);
+      final meetups = await _enrichWithProfiles(
+        List<Map<String, dynamic>>.from(meetupsRaw),
+      );
+      for (final row in meetups) {
+        final id = _text(row['id']);
+        if (id.isNotEmpty) {
+          meetupsById[id] = Map<String, dynamic>.from(row);
+        }
+      }
+    }
+
+    final seenMeetupIds = <String>{};
+    final historyRows = <Map<String, dynamic>>[];
+
+    for (final req in requestRows) {
+      final requestId = _text(req['id']);
+      final meetupId = _text(req['meetup_id']);
+      final requestStatus = _text(req['status']);
+      final createdAt = _text(req['created_at']);
+      final ownerId = _text(req['meetup_owner_id']);
+
+      // Keep only the latest request entry per meetup to avoid duplicate cards.
+      if (meetupId.isNotEmpty && !seenMeetupIds.add(meetupId)) {
+        continue;
+      }
+
+      final baseMeetup = meetupId.isNotEmpty ? meetupsById[meetupId] : null;
+      final merged = <String, dynamic>{
+        ...(baseMeetup ?? <String, dynamic>{}),
+        'id': meetupId.isNotEmpty
+            ? meetupId
+            : (requestId.isNotEmpty
+                ? requestId
+                : 'history_${historyRows.length}'),
+        'user_id': ownerId,
+        'status': requestStatus.isNotEmpty
+            ? requestStatus
+            : _text(baseMeetup?['status']),
+        'history_request_id': requestId,
+        'history_created_at': createdAt,
+      };
+
+      if (_text(merged['type']).isEmpty) {
+        merged['type'] = 'Meetup';
+      }
+      if (_text(merged['address']).isEmpty) {
+        merged['address'] = 'Location unavailable';
+      }
+
+      // If the original meetup row is gone, fallback to request timestamp.
+      if ((merged['date'] == null || _text(merged['date']).isEmpty) &&
+          (merged['meetup_date'] == null ||
+              _text(merged['meetup_date']).isEmpty) &&
+          createdAt.isNotEmpty) {
+        final dt = DateTime.tryParse(createdAt);
+        if (dt != null) {
+          final date = dt.toIso8601String().split('T').first;
+          final hh = dt.hour.toString().padLeft(2, '0');
+          final mm = dt.minute.toString().padLeft(2, '0');
+          merged['meetup_date'] = date;
+          merged['meetup_time'] = '$hh:$mm:00';
+        }
+      }
+
+      historyRows.add(merged);
+    }
+
+    return historyRows;
+  }
+
   static Future<Map<String, dynamic>?> fetchMeetupById(String meetupId) async {
     final row = await supabase
         .from('meetups')
@@ -899,13 +995,7 @@ class MeetupService {
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', chatId);
 
-    // 5. Optionally delete the meetup from the meetups table.
-    //    (Or mark it cancelled if you want to keep history.)
-    final reqRow = await supabase
-        .from('meetup_requests')
-        .select('meetup_id')
-        .eq('id', requestId)
-        .maybeSingle();
+    // 5. Keep the meetup row for history.
   }
 
   /// Only updates the message tied to that specific request_id.

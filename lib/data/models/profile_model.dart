@@ -17,6 +17,7 @@ class ProfileModel {
   final List<String>? interests;
   final List<String>? passionTopics;
   final String? location;
+  final String? discoveryRadius;
   final bool showOnboarding;
   final int reportCount;
   final bool isDisabled;
@@ -42,6 +43,7 @@ class ProfileModel {
     this.interests,
     this.passionTopics,
     this.location,
+    this.discoveryRadius,
     this.showOnboarding = true,
     this.reportCount = 0,
     this.isDisabled = false,
@@ -77,6 +79,7 @@ class ProfileModel {
           ?.map((e) => e.toString())
           .toList(),
       location: json['location'] as String?,
+      discoveryRadius: json['discovery_radius'] as String?,
       showOnboarding: json['show_onboarding'] as bool? ?? true,
       reportCount: (json['report_count'] as num?)?.toInt() ?? 0,
       isDisabled: json['is_disabled'] as bool? ?? false,
@@ -111,6 +114,7 @@ class ProfileModel {
       if (passionTopics != null && passionTopics!.isNotEmpty)
         'passion_topics': passionTopics,
       if (location != null) 'location': location,
+      if (discoveryRadius != null) 'discovery_radius': discoveryRadius,
       'show_onboarding': showOnboarding,
       if (reportCount > 0) 'report_count': reportCount,
       if (isDisabled) 'is_disabled': isDisabled,

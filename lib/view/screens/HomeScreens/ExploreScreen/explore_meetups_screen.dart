@@ -78,7 +78,9 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
               children: [
                 IconButton(
                   icon: const Icon(Icons.location_on_outlined),
-                  onPressed: () {},
+                  onPressed: () {
+                    Get.toNamed(Routes.locationScreen);
+                  },
                 ),
                 IconButton(
                   icon: const Icon(Icons.filter_list),
