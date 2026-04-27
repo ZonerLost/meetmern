@@ -233,13 +233,20 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
                             SizedBox(width: dimension.d6),
                             Expanded(
                               child: Text(
-                                meetup.location,
+                                controller.visibleLocation,
                                 style:
                                     customButtonAndTextStyles.userNameTextStyle,
                               ),
                             ),
                           ],
                         ),
+                        if (controller.locationPrivacyHint.isNotEmpty) ...[
+                          SizedBox(height: dimension.d6.h),
+                          Text(
+                            controller.locationPrivacyHint,
+                            style: customButtonAndTextStyles.locationTextStyle,
+                          ),
+                        ],
                         SizedBox(height: dimension.d8.h),
                         Text(
                           strings.distanceLabelText,

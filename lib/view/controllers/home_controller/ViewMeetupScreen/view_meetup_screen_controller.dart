@@ -17,6 +17,7 @@ class ViewMeetupController extends GetxController {
   bool isRequested = false;
   bool isLoading = false;
   bool isProfileLoading = false;
+  bool isLocationExactVisible = false;
   String? errorMessage;
   String distanceText = '';
 
@@ -39,6 +40,19 @@ class ViewMeetupController extends GetxController {
 
   String get hostPhotoUrl =>
       _ownerPhotoUrl.isNotEmpty ? _ownerPhotoUrl : _fallbackPhotoUrl;
+
+  String get visibleLocation {
+    final raw = meetup?.location.trim() ?? '';
+    if (raw.isEmpty) return '';
+    if (isLocationExactVisible) return raw;
+    final approx = _approximateLocation(raw);
+    return approx.isEmpty ? 'Near your area' : 'Near $approx';
+  }
+
+  String get locationPrivacyHint {
+    if (isOwnMeetup || isLocationExactVisible) return '';
+    return 'Exact location is shared after both users confirm the meetup.';
+  }
 
   // ── Formatted time ────────────────────────────────────────────────────────
 
@@ -79,7 +93,10 @@ class ViewMeetupController extends GetxController {
         : '';
 
     distanceText = '';
-    isRequested = initialMeetup.joinRequested;
+    // Always start as false — _checkExistingRequest will set the real value
+    // from the DB so stale store state never shows a wrong button label.
+    isRequested = false;
+    isLocationExactVisible = isOwnMeetup;
     isProfileLoading = false;
     errorMessage = null;
     update();
@@ -189,10 +206,24 @@ class ViewMeetupController extends GetxController {
     distanceText = km > 0 ? '${km.toStringAsFixed(1)} km away' : 'Nearby';
   }
 
+  String _approximateLocation(String raw) {
+    final parts = raw
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+
+    if (parts.length >= 2) {
+      return '${parts[parts.length - 2]}, ${parts.last}';
+    }
+    if (parts.isNotEmpty) return parts.first;
+    return '';
+  }
+
   Future<void> _checkExistingRequest() async {
     final uid = currentUserId;
     final m = meetup;
-    if (uid == null || m == null || m.userId == null) return;
+    if (uid == null || m == null) return;
 
     try {
       final existing = await MeetupService.getExistingRequest(
@@ -200,11 +231,26 @@ class ViewMeetupController extends GetxController {
         requesterId: uid,
       );
 
-      if (existing != null && meetup?.id == m.id) {
-        isRequested = true;
-        m.joinRequested = true;
-        update();
+      if (meetup?.id != m.id) return; // meetup changed while loading
+
+      if (existing != null) {
+        final status = existing['status']?.toString().trim().toLowerCase() ?? '';
+        // Terminal statuses: request is over, button should be available again.
+        final isTerminal = status == 'rejected' ||
+            status == 'cancelled' ||
+            status == 'completed';
+        final isConfirmed = status == 'accepted';
+
+        isRequested = !isTerminal;
+        isLocationExactVisible = isOwnMeetup || isConfirmed;
+        m.joinRequested = isRequested;
+      } else {
+        // No request exists — button is available.
+        isRequested = false;
+        isLocationExactVisible = isOwnMeetup;
+        m.joinRequested = false;
       }
+      update();
     } catch (e, st) {
       debugPrint('[ViewMeetup] _checkExistingRequest — ERROR: $e\n$st');
     }
@@ -222,49 +268,79 @@ class ViewMeetupController extends GetxController {
     final uid = currentUserId;
     final m = meetup;
 
-    if (uid == null || m == null || isOwnMeetup || isRequested) return null;
+    print('[ViewMeetup] requestToJoin — uid=$uid meetupId=${m?.id} ownerId=${m?.userId} isOwnMeetup=$isOwnMeetup isRequested=$isRequested');
+
+    if (uid == null) {
+      print('[ViewMeetup] requestToJoin — aborted: not logged in');
+      return null;
+    }
+    if (m == null) {
+      print('[ViewMeetup] requestToJoin — aborted: meetup is null');
+      return null;
+    }
+    if (isOwnMeetup) {
+      print('[ViewMeetup] requestToJoin — aborted: own meetup');
+      return null;
+    }
+    if (isRequested) {
+      print('[ViewMeetup] requestToJoin — aborted: already requested');
+      return null;
+    }
+    if (m.userId == null || m.userId!.trim().isEmpty) {
+      print('[ViewMeetup] requestToJoin — aborted: meetup has no owner userId');
+      errorMessage = 'Cannot send request: meetup owner is unknown.';
+      update();
+      return null;
+    }
 
     isLoading = true;
     errorMessage = null;
     update();
 
     try {
+      print('[ViewMeetup] requestToJoin — checking profile disabled for uid=$uid');
       if (await MeetupService.isProfileDisabled(uid)) {
         errorMessage = 'Your account is disabled.';
+        print('[ViewMeetup] requestToJoin — aborted: requester disabled');
         return null;
       }
 
+      print('[ViewMeetup] requestToJoin — checking profile disabled for ownerId=${m.userId}');
       if (await MeetupService.isProfileDisabled(m.userId!)) {
         errorMessage = 'This user account is disabled.';
+        print('[ViewMeetup] requestToJoin — aborted: owner disabled');
         return null;
       }
 
+      print('[ViewMeetup] requestToJoin — checking block status');
       final blocked = await MeetupService.areUsersBlocked(
         userA: uid,
         userB: m.userId!,
       );
       if (blocked) {
-        errorMessage =
-            'Cannot request meetup because one of you has blocked the other.';
+        errorMessage = 'Cannot request meetup because one of you has blocked the other.';
+        print('[ViewMeetup] requestToJoin — aborted: users blocked');
         return null;
       }
 
-      // Guard: block if there is already an active meetup between them.
+      print('[ViewMeetup] requestToJoin — checking active request between users');
       final hasActive = await MeetupService.hasActiveMeetupRequestBetween(
         userA: uid,
         userB: m.userId!,
       );
       if (hasActive) {
-        errorMessage =
-            'A meetup is already active between you. Wait for it to complete first.';
+        errorMessage = 'A meetup is already active between you. Wait for it to complete first.';
+        print('[ViewMeetup] requestToJoin — aborted: active request exists');
         return null;
       }
 
+      print('[ViewMeetup] requestToJoin — sending request...');
       final chatRow = await MeetupService.sendMeetupRequest(
         meetupId: m.id,
         meetupOwnerId: m.userId!,
         requesterId: uid,
       );
+      print('[ViewMeetup] requestToJoin — request sent, chatId=${chatRow['id']}');
 
       isRequested = true;
       m.joinRequested = true;
@@ -278,13 +354,13 @@ class ViewMeetupController extends GetxController {
       );
       chat.type = m.type;
       chat.time = formattedTime;
-      final normalizedLocation = m.location.trim();
+      final normalizedLocation = _approximateLocation(m.location.trim());
       chat.subtitle = normalizedLocation.isEmpty
           ? formattedTime
           : '$formattedTime · Near $normalizedLocation';
       return chat;
     } catch (e, st) {
-      debugPrint('[ViewMeetup] requestToJoin — ERROR: $e\n$st');
+      print('[ViewMeetup] requestToJoin — ERROR: $e\n$st');
       errorMessage = e.toString().replaceFirst('Exception: ', '');
       return null;
     } finally {

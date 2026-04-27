@@ -1,20 +1,20 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
-import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
 import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
 import 'package:meetmern/view/screens/homescreens/FilterScreen/filter_screen.dart';
 import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_screen.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ManageAds/ads_screen.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/routes/route_names.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
+import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/meetup_card.dart';
+import 'package:meetmern/view/screens/onboardingscreens/pages/onboarding_topbar.dart';
 
 class ExploreMeetupsScreen extends StatefulWidget {
   const ExploreMeetupsScreen({super.key});
@@ -40,7 +40,7 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => FilterScreen(
-        options: OnboardingMockData.filterOptions,
+        options: _controller.filterOptions,
         initialValues: _controller.activeFilters,
       ),
     );
@@ -53,6 +53,17 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
     final res = await Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => ViewMeetupScreen(meetup: m)));
     if (res == true) _controller.refreshUi();
+  }
+
+  Future<void> _openCreateMeetupFlow() async {
+    final Meetup? created = await Navigator.of(context)
+        .push<Meetup?>(MaterialPageRoute(builder: (_) {
+      return const CreateMeetupScreen(origin: 'explore');
+    }));
+    if (created != null) {
+      if (!mounted) return;
+      context.navigateToScreen(ManageAds(initialMeetup: created));
+    }
   }
 
   @override
@@ -121,15 +132,7 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final Meetup? created = await Navigator.of(context)
-              .push<Meetup?>(MaterialPageRoute(builder: (_) {
-            return const CreateMeetupScreen(origin: 'explore');
-          }));
-          if (created != null) {
-            context.navigateToScreen(ManageAds(initialMeetup: created));
-          }
-        },
+        onPressed: _openCreateMeetupFlow,
         shape: const CircleBorder(),
         backgroundColor: appTheme.b_Primary,
         tooltip: strings.createMeetup,
@@ -185,13 +188,18 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
                                 final m = controller.meetups[index];
                                 return MeetupCard(
                                   meetup: m,
+                                  locationLabel:
+                                      controller.approximateLocationForFeed(m),
                                   onFavorite: () =>
                                       controller.toggleFavorite(m.id),
                                   onTap: () => _openMeetup(m),
                                 );
                               },
                             )
-                          : _buildEmptyState(customButtonandTextStyles),
+                          : _buildEmptyState(
+                              controller,
+                              customButtonandTextStyles,
+                            ),
                     ),
                   ),
                   SizedBox(height: dimension.d12.h),
@@ -204,16 +212,68 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
     );
   }
 
-  Widget _buildEmptyState(CustomButtonStyles customButtonandTextStyles) {
+  Widget _buildEmptyState(
+    ExploreController controller,
+    CustomButtonStyles customButtonandTextStyles,
+  ) {
     const strings = Strings();
     return ListView(
       padding: EdgeInsets.zero,
       children: [
         SizedBox(height: dimension.d20.h),
         Center(
-          child: Text(strings.noMeetupsFound,
+          child: Text('No meetup posts available right now.',
               style: customButtonandTextStyles.dobLabelTextStyle),
         ),
+        SizedBox(height: dimension.d8.h),
+        Center(
+          child: Text(
+            'Be the first to post a meetup near you.',
+            textAlign: TextAlign.center,
+            style: customButtonandTextStyles.locationTextStyle,
+          ),
+        ),
+        SizedBox(height: dimension.d16.h),
+        CustomElevatedButton(
+          onPressed: _openCreateMeetupFlow,
+          buttonStyle: customButtonandTextStyles.loginButtonStyle,
+          buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
+          text: strings.createMeetup,
+        ),
+        if (controller.activeUsers.isNotEmpty) ...[
+          SizedBox(height: dimension.d24.h),
+          Text(
+            'Active users',
+            style: customButtonandTextStyles.dobLabelTextStyle,
+          ),
+          SizedBox(height: dimension.d8.h),
+          ...controller.activeUsers.map(
+            (user) => Card(
+              color: appTheme.coreWhite,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(dimension.d12.r),
+                side: BorderSide(color: appTheme.borderColor, width: 1),
+              ),
+              margin: EdgeInsets.only(bottom: dimension.d10.h),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: user.image.startsWith('http')
+                      ? NetworkImage(user.image)
+                      : AssetImage(user.image) as ImageProvider,
+                ),
+                title: Text(
+                  user.name,
+                  style: customButtonandTextStyles.dobLabelTextStyle,
+                ),
+                subtitle: Text(
+                  '${user.locationShort ?? user.location} - ${user.favMeetupType ?? user.type}',
+                  style: customButtonandTextStyles.locationTextStyle,
+                ),
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }

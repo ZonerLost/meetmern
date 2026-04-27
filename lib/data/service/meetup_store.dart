@@ -8,10 +8,12 @@ class MeetupStore {
   static final MeetupStore instance = MeetupStore._();
 
   final List<Meetup> _meetups = [];
+  final Set<String> _hiddenMeetupIds = {};
   bool _loaded = false;
   String? lastError;
 
   List<Meetup> get meetups => List.unmodifiable(_meetups);
+  Set<String> get hiddenMeetupIds => Set.unmodifiable(_hiddenMeetupIds);
 
   List<Meetup> get favourites =>
       _meetups.where((m) => m.isFavorite).toList(growable: false);
@@ -27,12 +29,26 @@ class MeetupStore {
     if (_loaded && !forceReload) return;
     lastError = null;
     try {
-      final rows = await MeetupService.fetchMeetups();
+      final uid = AuthService.currentUser?.id;
+      final results = await Future.wait([
+        MeetupService.fetchMeetups(),
+        if (uid != null)
+          MeetupService.fetchHiddenMeetupIdsForUser(uid)
+        else
+          Future.value(<String>{}),
+      ]);
+
+      final rows = results[0] as List<Map<String, dynamic>>;
+      final hiddenIds = results[1] as Set<String>;
+
       _meetups
         ..clear()
         ..addAll(rows.map(Meetup.fromSupabase));
 
-      final uid = AuthService.currentUser?.id;
+      _hiddenMeetupIds
+        ..clear()
+        ..addAll(hiddenIds);
+
       if (uid != null) {
         try {
           final favIds = await MeetupService.fetchFavouriteMeetupIds(uid);

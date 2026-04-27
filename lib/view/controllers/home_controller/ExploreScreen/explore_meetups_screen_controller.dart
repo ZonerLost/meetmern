@@ -1,49 +1,92 @@
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
+import 'package:meetmern/data/models/profile_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/data/service/discovery_service.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
 import 'package:meetmern/data/service/meetup_store.dart';
+import 'package:meetmern/data/service/profile_service.dart';
+import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
 
 class ExploreController extends GetxController {
   final MeetupStore _store = MeetupStore.instance;
   final Map<String, dynamic> _activeFilters = <String, dynamic>{};
+  final Map<String, dynamic> _filterOptions = <String, dynamic>{};
+  final List<Nearby> _activeUsers = <Nearby>[];
+
+  ProfileModel? _viewerProfile;
 
   bool loading = true;
   String? error;
 
   List<Meetup> get meetups {
-    final base =
-        _store.meetups.where((m) => !isOwnMeetup(m)).toList(growable: false);
-    if (_activeFilters.isEmpty) return base;
-    return base.where(_matchesFilters).toList(growable: false);
+    final base = _store.meetups
+        .where((m) => !isOwnMeetup(m))
+        .where(_isAvailableMeetup)
+        .toList(growable: false);
+    final filtered = _activeFilters.isEmpty
+        ? base
+        : base.where(_matchesFilters).toList(growable: false);
+    final ranked = List<Meetup>.from(filtered);
+    ranked.sort((a, b) {
+      final scoreCompare = _rankingScore(b).compareTo(_rankingScore(a));
+      if (scoreCompare != 0) return scoreCompare;
+      return a.time.compareTo(b.time);
+    });
+    return ranked;
   }
 
   Map<String, dynamic> get activeFilters =>
       Map<String, dynamic>.unmodifiable(_activeFilters);
+  Map<String, dynamic> get filterOptions {
+    if (_filterOptions.isEmpty) return OnboardingMockData.filterOptions;
+    return Map<String, dynamic>.unmodifiable(_filterOptions);
+  }
+
+  List<Nearby> get activeUsers => List<Nearby>.unmodifiable(_activeUsers);
   bool get hasActiveFilters => _activeFilters.isNotEmpty;
   int get activeFilterCount => _activeFilters.length;
   String? get currentUserId => AuthService.currentUser?.id;
 
   bool isOwnMeetup(Meetup m) => m.userId != null && m.userId == currentUserId;
 
-  @override
-  void onInit() {
-    super.onInit();
-  }
-
-  @override
-  void onClose() {
-    super.onClose();
-  }
-
   Future<void> loadData() async {
     loading = true;
     error = null;
     update();
-    await _store.load(forceReload: true);
-    error = _store.lastError;
+
+    try {
+      await Future.wait([
+        _store.load(forceReload: true),
+        _loadDiscoveryInputs(),
+      ]);
+      error = _store.lastError;
+    } catch (e) {
+      error = e.toString();
+    }
+
     loading = false;
     update();
+  }
+
+  Future<void> _loadDiscoveryInputs() async {
+    final options = await DiscoveryService.fetchFilterOptions();
+    _filterOptions
+      ..clear()
+      ..addAll(
+        options.isNotEmpty ? options : OnboardingMockData.filterOptions,
+      );
+
+    final activeUsers = await DiscoveryService.fetchActiveUsers(limit: 8);
+    _activeUsers
+      ..clear()
+      ..addAll(activeUsers);
+
+    final uid = currentUserId;
+    if (uid != null && uid.isNotEmpty) {
+      _viewerProfile = await ProfileService.getProfile(uid);
+    }
+    _viewerProfile ??= AuthService.currentProfile.value;
   }
 
   void applyFilters(Map<String, dynamic>? rawFilters) {
@@ -85,10 +128,200 @@ class ExploreController extends GetxController {
 
   void refreshUi() => update();
 
+  String approximateLocationForFeed(Meetup meetup) {
+    final approx = _approximateLocationCore(meetup.location);
+    return approx.isEmpty ? 'Near your area' : 'Near $approx';
+  }
+
+  bool _isAvailableMeetup(Meetup meetup) {
+    // Hide meetups that have an active/accepted request from the current user.
+    if (_store.hiddenMeetupIds.contains(meetup.id)) return false;
+
+    final status = meetup.status.trim().toLowerCase();
+    // 'accepted' means someone already has an active request — hide from explore.
+    final isAvailableStatus = status.isEmpty ||
+        status == 'open' ||
+        status == 'active' ||
+        status == 'requested';
+    if (!isAvailableStatus) return false;
+    return meetup.time
+        .isAfter(DateTime.now().subtract(const Duration(hours: 4)));
+  }
+
+  double _rankingScore(Meetup meetup) {
+    final proximityScore = _proximityScore(meetup);
+    final timeScore = _timeRelevanceScore(meetup.time);
+    final sharedScore = _sharedInterestScore(meetup);
+    return (0.50 * proximityScore) + (0.30 * timeScore) + (0.20 * sharedScore);
+  }
+
+  double _proximityScore(Meetup meetup) {
+    final distance = _estimatedDistanceKm(meetup);
+    if (distance == null) return 0.20;
+
+    final limit = _distanceLimitKmForRanking;
+    final normalized = 1 - (distance / limit).clamp(0.0, 1.0);
+    return normalized.clamp(0.0, 1.0);
+  }
+
+  double _timeRelevanceScore(DateTime meetupTime) {
+    final now = DateTime.now();
+    if (meetupTime.isBefore(now.subtract(const Duration(hours: 4)))) {
+      return 0.0;
+    }
+
+    if (_isSameDay(now, meetupTime)) {
+      final minutes = meetupTime.difference(now).inMinutes.abs();
+      if (minutes <= 90) return 1.0; // now
+      return 0.88; // today
+    }
+
+    final dayDiff = meetupTime.difference(now).inDays;
+    if (dayDiff < 0) return 0.0;
+    if (_isWeekend(meetupTime) && dayDiff <= 7) return 0.78;
+    if (dayDiff <= 2) return 0.62;
+    if (dayDiff <= 7) return 0.42;
+    return 0.20;
+  }
+
+  double _sharedInterestScore(Meetup meetup) {
+    final viewerInterests = _viewerInterests;
+    if (viewerInterests.isEmpty) return 0.35;
+
+    final meetupTopics = <String>{
+      ...meetup.interests.map((item) => item.trim().toLowerCase()),
+      ...meetup.languages.map((item) => item.trim().toLowerCase()),
+      meetup.type.trim().toLowerCase(),
+    }..removeWhere((item) => item.isEmpty);
+
+    if (meetupTopics.isEmpty) return 0.10;
+
+    final overlapCount =
+        viewerInterests.intersection(meetupTopics).length.toDouble();
+    final ratio = overlapCount / viewerInterests.length.toDouble();
+    return ratio.clamp(0.0, 1.0);
+  }
+
+  Set<String> get _viewerInterests {
+    final profile = _viewerProfile ?? AuthService.currentProfile.value;
+    if (profile == null) return const <String>{};
+    return <String>{
+      ...?profile.interests,
+      ...?profile.passionTopics,
+    }
+        .map((item) => item.trim().toLowerCase())
+        .where((item) => item.isNotEmpty)
+        .toSet();
+  }
+
+  String? get _viewerLocation {
+    final loaded = _viewerProfile?.location?.trim();
+    if (loaded != null && loaded.isNotEmpty) return loaded;
+    final current = AuthService.currentProfile.value?.location?.trim();
+    if (current != null && current.isNotEmpty) return current;
+    return null;
+  }
+
+  double? get _viewerRadiusKm {
+    final raw = (_viewerProfile?.discoveryRadius ??
+            AuthService.currentProfile.value?.discoveryRadius ??
+            '')
+        .trim();
+    if (raw.isEmpty) return null;
+    final match = RegExp(r'\d+(\.\d+)?').firstMatch(raw);
+    if (match == null) return null;
+    return double.tryParse(match.group(0)!);
+  }
+
+  double get _distanceLimitKmForRanking {
+    final filterDistance = _asDouble(_activeFilters['distanceKm']);
+    if (filterDistance != null && filterDistance > 0) return filterDistance;
+
+    final profileRadius = _viewerRadiusKm;
+    if (profileRadius != null && profileRadius > 0) return profileRadius;
+
+    return 50.0;
+  }
+
+  double? _estimatedDistanceKm(Meetup meetup) {
+    if (meetup.distanceKm > 0) return meetup.distanceKm;
+
+    final userLocation = _viewerLocation;
+    if (userLocation == null || userLocation.isEmpty) return null;
+
+    final meetupApprox = _approximateLocationCore(meetup.location);
+    if (meetupApprox.isEmpty) return null;
+
+    final similarity = _locationSimilarityScore(userLocation, meetupApprox);
+    if (similarity >= 0.95) return 3.0;
+    if (similarity >= 0.80) return 10.0;
+    if (similarity >= 0.60) return 35.0;
+    if (similarity >= 0.40) return 90.0;
+    return 220.0;
+  }
+
+  String _approximateLocationCore(String raw) {
+    final parts = raw
+        .split(',')
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+
+    if (parts.length >= 2) {
+      return '${parts[parts.length - 2]}, ${parts.last}';
+    }
+    if (parts.isNotEmpty) return parts.first;
+    return '';
+  }
+
+  double _locationSimilarityScore(String left, String right) {
+    final leftParts = _LocationParts.fromText(left);
+    final rightParts = _LocationParts.fromText(right);
+
+    final sameCity = leftParts.city.isNotEmpty &&
+        rightParts.city.isNotEmpty &&
+        leftParts.city == rightParts.city;
+    final sameCountry = leftParts.country.isNotEmpty &&
+        rightParts.country.isNotEmpty &&
+        leftParts.country == rightParts.country;
+
+    if (sameCity && sameCountry) return 1.0;
+    if (sameCity) return 0.85;
+    if (sameCountry) return 0.60;
+
+    final tokenOverlap =
+        leftParts.tokens.intersection(rightParts.tokens).length;
+    if (tokenOverlap > 0) return 0.40;
+    return 0.15;
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  bool _isWeekend(DateTime value) {
+    return value.weekday == DateTime.saturday ||
+        value.weekday == DateTime.sunday;
+  }
+
   bool _matchesFilters(Meetup meetup) {
     final maxDistance = _asDouble(_activeFilters['distanceKm']);
-    if (maxDistance != null && maxDistance > 0 && meetup.distanceKm > 0) {
-      if (meetup.distanceKm > maxDistance) return false;
+    final effectiveDistance = _estimatedDistanceKm(meetup);
+    if (maxDistance != null &&
+        maxDistance > 0 &&
+        effectiveDistance != null &&
+        effectiveDistance > maxDistance) {
+      return false;
+    }
+
+    if (maxDistance == null) {
+      final profileRadius = _viewerRadiusKm;
+      if (profileRadius != null &&
+          profileRadius > 0 &&
+          effectiveDistance != null &&
+          effectiveDistance > profileRadius) {
+        return false;
+      }
     }
 
     final minAge = _asInt(_activeFilters['ageMin']);
@@ -317,5 +550,36 @@ class ExploreController extends GetxController {
           .toList(growable: false);
     }
     return const <String>[];
+  }
+}
+
+class _LocationParts {
+  final String city;
+  final String country;
+  final Set<String> tokens;
+
+  const _LocationParts({
+    required this.city,
+    required this.country,
+    required this.tokens,
+  });
+
+  factory _LocationParts.fromText(String raw) {
+    final parts = raw
+        .split(',')
+        .map((part) => part.trim().toLowerCase())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+
+    final city = parts.length >= 2
+        ? parts[parts.length - 2]
+        : (parts.isNotEmpty ? parts.first : '');
+    final country = parts.isNotEmpty ? parts.last : '';
+
+    return _LocationParts(
+      city: city,
+      country: country,
+      tokens: parts.toSet(),
+    );
   }
 }

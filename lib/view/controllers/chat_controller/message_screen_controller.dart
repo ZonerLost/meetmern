@@ -40,17 +40,17 @@ class MessageController extends GetxController {
   bool isLoading = false;
   bool _isBlockedConversation = false;
   String _blockedConversationText = '';
+  // When true the text composer is shown even after completion.
+  bool _continueChatMode = false;
 
   // Supabase-backed state
   String? _chatId;
-  String?
-      _chatStatus; // 'requested' | 'accepted' | 'rejected' | 'completed' | 'cancelled' | 'closed'
-  String? _chatType; // 'meetup' | 'direct'
-  // Latest request metadata (refreshed on every load)
+  String? _chatStatus;
+  String? _chatType;
   String? _latestRequestId;
   String? _latestRequestMessageId;
-  String? _latestRequestSenderId; // meetup_requests.requester_id
-  String? _latestRequestReceiverId; // meetup_requests.meetup_owner_id
+  String? _latestRequestSenderId;
+  String? _latestRequestReceiverId;
   StreamSubscription<List<Map<String, dynamic>>>? _chatSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _messageSubscription;
   bool _isLoadInProgress = false;
@@ -59,63 +59,51 @@ class MessageController extends GetxController {
   Timer? _realtimeReloadDebounce;
 
   String? get currentUserId => AuthService.currentUser?.id;
-
-  /// Exposes the latest request ID so the UI can match per-message buttons.
   String? get latestRequestId => _latestRequestId;
-
-  /// The effective chat status (normalised, never null).
   String get effectiveChatStatus => _chatStatus ?? 'requested';
+  bool get continueChatMode => _continueChatMode;
 
-  /// True when the current user is the meetup owner (user_one) for this chat.
   bool get isOwner {
     final uid = currentUserId;
     if (uid == null || chat == null) return false;
     return chat!.userOne == uid;
   }
 
-  /// True when current user sent the latest meetup request.
   bool get isLatestRequestSender {
     final uid = currentUserId;
     if (uid == null) return false;
-    if (_latestRequestSenderId != null && _latestRequestSenderId!.isNotEmpty) {
+    if (_latestRequestSenderId?.isNotEmpty == true) {
       return _latestRequestSenderId == uid;
     }
-    // Fallback for old rows where requester_id may be missing in payload.
     return chat?.userTwo == uid;
   }
 
-  /// True when current user received the latest meetup request (host side).
   bool get isLatestRequestReceiver {
     final uid = currentUserId;
     if (uid == null) return false;
-    if (_latestRequestReceiverId != null &&
-        _latestRequestReceiverId!.isNotEmpty) {
+    if (_latestRequestReceiverId?.isNotEmpty == true) {
       return _latestRequestReceiverId == uid;
     }
-    // Fallback for old rows where meetup_owner_id may be missing in payload.
+    // Meetup owner is always user_one.
     return chat?.userOne == uid;
   }
 
-  /// True when the owner can respond to the LATEST pending request.
   bool get canRespondToLatestRequest {
-    if (_chatType != 'meetup') return false;
+    final type = _chatType ?? 'meetup';
+    if (type != 'meetup') return false;
     if (_latestRequestId == null) return false;
     if (!isLatestRequestReceiver) return false;
-    // Allow responding when chat is in requested/pending state.
     return _chatStatus == 'requested' || _chatStatus == 'pending';
   }
 
-  /// True when normal messaging is allowed.
+  /// Messaging is allowed when accepted, continue_chat, or in continue-chat mode after completion.
   bool get messagingAllowed {
     if (_isBlockedConversation) return false;
-    if (_chatType == 'meetup') {
-      // Allow chatting when accepted, or when cancelled/rejected
-      // (meetup is gone but the conversation stays open).
-      return _chatStatus == 'accepted' ||
-          _chatStatus == 'cancelled' ||
-          _chatStatus == 'rejected';
-    }
-    return true;
+    final status = _chatStatus ?? 'requested';
+    if (status == 'accepted') return true;
+    if (status == 'continue_chat') return true;
+    if (_continueChatMode && status == 'completed') return true;
+    return false;
   }
 
   bool get isBlockedConversation => _isBlockedConversation;
@@ -123,35 +111,48 @@ class MessageController extends GetxController {
       ? _blockedConversationText
       : 'You cannot message this user because one of you has blocked the other.';
 
+  bool get isCompletedMeetup => _chatStatus == 'completed';
+
+  bool get canSendNewRequest {
+    if (_isBlockedConversation) return false;
+    final type = _chatType ?? 'meetup';
+    if (type != 'meetup') return false;
+    return _chatStatus == 'completed' ||
+        _chatStatus == 'rejected' ||
+        _chatStatus == 'cancelled';
+  }
+
   String get statusText {
     switch (_chatStatus) {
-      case 'accepted':
-        return 'Accepted';
-      case 'rejected':
-        return 'Rejected';
-      case 'requested':
-        return 'Request Pending';
-      case 'completed':
-        return 'Meetup Completed';
-      case 'cancelled':
-        return 'Cancelled';
-      case 'closed':
-        return 'Closed';
+      case 'accepted': return 'Accepted';
+      case 'rejected': return 'Rejected';
+      case 'requested': return 'Request Pending';
+      case 'completed': return 'Meetup Completed';
+      case 'cancelled': return 'Cancelled';
+      case 'closed': return 'Closed';
       default:
         switch (chat?.status) {
-          case RequestStatus.accepted:
-            return 'Accepted';
-          case RequestStatus.rejected:
-            return 'Rejected';
-          case RequestStatus.requested:
-            return 'Request Pending';
-          case RequestStatus.completed:
-            return 'Meetup Completed';
-          case RequestStatus.cancelled:
-            return 'Cancelled';
-          default:
-            return '';
+          case RequestStatus.accepted: return 'Accepted';
+          case RequestStatus.rejected: return 'Rejected';
+          case RequestStatus.requested: return 'Request Pending';
+          case RequestStatus.completed: return 'Meetup Completed';
+          case RequestStatus.cancelled: return 'Cancelled';
+          default: return '';
         }
+    }
+  }
+
+  /// Persists continue-chat mode by setting chat status back to 'accepted'
+  /// in the DB so both sides see the text field on every open.
+  Future<void> enableContinueChatMode() async {
+    if (_chatId == null) return;
+    _continueChatMode = true;
+    canSend = messageController.text.trim().isNotEmpty;
+    update();
+    try {
+      await MeetupService.setChatContinueMode(_chatId!);
+    } catch (e) {
+      print('🔴 [MessageController] enableContinueChatMode error: $e');
     }
   }
 
@@ -175,6 +176,7 @@ class MessageController extends GetxController {
     _isLoadInProgress = false;
     _hasPendingLoad = false;
     _pendingLoadWantsLoader = false;
+    _continueChatMode = false;
     _realtimeReloadDebounce?.cancel();
     _realtimeReloadDebounce = null;
     isLoading = true;
@@ -183,7 +185,10 @@ class MessageController extends GetxController {
     _chatId = initialChat.id;
     _chatStatus = initialChat.dbStatus;
     if (_chatStatus == 'pending') _chatStatus = 'requested';
-    _chatType = initialChat.chatType;
+    // Default to 'meetup' — all chats in this app are meetup chats.
+    _chatType = (initialChat.chatType?.isNotEmpty == true)
+        ? initialChat.chatType
+        : 'meetup';
 
     print(
         '🔵 [MessageController] Chat initialized - ID: $_chatId, Status: $_chatStatus, Type: $_chatType');
@@ -226,38 +231,19 @@ class MessageController extends GetxController {
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
 
-    print(
-        '🔵 [MessageController] Setting up realtime listeners for chat: $_chatId');
-
-    // Supabase .stream() always emits once immediately on subscribe — skip it.
-    bool chatFirstEmit = true;
-    bool messageFirstEmit = true;
-
+    // Use channel-based realtime so we get INSERT/UPDATE/DELETE events
+    // without the "skip first emit" problem of .stream().
     _chatSubscription = supabase
         .from('chats')
         .stream(primaryKey: ['id'])
         .eq('id', _chatId!)
-        .listen((data) {
-          if (chatFirstEmit) {
-            chatFirstEmit = false;
-            return;
-          }
-          _queueRealtimeReload();
-        });
+        .listen((_) => _queueRealtimeReload());
 
     _messageSubscription = supabase
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('chat_id', _chatId!)
-        .listen((data) {
-          if (messageFirstEmit) {
-            messageFirstEmit = false;
-            return;
-          }
-          _queueRealtimeReload();
-        });
-
-    print('🔵 [MessageController] Realtime listeners active');
+        .listen((_) => _queueRealtimeReload());
   }
 
   void _queueRealtimeReload() {
@@ -294,21 +280,25 @@ class MessageController extends GetxController {
 
       // 1. Refresh chat row — source of truth for _chatStatus.
       try {
-        print('🔵 [MessageController] Fetching chat by ID from Supabase');
         final chatRow = await MeetupService.getChatById(_chatId!);
         if (chatRow != null) {
-          _chatType = chatRow['chat_type']?.toString();
+          _chatType = (chatRow['chat_type']?.toString().isNotEmpty == true)
+              ? chatRow['chat_type'].toString()
+              : 'meetup';
           var dbStatus = chatRow['status']?.toString() ?? 'requested';
           if (dbStatus == 'pending') dbStatus = 'requested';
           _chatStatus = dbStatus;
+          // Restore continue-chat mode if the DB says so.
+          if (dbStatus == 'continue_chat') {
+            _chatStatus = 'completed';
+            _continueChatMode = true;
+          }
           chat = Chat.fromSupabase(
             chatRow,
             otherUserName: chat?.name ?? '',
             otherUserAvatar: chat?.avatarUrl ?? '',
             lastMessage: chat?.message ?? '',
           );
-          print(
-              '🔵 [MessageController] Chat loaded - Status: $_chatStatus, Type: $_chatType');
         }
       } catch (e) {
         print('🔴 [MessageController] Error fetching chat: $e');
@@ -335,19 +325,24 @@ class MessageController extends GetxController {
         print('🔴 [MessageController] Error refreshing block state: $e');
       }
 
-      // 4. Latest request metadata.
+      // 4. Latest request metadata — source of truth for request state.
+      // Also sync chat status with request status to fix mismatches.
       try {
         final reqRow = await MeetupService.getLatestRequestForChat(_chatId!);
         _latestRequestId = reqRow?['id']?.toString();
         _latestRequestSenderId = reqRow?['requester_id']?.toString();
         _latestRequestReceiverId = reqRow?['meetup_owner_id']?.toString();
+
         if (_latestRequestId != null) {
-          final reqMsg = await MeetupService.getRequestMessageForRequest(
-            _latestRequestId!,
-          );
+          final reqMsg = await MeetupService.getRequestMessageForRequest(_latestRequestId!);
           _latestRequestMessageId = reqMsg?['id']?.toString();
-          print(
-              '🔵 [MessageController] Latest request ID: $_latestRequestId, sender: $_latestRequestSenderId, receiver: $_latestRequestReceiverId');
+
+          // Sync: if the request row says 'requested' but chat says something
+          // else (e.g. 'completed' from a previous cycle), trust the request row.
+          final reqStatus = reqRow?['status']?.toString() ?? '';
+          if (reqStatus == 'requested' || reqStatus == 'pending') {
+            _chatStatus = 'requested';
+          }
         } else {
           _latestRequestMessageId = null;
           _latestRequestSenderId = null;
@@ -483,6 +478,8 @@ class MessageController extends GetxController {
           senderId: uid,
           text: text,
           chatStatus: _chatStatus ?? 'requested',
+          userOne: chat?.userOne,
+          userTwo: chat?.userTwo,
         );
         print('💬 [MessageController] Message sent to backend successfully');
         print('💬 [MessageController] Reloading messages from backend');
@@ -595,6 +592,31 @@ class MessageController extends GetxController {
   }
 
   Future<void> reloadMessages() => _loadFromSupabase(showLoader: false);
+
+  /// Sends a new meetup request for [meetupId] reusing the existing chat.
+  Future<void> sendNewMeetupRequest(String meetupId) async {
+    final uid = currentUserId;
+    final c = chat;
+    if (uid == null || c == null || _chatId == null) return;
+
+    final otherUserId = c.userOne == uid ? c.userTwo : c.userOne;
+    if (otherUserId == null || otherUserId.isEmpty) return;
+
+    try {
+      await MeetupService.sendMeetupRequest(
+        meetupId: meetupId,
+        meetupOwnerId: otherUserId,
+        requesterId: uid,
+      );
+      await _loadFromSupabase(showLoader: false);
+      if (Get.isRegistered<ChatListController>()) {
+        Get.find<ChatListController>().loadChats(showLoader: false);
+      }
+    } catch (e) {
+      print('🔴 [MessageController] sendNewMeetupRequest error: $e');
+      rethrow;
+    }
+  }
 
   String _readString(Map<String, dynamic> row, List<String> keys) {
     for (final key in keys) {

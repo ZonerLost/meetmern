@@ -119,7 +119,12 @@ class UserMeetupInfoScreen extends StatelessWidget {
                         SizedBox(height: dimension.d12.h),
                         Text(strings.meetupStatusLabelText,
                             style: styles.dobLabelTextStyle),
-                        Text(c.meetupStatus, style: styles.userNameTextStyle),
+                        Text(_formatStatus(c.meetupStatus),
+                            style: styles.userNameTextStyle.copyWith(
+                              color: c.isConfirmed
+                                  ? appTheme.accentsgreen
+                                  : appTheme.red,
+                            )),
                         SizedBox(height: dimension.d20.h),
                         Center(
                           child: CustomOutlinedButton(
@@ -159,9 +164,21 @@ class UserMeetupInfoScreen extends StatelessWidget {
     );
   }
 
+  String _formatStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'accepted': return 'Accepted';
+      case 'requested': return 'Pending';
+      case 'cancelled': return 'Cancelled';
+      case 'rejected': return 'Rejected';
+      case 'completed': return 'Completed';
+      case 'active': case 'open': return 'Active';
+      default: return status.isEmpty ? 'Active' :
+          '${status[0].toUpperCase()}${status.substring(1)}';
+    }
+  }
+
   void _showCancelDialog(BuildContext context, UserMeetupInfoController c,
-      CustomButtonStyles styles, Strings strings) {
-    showDialog(
+      CustomButtonStyles styles, Strings strings) {    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => CustomModalDialog(

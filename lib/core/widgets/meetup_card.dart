@@ -13,12 +13,14 @@ class MeetupCard extends StatelessWidget {
   final VoidCallback? onFavorite;
   final VoidCallback onTap;
   final bool showFavorite;
+  final String? locationLabel;
 
   const MeetupCard({
     required this.meetup,
     this.onFavorite,
     required this.onTap,
     this.showFavorite = true,
+    this.locationLabel,
     super.key,
   });
 
@@ -169,7 +171,7 @@ class MeetupCard extends StatelessWidget {
                               SizedBox(width: 8.w),
                               Expanded(
                                 child: Text(
-                                  meetup.location,
+                                  locationLabel ?? meetup.location,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: customButtonandTextStyles

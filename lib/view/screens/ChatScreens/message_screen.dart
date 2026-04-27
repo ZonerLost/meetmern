@@ -232,9 +232,14 @@ class _MessageScreenState extends State<MessageScreen> {
     CustomButtonStyles styles,
     Strings strings,
   ) {
+    // Determine display status for the badge.
     String reqStatus = msg.requestStatus ?? 'requested';
-    if (msg.meetupRequestId != null &&
-        msg.meetupRequestId == c.latestRequestId) {
+    if (reqStatus == 'pending') reqStatus = 'requested';
+
+    // For the LATEST request card, sync badge with live chat status.
+    final isLatest = msg.meetupRequestId != null &&
+        msg.meetupRequestId == c.latestRequestId;
+    if (isLatest) {
       final chatStatus = c.effectiveChatStatus;
       if (chatStatus == 'accepted' ||
           chatStatus == 'rejected' ||
@@ -243,12 +248,20 @@ class _MessageScreenState extends State<MessageScreen> {
         reqStatus = chatStatus;
       }
     }
-    if (reqStatus == 'pending') reqStatus = 'requested';
+
+    // Show Accept/Decline buttons when:
+    // - this is the latest request card
+    // - current user is the receiver (meetup owner)
+    // - the request is still pending (chat status is requested/pending)
+    final showActions = isLatest &&
+        c.canRespondToLatestRequest &&
+        (c.effectiveChatStatus == 'requested' ||
+            c.effectiveChatStatus == 'pending');
+
     final cardText = msg.text.isNotEmpty
         ? msg.text
-        : (msg.isMe
-            ? 'You sent a meetup request'
-            : 'Sent you a meetup request');
+        : (msg.isMe ? 'You sent a meetup request' : 'Sent you a meetup request');
+
     Color statusColor;
     String statusLabel;
     switch (reqStatus) {
@@ -314,17 +327,13 @@ class _MessageScreenState extends State<MessageScreen> {
                 ),
               ],
             ),
-            if (c.canRespondToLatestRequest &&
-                msg.meetupRequestId == c.latestRequestId &&
-                reqStatus == 'requested') ...[
+            if (showActions) ...[
               SizedBox(height: dimension.d12),
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () async {
-                        await c.rejectRequest();
-                      },
+                      onPressed: () async => c.rejectRequest(),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: appTheme.red),
                         shape: RoundedRectangleBorder(
@@ -337,9 +346,7 @@ class _MessageScreenState extends State<MessageScreen> {
                   SizedBox(width: dimension.d10),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () async {
-                        await c.acceptRequest();
-                      },
+                      onPressed: () async => c.acceptRequest(),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: appTheme.b_Primary,
                         shape: RoundedRectangleBorder(
@@ -419,40 +426,75 @@ class _MessageScreenState extends State<MessageScreen> {
 
   Widget _buildComposer(BuildContext context, MessageController c,
       CustomButtonStyles styles, Strings strings) {
-    if (!c.messagingAllowed) {
-      final blockedText = c.blockedConversationText;
-      return SafeArea(
-        top: false,
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-              dimension.d16, dimension.d0, dimension.d16, dimension.d16),
-          child: Container(
-            padding: EdgeInsets.symmetric(
-                horizontal: dimension.d14, vertical: dimension.d14),
-            decoration: BoxDecoration(
-              color: appTheme.infieldColor,
-              borderRadius: BorderRadius.circular(dimension.d28),
-              border: Border.all(color: appTheme.borderColor),
-            ),
-            child: Text(
-              c.isBlockedConversation
-                  ? blockedText
-                  : c.isLatestRequestReceiver
-                      ? (_chatStatusIsCompleted(c)
-                          ? 'Meetup completed. Send a new request to chat again.'
-                          : 'Accept the request to start chatting')
-                      : (_chatStatusIsCompleted(c)
-                          ? 'Meetup completed. Send a new request to chat again.'
-                          : 'Waiting for the host to accept your request'),
-              style: TextStyle(
-                  color: appTheme.neutral_400, fontSize: dimension.d14),
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ),
+    // Blocked conversation — neither side can do anything.
+    if (c.isBlockedConversation) {
+      return _buildInfoBar(c.blockedConversationText);
+    }
+
+    // Completed: show action bar (both sides see this).
+    if (_chatStatusIsCompleted(c)) {
+      if (c.continueChatMode || c.effectiveChatStatus == 'continue_chat') {
+        return _buildTextComposer(c, styles, strings);
+      }
+      return _buildCompletedActions(context, c, styles, strings);
+    }
+
+    // Accepted or continue_chat: both sides can chat.
+    if (c.effectiveChatStatus == 'accepted' ||
+        c.effectiveChatStatus == 'continue_chat') {
+      return _buildTextComposer(c, styles, strings);
+    }
+
+    // Pending request: show role-appropriate hint.
+    if (c.effectiveChatStatus == 'requested' ||
+        c.effectiveChatStatus == 'pending') {
+      return _buildInfoBar(
+        c.isLatestRequestReceiver
+            ? 'Accept the request to start chatting'
+            : 'Waiting for the other person to accept your request',
       );
     }
 
+    // Rejected / cancelled: both sides can send a new request.
+    if (c.effectiveChatStatus == 'rejected' ||
+        c.effectiveChatStatus == 'cancelled') {
+      return _buildInfoBar(
+        c.isLatestRequestSender
+            ? 'Request was declined. You can send a new request from Explore.'
+            : 'You declined the request. The other person can send a new one.',
+      );
+    }
+
+    return _buildInfoBar('Chat unavailable');
+  }
+
+  Widget _buildInfoBar(String text) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+            dimension.d16, dimension.d0, dimension.d16, dimension.d16),
+        child: Container(
+          padding: EdgeInsets.symmetric(
+              horizontal: dimension.d14, vertical: dimension.d14),
+          decoration: BoxDecoration(
+            color: appTheme.infieldColor,
+            borderRadius: BorderRadius.circular(dimension.d28),
+            border: Border.all(color: appTheme.borderColor),
+          ),
+          child: Text(
+            text,
+            style:
+                TextStyle(color: appTheme.neutral_400, fontSize: dimension.d14),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextComposer(
+      MessageController c, CustomButtonStyles styles, Strings strings) {
     return SafeArea(
       top: false,
       child: Padding(
@@ -472,8 +514,8 @@ class _MessageScreenState extends State<MessageScreen> {
           focusNode: c.focusNode,
           textInputAction: TextInputAction.send,
           onFieldSubmitted: (_) => c.sendMessage(),
-          suffixConstraints: BoxConstraints.tightFor(
-              width: dimension.d48, height: dimension.d48),
+          suffixConstraints:
+              BoxConstraints.tightFor(width: dimension.d48, height: dimension.d48),
           suffix: Center(
             child: GestureDetector(
               onTap: c.canSend ? c.sendMessage : null,
@@ -492,6 +534,77 @@ class _MessageScreenState extends State<MessageScreen> {
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompletedActions(
+    BuildContext context,
+    MessageController c,
+    CustomButtonStyles styles,
+    Strings strings,
+  ) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+            dimension.d16, dimension.d0, dimension.d16, dimension.d16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: EdgeInsets.symmetric(
+                  horizontal: dimension.d14, vertical: dimension.d10),
+              decoration: BoxDecoration(
+                color: appTheme.infieldColor,
+                borderRadius: BorderRadius.circular(dimension.d16),
+                border: Border.all(color: appTheme.borderColor),
+              ),
+              child: Text(
+                'Meetup completed — continue the conversation or send a new request.',
+                style: TextStyle(
+                    color: appTheme.neutral_400, fontSize: dimension.d13),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            SizedBox(height: dimension.d8),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () =>
+                        Navigator.of(context).popUntil((r) => r.isFirst),
+                    icon: const Icon(Icons.repeat),
+                    label: const Text('New Request'),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: appTheme.b_Primary),
+                      foregroundColor: appTheme.b_Primary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(dimension.d28)),
+                    ),
+                  ),
+                ),
+                SizedBox(width: dimension.d10),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      c.enableContinueChatMode();
+                      c.focusNode.requestFocus();
+                    },
+                    icon: const Icon(Icons.chat_bubble_outline),
+                    label: const Text('Continue Chat'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: appTheme.b_Primary,
+                      foregroundColor: appTheme.coreWhite,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(dimension.d28)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
