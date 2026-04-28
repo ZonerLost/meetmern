@@ -75,10 +75,10 @@ class InterestsPage extends StatelessWidget {
       );
     }
 
-    return Padding(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.symmetric(horizontal: dimension.d20.w),
-      child: SingleChildScrollView(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(height: dimension.d16.h),
           Text(strings.interestsTitle,
               style: customButtonandTextStyles.titleTextStyle),
@@ -132,7 +132,6 @@ class InterestsPage extends StatelessWidget {
             buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
           ),
         ]),
-      ),
-    );
+      );
   }
 }

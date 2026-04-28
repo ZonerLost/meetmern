@@ -59,22 +59,26 @@ class AboutPage extends StatelessWidget {
             (selectedRelationship != null &&
                 selectedRelationship!.trim().isNotEmpty);
 
-    return Padding(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.symmetric(horizontal: dimension.d20.w),
-      child: SingleChildScrollView(
-        child: Form(
-          autovalidateMode:
-              showErrors ? AutovalidateMode.always : AutovalidateMode.disabled,
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Form(
+        autovalidateMode:
+            showErrors ? AutovalidateMode.always : AutovalidateMode.disabled,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             SizedBox(height: dimension.d16.h),
             Text(strings.aboutYouTitle,
                 style: customButtonandTextStyles.titleTextStyle),
             SizedBox(height: dimension.d12.h),
             Text(strings.aboutYouSubtitle,
                 style: customButtonandTextStyles.subtitleTextStyle),
-            SizedBox(height: dimension.d16.h),
+            SizedBox(height: dimension.d20.h),
+
+            // Children
             RequiredLabel(text: strings.childrenLabel),
+            SizedBox(height: dimension.d14.h),
             CustomDropdownButton(
               hint: strings.selectHint,
               items: childrenOpts,
@@ -86,8 +90,11 @@ class AboutPage extends StatelessWidget {
               menuMaxWidth: dimension.d320.h,
               alignMenuRight: true,
             ),
-            SizedBox(height: dimension.d12.h),
+            SizedBox(height: dimension.d14.h),
+
+            // Relationship status
             RequiredLabel(text: strings.relationshipStatusLabel),
+            SizedBox(height: dimension.d14.h),
             CustomDropdownButton(
               hint: strings.selectHint,
               items: List<String>.from(options['relationship_status'] ?? []),
@@ -99,7 +106,9 @@ class AboutPage extends StatelessWidget {
               menuMaxWidth: dimension.d320.h,
               alignMenuRight: true,
             ),
-            SizedBox(height: dimension.d12.h),
+            SizedBox(height: dimension.d14.h),
+
+            // Dietary preferences
             Text(
                 '${strings.dietaryPreferencesLabel} (${strings.optionalLabel})',
                 style: customButtonandTextStyles.emailLabelTextStyle),
@@ -112,8 +121,11 @@ class AboutPage extends StatelessWidget {
               onSelectionChanged: onDietaryChanged,
             ),
             SizedBox(height: dimension.d14.h),
+
+            // Religion
             Text('${strings.religionLabel} (${strings.optionalLabel})',
                 style: customButtonandTextStyles.emailLabelTextStyle),
+            SizedBox(height: dimension.d14.h),
             CustomDropdownButton(
               hint: strings.selectOptional,
               items: religionOpts,
@@ -125,10 +137,12 @@ class AboutPage extends StatelessWidget {
               menuMaxWidth: dimension.d320.h,
               alignMenuRight: true,
             ),
-            SizedBox(height: dimension.d12.h),
+            SizedBox(height: dimension.d14.h),
+
+            // Short bio
             Text(strings.shortBioLabel,
                 style: customButtonandTextStyles.emailLabelTextStyle),
-            SizedBox(height: dimension.d8.h),
+            SizedBox(height: dimension.d14.h),
             CustomTextFormField(
               controller: bioController,
               maxLines: 5,
@@ -141,10 +155,11 @@ class AboutPage extends StatelessWidget {
               inputDecoration:
                   customButtonandTextStyles.bioFieldInputDecoration(),
             ),
-            SizedBox(height: dimension.d8.h),
+            SizedBox(height: dimension.d58.h),
+
             CustomElevatedButton(
               text: strings.nextButtonText,
-              isDisabled: !isLocallyValid,
+              isDisabled: !stepValid,
               inactiveColor: appTheme.neutral_200,
               inactiveTextColor: appTheme.neutral_500,
               activeTextColor: appTheme.coreWhite,
@@ -152,11 +167,11 @@ class AboutPage extends StatelessWidget {
               activeText: strings.doneText,
               activeColor: appTheme.b_Primary,
               onPressed: onNext,
-              onDisabledPressed: onDisabledTap,
               buttonStyle: customButtonandTextStyles.loginButtonStyle,
               buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
             ),
-          ]),
+            SizedBox(height: dimension.d20.h),
+          ],
         ),
       ),
     );

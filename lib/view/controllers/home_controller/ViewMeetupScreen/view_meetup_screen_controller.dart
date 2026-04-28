@@ -49,11 +49,6 @@ class ViewMeetupController extends GetxController {
     return approx.isEmpty ? 'Near your area' : 'Near $approx';
   }
 
-  String get locationPrivacyHint {
-    if (isOwnMeetup || isLocationExactVisible) return '';
-    return 'Exact location is shared after both users confirm the meetup.';
-  }
-
   // ── Formatted time ────────────────────────────────────────────────────────
 
   String get formattedTime {
@@ -234,7 +229,8 @@ class ViewMeetupController extends GetxController {
       if (meetup?.id != m.id) return; // meetup changed while loading
 
       if (existing != null) {
-        final status = existing['status']?.toString().trim().toLowerCase() ?? '';
+        final status =
+            existing['status']?.toString().trim().toLowerCase() ?? '';
         // Terminal statuses: request is over, button should be available again.
         final isTerminal = status == 'rejected' ||
             status == 'cancelled' ||
@@ -268,7 +264,8 @@ class ViewMeetupController extends GetxController {
     final uid = currentUserId;
     final m = meetup;
 
-    print('[ViewMeetup] requestToJoin — uid=$uid meetupId=${m?.id} ownerId=${m?.userId} isOwnMeetup=$isOwnMeetup isRequested=$isRequested');
+    print(
+        '[ViewMeetup] requestToJoin — uid=$uid meetupId=${m?.id} ownerId=${m?.userId} isOwnMeetup=$isOwnMeetup isRequested=$isRequested');
 
     if (uid == null) {
       print('[ViewMeetup] requestToJoin — aborted: not logged in');
@@ -298,14 +295,16 @@ class ViewMeetupController extends GetxController {
     update();
 
     try {
-      print('[ViewMeetup] requestToJoin — checking profile disabled for uid=$uid');
+      print(
+          '[ViewMeetup] requestToJoin — checking profile disabled for uid=$uid');
       if (await MeetupService.isProfileDisabled(uid)) {
         errorMessage = 'Your account is disabled.';
         print('[ViewMeetup] requestToJoin — aborted: requester disabled');
         return null;
       }
 
-      print('[ViewMeetup] requestToJoin — checking profile disabled for ownerId=${m.userId}');
+      print(
+          '[ViewMeetup] requestToJoin — checking profile disabled for ownerId=${m.userId}');
       if (await MeetupService.isProfileDisabled(m.userId!)) {
         errorMessage = 'This user account is disabled.';
         print('[ViewMeetup] requestToJoin — aborted: owner disabled');
@@ -318,18 +317,21 @@ class ViewMeetupController extends GetxController {
         userB: m.userId!,
       );
       if (blocked) {
-        errorMessage = 'Cannot request meetup because one of you has blocked the other.';
+        errorMessage =
+            'Cannot request meetup because one of you has blocked the other.';
         print('[ViewMeetup] requestToJoin — aborted: users blocked');
         return null;
       }
 
-      print('[ViewMeetup] requestToJoin — checking active request between users');
+      print(
+          '[ViewMeetup] requestToJoin — checking active request between users');
       final hasActive = await MeetupService.hasActiveMeetupRequestBetween(
         userA: uid,
         userB: m.userId!,
       );
       if (hasActive) {
-        errorMessage = 'A meetup is already active between you. Wait for it to complete first.';
+        errorMessage =
+            'A meetup is already active between you. Wait for it to complete first.';
         print('[ViewMeetup] requestToJoin — aborted: active request exists');
         return null;
       }
@@ -340,7 +342,8 @@ class ViewMeetupController extends GetxController {
         meetupOwnerId: m.userId!,
         requesterId: uid,
       );
-      print('[ViewMeetup] requestToJoin — request sent, chatId=${chatRow['id']}');
+      print(
+          '[ViewMeetup] requestToJoin — request sent, chatId=${chatRow['id']}');
 
       isRequested = true;
       m.joinRequested = true;

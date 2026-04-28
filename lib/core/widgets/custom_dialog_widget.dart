@@ -522,6 +522,7 @@ class _CustomModalDialogState extends State<CustomModalDialog> {
               style: widget.primaryTextStyle ??
                   TextStyle(
                     fontSize: 16,
+                    color: Colors.white,
                     fontWeight:
                         widget.primaryBold ? FontWeight.w600 : FontWeight.w500,
                     height: 1.0,

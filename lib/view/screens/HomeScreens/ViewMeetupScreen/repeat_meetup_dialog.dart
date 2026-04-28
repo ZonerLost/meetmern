@@ -61,8 +61,6 @@ class _RepeatMeetupDialogContentState
     addressController = TextEditingController(text: widget.meetup.location);
     dateController = TextEditingController();
     timeController = TextEditingController();
-
-    // If you want the dialog to react to typing, add listeners (here optional)
     addressController.addListener(() => setState(() {}));
     dateController.addListener(() => setState(() {}));
     timeController.addListener(() => setState(() {}));
@@ -78,18 +76,8 @@ class _RepeatMeetupDialogContentState
 
   String formatDate(DateTime d) {
     const monthNames = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
     ];
     return '${d.day} ${monthNames[d.month - 1]} ${d.year}';
   }
@@ -136,7 +124,6 @@ class _RepeatMeetupDialogContentState
       apppTheme: Theme.of(context),
       theme: customThemeData,
     );
-    final maxHeight = MediaQuery.of(ctx).size.height * 0.65;
 
     return CustomModalDialog(
       topLeftIcon: null,
@@ -145,6 +132,7 @@ class _RepeatMeetupDialogContentState
       subtitle: null,
       backgroundColor: appTheme.coreWhite,
       primaryLabel: strings.yesRepeatLabel,
+      primaryButtonStyle: customButtonandTextStyles.loginButtonStyle,
       onPrimary: () {
         Navigator.of(widget.dialogContext).pop();
         if (widget.onRepeat != null) widget.onRepeat!();
@@ -152,180 +140,172 @@ class _RepeatMeetupDialogContentState
       },
       secondaryLabel: strings.cancelLabel,
       onSecondary: () => Navigator.of(widget.dialogContext).pop(),
-      content: StatefulBuilder(
-        builder: (context, setState) {
-          return SizedBox(
-            height: maxHeight,
-            child: SingleChildScrollView(
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              physics: const AlwaysScrollableScrollPhysics(),
-              padding: EdgeInsets.only(
-                right: dimension.d8,
-                left: dimension.d0,
-                top: dimension.d0,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16.h,
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                width: dimension.d40,
+                height: dimension.d40,
+                decoration: BoxDecoration(
+                  color: appTheme.b_50,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Icon(Icons.repeat, color: appTheme.b_Primary),
+                ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        width: dimension.d40,
-                        height: dimension.d40,
-                        decoration: BoxDecoration(
-                          color: appTheme.b_50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Icon(Icons.repeat, color: appTheme.b_Primary),
-                        ),
-                      ),
-                      InkWell(
-                        onTap: () => Navigator.of(widget.dialogContext).pop(),
-                        borderRadius: BorderRadius.circular(dimension.d20),
-                        child: SizedBox(
-                          width: dimension.d36,
-                          height: dimension.d36,
-                          child: Icon(Icons.close,
-                              size: 20, color: appTheme.neutral_600),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: dimension.d14.h),
-                  Text(
-                    strings.repeatThisMeetup,
-                    style:
-                        customButtonandTextStyles.emailLabelTextStyle.copyWith(
-                      color: appTheme.neutral_800,
-                    ),
-                  ),
-                  SizedBox(height: dimension.d6.h),
-                  Text(
-                    strings.repeatDialogConfirmPrefix,
-                    style: customButtonandTextStyles.locationTextStyle.copyWith(
-                      color: appTheme.neutral_700,
-                    ),
-                  ),
-                  SizedBox(height: dimension.d16.h),
-                  Text(strings.typesLabel,
-                      style: customButtonandTextStyles.dobLabelTextStyle),
-                  SizedBox(height: dimension.d10.h),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: List.generate(types.length, (i) {
-                        final isSelected = selectedTypeIndex == i;
-                        return GestureDetector(
-                          onTap: () => _toggleType(i),
-                          child: Container(
-                            width: dimension.d92,
-                            margin: EdgeInsets.only(right: dimension.d8),
-                            padding: EdgeInsets.symmetric(
-                                vertical: dimension.d12,
-                                horizontal: dimension.d6),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: isSelected
-                                      ? appTheme.b_Primary
-                                      : appTheme.borderColor),
-                              color: isSelected
-                                  ? appTheme.b_100
-                                  : appTheme.coreWhite,
-                            ),
-                            child: Column(
-                              children: [
-                                Icon(types[i]['icon'],
-                                    color: appTheme.b_Primary),
-                                SizedBox(height: dimension.d6.h),
-                                Text(types[i]['label'],
-                                    style: TextStyle(fontSize: dimension.d13)),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                    ),
-                  ),
-                  SizedBox(height: dimension.d16.h),
-                  Text(strings.addressLabel,
-                      style: customButtonandTextStyles.dobLabelTextStyle),
-                  SizedBox(height: dimension.d8.h),
-                  CustomTextFormField(
-                    controller: addressController,
-                    suffix: InkWell(
-                      onTap: () {},
-                      child: const Icon(Icons.map_outlined),
-                    ),
-                    inputDecoration: InputDecoration(
-                      hintText: strings.nearSohoHint,
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(dimension.d12)),
-                      contentPadding: EdgeInsets.symmetric(
-                          horizontal: dimension.d12, vertical: dimension.d12),
-                    ),
-                  ),
-                  SizedBox(height: dimension.d14.h),
-                  Text(strings.dateAndTimeLabel,
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  SizedBox(height: dimension.d14.h),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: pickDate,
-                          child: AbsorbPointer(
-                            child: CustomTextFormField(
-                              suffix: const Icon(Icons.calendar_today),
-                              controller: dateController,
-                              inputDecoration: InputDecoration(
-                                labelText: strings.dateLabel,
-                                hintText: strings.dateHintExample,
-                                border: OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(dimension.d12)),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: dimension.d12,
-                                    vertical: dimension.d12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(width: dimension.d10),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: pickTime,
-                          child: AbsorbPointer(
-                            child: CustomTextFormField(
-                              controller: timeController,
-                              inputDecoration: InputDecoration(
-                                labelText: strings.timeLabelShort,
-                                hintText: strings.timeHintExample,
-                                suffixIcon: const Icon(Icons.access_time),
-                                border: OutlineInputBorder(
-                                    borderRadius:
-                                        BorderRadius.circular(dimension.d12)),
-                                contentPadding: EdgeInsets.symmetric(
-                                    horizontal: dimension.d12,
-                                    vertical: dimension.d12),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: dimension.d12.h),
-                ],
+              InkWell(
+                onTap: () => Navigator.of(widget.dialogContext).pop(),
+                borderRadius: BorderRadius.circular(dimension.d20),
+                child: SizedBox(
+                  width: dimension.d36,
+                  height: dimension.d36,
+                  child: Icon(Icons.close,
+                      size: 20, color: appTheme.neutral_600),
+                ),
               ),
+            ],
+          ),
+          SizedBox(height: dimension.d14.h),
+          Text(
+            strings.repeatThisMeetup,
+            style: customButtonandTextStyles.emailLabelTextStyle.copyWith(
+              color: appTheme.neutral_800,
             ),
-          );
-        },
+          ),
+          SizedBox(height: dimension.d6.h),
+          Text(
+            strings.repeatDialogConfirmPrefix,
+            style: customButtonandTextStyles.locationTextStyle.copyWith(
+              color: appTheme.neutral_700,
+            ),
+          ),
+          SizedBox(height: dimension.d16.h),
+          Text(strings.typesLabel,
+              style: customButtonandTextStyles.dobLabelTextStyle),
+          SizedBox(height: dimension.d10.h),
+          // ── Type tiles — fully responsive via LayoutBuilder ──────────────
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final gap = dimension.d8;
+              final tileWidth =
+                  (constraints.maxWidth - gap * (types.length - 1)) /
+                      types.length;
+              return Row(
+                children: List.generate(types.length, (i) {
+                  final isSelected = selectedTypeIndex == i;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (i > 0) SizedBox(width: gap),
+                      GestureDetector(
+                        onTap: () => _toggleType(i),
+                        child: Container(
+                          width: tileWidth,
+                          padding: EdgeInsets.symmetric(
+                              vertical: dimension.d12,
+                              horizontal: dimension.d6),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                                color: isSelected
+                                    ? appTheme.b_Primary
+                                    : appTheme.borderColor),
+                            color:
+                                isSelected ? appTheme.b_100 : appTheme.coreWhite,
+                          ),
+                          child: Column(
+                            children: [
+                              Icon(types[i]['icon'] as IconData,
+                                  color: appTheme.b_Primary),
+                              SizedBox(height: dimension.d6.h),
+                              Text(types[i]['label'] as String,
+                                  style: TextStyle(fontSize: dimension.d13)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
+              );
+            },
+          ),
+          SizedBox(height: dimension.d16.h),
+          Text(strings.addressLabel,
+              style: customButtonandTextStyles.dobLabelTextStyle),
+          SizedBox(height: dimension.d8.h),
+          CustomTextFormField(
+            controller: addressController,
+            suffix: InkWell(
+              onTap: () {},
+              child: const Icon(Icons.map_outlined),
+            ),
+            inputDecoration: InputDecoration(
+              hintText: strings.nearSohoHint,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(dimension.d12)),
+              contentPadding: EdgeInsets.symmetric(
+                  horizontal: dimension.d12, vertical: dimension.d12),
+            ),
+          ),
+          SizedBox(height: dimension.d14.h),
+          Text(strings.dateAndTimeLabel,
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          SizedBox(height: dimension.d14.h),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: pickDate,
+                  child: AbsorbPointer(
+                    child: CustomTextFormField(
+                      suffix: const Icon(Icons.calendar_today),
+                      controller: dateController,
+                      inputDecoration: InputDecoration(
+                        labelText: strings.dateLabel,
+                        hintText: strings.dateHintExample,
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(dimension.d12)),
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: dimension.d12,
+                            vertical: dimension.d12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: dimension.d10),
+              Expanded(
+                child: GestureDetector(
+                  onTap: pickTime,
+                  child: AbsorbPointer(
+                    child: CustomTextFormField(
+                      controller: timeController,
+                      inputDecoration: InputDecoration(
+                        labelText: strings.timeLabelShort,
+                        hintText: strings.timeHintExample,
+                        suffixIcon: const Icon(Icons.access_time),
+                        border: OutlineInputBorder(
+                            borderRadius:
+                                BorderRadius.circular(dimension.d12)),
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: dimension.d12,
+                            vertical: dimension.d12),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: dimension.d12.h),
+        ],
       ),
     );
   }

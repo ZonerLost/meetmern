@@ -2,6 +2,7 @@ class Strings {
   final String lightCode;
   final String fontFamily;
   final String defaultEmail;
+  final String defaultPhone;
   final String defaultName;
   final String loginButtonText;
   final String continueEmailButtonText;
@@ -356,6 +357,7 @@ class Strings {
   final String amText;
   final String pmText;
   final String adDeletedSnackText;
+  final String adCreatedSnackText;
   final String deleteAdDescription;
   final String initialProfileNameText;
   final String initialProfileEmailText;
@@ -393,6 +395,7 @@ class Strings {
       : lightCode = 'lightCode',
         fontFamily = 'Mona Sans',
         defaultEmail = 'user@example.com',
+        defaultPhone = '+1 (555) 123-4567',
         reasonLabel = 'Reason',
         defaultName = 'User Name',
         loginButtonText = 'Login',
@@ -760,6 +763,7 @@ class Strings {
         noAdsFoundText = 'No Ads found',
         meetupPostedSnackText = 'Meetup posted and added to Manage Ads',
         adDeletedSnackText = 'Ad deleted',
+        adCreatedSnackText = 'Ad created successfully',
         addNewAdText = 'Add New Ad',
         deleteAdSubtitle =
             'Are you sure you want to delete this ad? This action cannot be undone.',

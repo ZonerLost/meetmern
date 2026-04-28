@@ -94,7 +94,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           ],
                           textInputType: TextInputType.number,
                           validator: c.validatePhone,
-                          inputDecoration: styles.emailInputDecoration.copyWith(
+                          inputDecoration: styles.phoneInputDecoration.copyWith(
                             prefixIcon: Padding(
                               padding: EdgeInsets.only(
                                   left: dimension.d12.w, right: dimension.d8.w),

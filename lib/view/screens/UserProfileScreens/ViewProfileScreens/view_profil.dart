@@ -239,7 +239,7 @@ class _ProfileHeader extends StatelessWidget {
     final photoUrl = controller.photoUrl;
     return SizedBox(
       width: double.infinity,
-      height: 400.h,
+      height: 355.h,
       child: photoUrl.isNotEmpty
           ? Image.network(
               photoUrl,

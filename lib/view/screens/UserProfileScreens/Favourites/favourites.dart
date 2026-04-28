@@ -115,107 +115,111 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
     );
 
     return Scaffold(
-      backgroundColor: appTheme.coreWhite,
-      appBar: AppBar(
         backgroundColor: appTheme.coreWhite,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, size: dimension.d22.sp),
-          onPressed: () => Navigator.maybePop(context),
+        appBar: AppBar(
+          backgroundColor: appTheme.coreWhite,
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back, size: dimension.d22.sp),
+            onPressed: () => Navigator.maybePop(context),
+          ),
         ),
-      ),
-      body: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: dimension.d16.w,
-          vertical: dimension.d12.h,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              strings.favoritesText,
-              style: customButtonandTextStyles.emailLabelTextStyle.copyWith(
-                fontSize: dimension.d20.sp,
+        body: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: dimension.d16.w,
+            vertical: dimension.d12.h,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                strings.favoritesText,
+                style: customButtonandTextStyles.emailLabelTextStyle.copyWith(
+                  fontSize: dimension.d20.sp,
+                ),
               ),
-            ),
-            SizedBox(height: dimension.d16.h),
-            Expanded(
-              child: GetBuilder<FavouritesController>(
-                builder: (controller) {
-                  if (controller.isLoading) {
-                    return Center(
-                      child: SizedBox(
-                        width: dimension.d28.w,
-                        height: dimension.d28.h,
-                        child: const CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-
-                  final favourites = controller.favourites;
-
-                  if (favourites.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.star_border,
-                            size: dimension.d60.h,
-                            color: appTheme.neutral_300,
-                          ),
-                          SizedBox(height: dimension.d12.h),
-                          Text(
-                            strings.noFavouritesYetText,
-                            style: TextStyle(
-                              fontSize: dimension.d16.sp,
-                              fontWeight: FontWeight.w600,
-                              color: appTheme.black90001,
-                            ),
-                          ),
-                          SizedBox(height: dimension.d6.h),
-                          Text(
-                            strings.tapStarToAddFavouriteText,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: dimension.d14.sp,
-                              color: appTheme.neutral_700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    itemCount: favourites.length,
-                    separatorBuilder: (_, __) =>
-                        SizedBox(height: dimension.d12.h),
-                    itemBuilder: (context, index) {
-                      final meetup = favourites[index];
-
-                      return CustomRoundedTile(
-                        title: meetup.title,
-                        subtitle: '${meetup.hostName} - ${meetup.location}',
-                        leadingImage: meetup.image,
-                        trailingIcon: Icons.favorite_rounded,
-                        onTap: () => _showRemoveDialog(meetup),
-                        backgroundColor: appTheme.infieldColor,
-                        borderColor: appTheme.borderColor,
-                        borderWidth: dimension.d1.w,
-                        borderRadius: BorderRadius.circular(dimension.d100.r),
-                        iconBackgroundColor: appTheme.b_Primary,
-                        iconColor: appTheme.coreWhite,
-                        titletextStyle:
-                            customButtonandTextStyles.dobLabelTextStyle,
+              SizedBox(height: dimension.d16.h),
+              Expanded(
+                child: GetBuilder<FavouritesController>(
+                  builder: (controller) {
+                    if (controller.isLoading) {
+                      return Center(
+                        child: SizedBox(
+                          width: dimension.d28.w,
+                          height: dimension.d28.h,
+                          child: const CircularProgressIndicator(),
+                        ),
                       );
-                    },
-                  );
-                },
+                    }
+
+                    final favourites = controller.favourites;
+
+                    if (favourites.isEmpty) {
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: dimension.d80.h),
+                        child: Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.star_border,
+                                size: dimension.d60.h,
+                                color: appTheme.neutral_300,
+                              ),
+                              SizedBox(height: dimension.d12.h),
+                              Text(
+                                strings.noFavouritesYetText,
+                                style: TextStyle(
+                                  fontSize: dimension.d16.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: appTheme.black90001,
+                                ),
+                              ),
+                              SizedBox(height: dimension.d6.h),
+                              Text(
+                                strings.tapStarToAddFavouriteText,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: dimension.d14.sp,
+                                  color: appTheme.neutral_700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: dimension.d16.w),
+                      itemCount: favourites.length,
+                      separatorBuilder: (_, __) =>
+                          SizedBox(height: dimension.d12.h),
+                      itemBuilder: (context, index) {
+                        final meetup = favourites[index];
+
+                        return CustomRoundedTile(
+                          title: meetup.title,
+                          subtitle: '${meetup.hostName} - ${meetup.location}',
+                          leadingImage: meetup.image,
+                          trailingIcon: Icons.favorite_rounded,
+                          onTap: () => _showRemoveDialog(meetup),
+                          backgroundColor: appTheme.infieldColor,
+                          borderColor: appTheme.borderColor,
+                          borderWidth: dimension.d1.w,
+                          borderRadius: BorderRadius.circular(dimension.d100.r),
+                          iconBackgroundColor: appTheme.b_Primary,
+                          iconColor: appTheme.coreWhite,
+                          titletextStyle:
+                              customButtonandTextStyles.dobLabelTextStyle,
+                        );
+                      },
+                    );
+                  },
+                ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
+            ],
+          ),
+        ));
   }
 }

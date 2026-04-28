@@ -192,6 +192,25 @@ class CustomButtonStyles {
               BorderSide(color: appTheme.borderColor, width: dimension.d1),
         ),
       );
+  InputDecoration get phoneInputDecoration => InputDecoration(
+        filled: true,
+        fillColor: appTheme.infieldColor,
+        hintText: strings.defaultPhone,
+        hintStyle: userNameTextStyle,
+        prefixIcon: Icon(Icons.email_outlined, color: appTheme.neutral_600),
+        contentPadding: EdgeInsets.symmetric(
+            vertical: dimension.d14, horizontal: dimension.d16),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d100),
+          borderSide:
+              BorderSide(color: appTheme.borderColor, width: dimension.d1),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d100),
+          borderSide:
+              BorderSide(color: appTheme.borderColor, width: dimension.d1),
+        ),
+      );
   InputDecoration get genderFInputDecoration => InputDecoration(
         filled: true,
         fillColor: appTheme.infieldColor,

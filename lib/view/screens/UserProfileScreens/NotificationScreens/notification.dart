@@ -111,20 +111,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   ),
                 ),
               ),
-              SizedBox(height: dimension.d24.h),
-              SizedBox(
-                height: dimension.d56.h,
-                width: double.infinity,
-                child: CustomElevatedButton(
-                  onPressed: _saveDetails,
-                  buttonStyle: customButtonandTextStyles.loginButtonStyle,
-                  text: strings.saveDetailsText,
-                  buttonTextStyle:
-                      customButtonandTextStyles.loginButtonTextStyle,
-                ),
-              ),
               SizedBox(height: dimension.d16.h),
             ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: EdgeInsets.fromLTRB(
+            dimension.d20.w, dimension.d8.h, dimension.d20.w, dimension.d12.h),
+        child: SizedBox(
+          height: dimension.d56.h,
+          width: double.infinity,
+          child: CustomElevatedButton(
+            onPressed: _saveDetails,
+            buttonStyle: customButtonandTextStyles.loginButtonStyle,
+            text: strings.saveDetailsText,
+            buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
           ),
         ),
       ),

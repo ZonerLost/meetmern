@@ -135,18 +135,24 @@ class CustomMultiSelectButton extends StatelessWidget {
           children: [
             Expanded(
               child: selectedValues.isEmpty
-                  ? const SizedBox.shrink()
+                  ? Text(
+                      hint,
+                      style: TextStyle(
+                        color: appTheme.neutral_400,
+                        fontSize: dimension.d14,
+                      ),
+                    )
                   : Text(
                       selectedValues.join(', '),
-                      maxLines: 2,
+                      maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: appTheme.b_600,
+                        fontSize: dimension.d14,
                       ),
                     ),
             ),
-            SizedBox(width: dimension.d8),
-            const Icon(Icons.arrow_drop_down),
+            Icon(Icons.arrow_drop_down, color: appTheme.neutral_600),
           ],
         ),
       ),
@@ -173,15 +179,30 @@ class CustomMultiSelectButton extends StatelessWidget {
               children: selectedValues.map((val) {
                 return Container(
                   constraints: BoxConstraints(minWidth: dimension.d56),
-                  padding: EdgeInsets.symmetric(horizontal: dimension.d10),
-                  height: dimension.d37,
+                  padding: EdgeInsets.symmetric(
+                      horizontal: dimension.d12, vertical: dimension.d6),
                   decoration: BoxDecoration(
                     color: appTheme.b_100,
                     borderRadius: BorderRadius.circular(dimension.d116),
+                    border: Border.all(color: appTheme.b_200),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      ConstrainedBox(
+                        constraints:
+                            BoxConstraints(maxWidth: width ?? dimension.d120.w),
+                        child: Text(
+                          val,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: appTheme.b_600,
+                            fontSize: dimension.d13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: dimension.d6.w),
                       GestureDetector(
                         onTap: () {
                           final newList = List<String>.from(selectedValues)
@@ -191,20 +212,7 @@ class CustomMultiSelectButton extends StatelessWidget {
                         child: Icon(
                           Icons.close,
                           size: dimension.d14,
-                        ),
-                      ),
-                      SizedBox(width: dimension.d8.w),
-                      ConstrainedBox(
-                        constraints:
-                            BoxConstraints(maxWidth: width ?? dimension.d120.w),
-                        child: Text(
-                          val,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: appTheme.b_600,
-                            fontSize: dimension.d12,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          color: appTheme.b_600,
                         ),
                       ),
                     ],

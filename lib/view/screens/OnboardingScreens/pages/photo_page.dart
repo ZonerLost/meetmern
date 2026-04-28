@@ -54,55 +54,53 @@ class PhotoPage extends StatelessWidget {
           Text(strings.uploadLabel,
               style: customButtonandTextStyles.emailLabelTextStyle),
           SizedBox(height: dimension.d20.h),
-          Row(children: [
-            Container(
-              child: pickedImage == null
-                  ? GestureDetector(
-                      onTap: () => _pick(context),
-                      child: Container(
-                        height: dimension.d350.h,
-                        width: dimension.d336.w,
-                        decoration: BoxDecoration(
-                          color: appTheme.infieldColor,
-                          borderRadius: BorderRadius.circular(dimension.d12.r),
-                          border: Border.all(color: appTheme.neutral_300),
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.cloud_upload_outlined,
-                                size: dimension.d48.sp,
-                                color: appTheme.neutral_600),
-                            SizedBox(height: dimension.d8.h),
-                            Text(strings.uploadLabel,
-                                style: customButtonandTextStyles
-                                    .userNameTextStyle),
-                            SizedBox(height: dimension.d4.h),
-                            Text(strings.uploadRecommended,
-                                style: customButtonandTextStyles
-                                    .userNameTextStyle),
-                          ],
-                        ),
-                      ),
-                    )
-                  : Container(
+          Center(
+            child: pickedImage == null
+                ? GestureDetector(
+                    onTap: () => _pick(context),
+                    child: Container(
                       height: dimension.d350.h,
                       width: dimension.d336.w,
                       decoration: BoxDecoration(
-                        color: appTheme.neutral_50,
+                        color: appTheme.infieldColor,
                         borderRadius: BorderRadius.circular(dimension.d12.r),
                         border: Border.all(color: appTheme.neutral_300),
-                        image: DecorationImage(
-                          image: FileImage(pickedImage!),
-                          fit: BoxFit.cover,
-                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.cloud_upload_outlined,
+                              size: dimension.d48.sp,
+                              color: appTheme.neutral_600),
+                          SizedBox(height: dimension.d8.h),
+                          Text(strings.uploadLabel,
+                              style:
+                                  customButtonandTextStyles.userNameTextStyle),
+                          SizedBox(height: dimension.d4.h),
+                          Text(strings.uploadRecommended,
+                              style:
+                                  customButtonandTextStyles.userNameTextStyle),
+                        ],
                       ),
                     ),
-            ),
-          ]),
+                  )
+                : Container(
+                    height: dimension.d350.h,
+                    width: dimension.d336.w,
+                    decoration: BoxDecoration(
+                      color: appTheme.neutral_50,
+                      borderRadius: BorderRadius.circular(dimension.d12.r),
+                      border: Border.all(color: appTheme.neutral_300),
+                      image: DecorationImage(
+                        image: FileImage(pickedImage!),
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                  ),
+          ),
           if (pickedImage != null) ...[
             SizedBox(height: dimension.d16.h),
-            Row(children: [
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               GestureDetector(
                 onTap: () => _pick(context),
                 child: Container(

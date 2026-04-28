@@ -163,10 +163,10 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                           margin: EdgeInsets.only(
                               right: i != types.length - dimension.d1
                                   ? dimension.d10.w
-                                  : dimension.d0),
+                                  : dimension.d10),
                           padding: EdgeInsets.symmetric(
                               vertical: dimension.d18.h,
-                              horizontal: dimension.d8.w),
+                              horizontal: dimension.d15.w),
                           decoration: BoxDecoration(
                             border: Border.all(
                               color: isSelected

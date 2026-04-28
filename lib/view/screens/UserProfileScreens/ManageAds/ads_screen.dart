@@ -4,12 +4,14 @@ import 'package:get/get.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/userprofile_controller/ManageAds/ads_screen_controller.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
 import 'package:meetmern/view/screens/userprofilescreens/ManageAds/delete_meetup_screen.dart';
 import 'package:meetmern/core/constants/dimension_resource.dart';
 import 'package:meetmern/core/extensions/snackbar_extensions.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
+import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/meetup_card.dart';
 
 class ManageAds extends StatefulWidget {
@@ -30,6 +32,19 @@ class _ManageAdsState extends State<ManageAds> {
     super.initState();
     _controller = Get.find<AdsScreenController>();
     _controller.loadMeetups(initialMeetup: widget.initialMeetup);
+  }
+
+  Future<void> _openCreateMeetup() async {
+    final Meetup? created = await Navigator.of(context).push<Meetup?>(
+      MaterialPageRoute(
+        builder: (_) => const CreateMeetupScreen(origin: 'manage_ads'),
+      ),
+    );
+    if (!mounted) return;
+    if (created != null) {
+      _controller.addNewMeetup(created);
+      context.showCustomSnackBar(strings.adCreatedSnackText);
+    }
   }
 
   Future<void> _openMeetupDetails(Meetup meetup) async {
@@ -78,7 +93,7 @@ class _ManageAdsState extends State<ManageAds> {
               onRefresh: () => c.loadMeetups(),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                padding: EdgeInsets.zero,
+                padding: EdgeInsets.only(bottom: dimension.d80.h),
                 children: [
                   Text(
                     strings.manageAdsTitle,
@@ -119,6 +134,20 @@ class _ManageAdsState extends State<ManageAds> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        minimum: EdgeInsets.fromLTRB(
+            dimension.d20.w, dimension.d8.h, dimension.d20.w, dimension.d12.h),
+        child: SizedBox(
+          height: dimension.d56.h,
+          width: double.infinity,
+          child: CustomElevatedButton(
+            onPressed: _openCreateMeetup,
+            buttonStyle: styles.loginButtonStyle,
+            text: strings.addNewAdText,
+            buttonTextStyle: styles.loginButtonTextStyle,
           ),
         ),
       ),

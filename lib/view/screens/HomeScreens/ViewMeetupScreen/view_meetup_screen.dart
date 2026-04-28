@@ -86,6 +86,7 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final topInset = MediaQuery.of(context).padding.top;
     final customThemeData =
         ThemeHelper(appThemeName: strings.lightCode).themeData;
 
@@ -119,244 +120,263 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
         return Scaffold(
           extendBodyBehindAppBar: true,
           backgroundColor: appTheme.coreWhite,
-          appBar: AppBar(
-            backgroundColor: appTheme.blacktransparent,
-            leading: SafeArea(
-              child: IconButton(
-                icon: Icon(
-                  Icons.arrow_back,
-                  color: appTheme.coreWhite,
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ),
-            // actions: [
-            //   SafeArea(
-            //     child: IconButton(
-            //       icon: const Icon(Icons.more_vert),
-            //       onPressed: () {
-            //         showMenu(
-            //           color: appTheme.coreWhite,
-            //           context: context,
-            //           position: RelativeRect.fromLTRB(
-            //             dimension.d1000,
-            //             dimension.d80,
-            //             dimension.d10,
-            //             dimension.d0,
-            //           ),
-            //           items: [
-            //             PopupMenuItem(
-            //               child: Text(strings.userProfile),
-            //               onTap: () {
-            //                 context.navigateToScreen(
-            //                   const PersonalProfileScreen(),
-            //                 );
-            //               },
-            //             ),
-            //           ],
-            //         );
-            //       },
-            //     ),
-            //   ),
-            // ],
-          ),
-          body: SingleChildScrollView(
-            child: Column(
-              children: [
-                headerImage,
-                SafeArea(
-                  top: false,
-                  child: Padding(
-                    padding: EdgeInsets.all(dimension.d16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          meetup.title,
-                          style: customButtonAndTextStyles.titleTextStyle,
-                        ),
-                        SizedBox(height: dimension.d8.h),
-                        Text(
-                          strings.hostedByLabel,
-                          style: customButtonAndTextStyles.dobLabelTextStyle,
-                        ),
-                        SizedBox(height: dimension.d8.h),
-                        controller.isProfileLoading
-                            ? SizedBox(
-                                height: dimension.d20,
-                                width: dimension.d20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: dimension.d2,
-                                ),
-                              )
-                            : Text(
-                                hostName,
-                                style:
-                                    customButtonAndTextStyles.userNameTextStyle,
+          // appBar: AppBar(
+          //   backgroundColor: appTheme.blacktransparent,
+          //   leading: IconButton(
+          //     icon: Icon(
+          //       Icons.arrow_back,
+          //       color: appTheme.coreWhite,
+          //     ),
+          //     onPressed: () {
+          //       Navigator.pop(context);
+          //     },
+          //   ),
+          // actions: [
+          //   SafeArea(
+          //     child: IconButton(
+          //       icon: const Icon(Icons.more_vert),
+          //       onPressed: () {
+          //         showMenu(
+          //           color: appTheme.coreWhite,
+          //           context: context,
+          //           position: RelativeRect.fromLTRB(
+          //             dimension.d1000,
+          //             dimension.d80,
+          //             dimension.d10,
+          //             dimension.d0,
+          //           ),
+          //           items: [
+          //             PopupMenuItem(
+          //               child: Text(strings.userProfile),
+          //               onTap: () {
+          //                 context.navigateToScreen(
+          //                   const PersonalProfileScreen(),
+          //                 );
+          //               },
+          //             ),
+          //           ],
+          //         );
+          //       },
+          //     ),
+          //   ),
+          // ],
+          // ),
+          body: Column(
+            children: [
+              // ── Scrollable content ──────────────────────────────────────
+              Expanded(
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      Stack(
+                        children: [
+                          headerImage,
+                          Positioned(
+                            top: topInset + 8.h,
+                            left: 4.w,
+                            child: IconButton(
+                              icon: Icon(
+                                Icons.arrow_back,
+                                color: appTheme.coreWhite,
                               ),
-                        SizedBox(height: dimension.d12.h),
-                        Text(
-                          strings.timeLabelText,
-                          style: customButtonAndTextStyles.dobLabelTextStyle,
-                        ),
-                        SizedBox(height: dimension.d8.h),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today_outlined,
-                              size: dimension.d16,
+                              onPressed: () => Navigator.pop(context),
                             ),
-                            SizedBox(width: dimension.d6),
-                            Expanded(
-                              child: Text(
-                                controller.formattedTime,
-                                style:
-                                    customButtonAndTextStyles.userNameTextStyle,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: dimension.d8.h),
-                        Text(
-                          strings.locationLabelText,
-                          style: customButtonAndTextStyles.dobLabelTextStyle,
-                        ),
-                        SizedBox(height: dimension.d12.h),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: dimension.d16,
-                            ),
-                            SizedBox(width: dimension.d6),
-                            Expanded(
-                              child: Text(
-                                controller.visibleLocation,
-                                style:
-                                    customButtonAndTextStyles.userNameTextStyle,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (controller.locationPrivacyHint.isNotEmpty) ...[
-                          SizedBox(height: dimension.d6.h),
-                          Text(
-                            controller.locationPrivacyHint,
-                            style: customButtonAndTextStyles.locationTextStyle,
                           ),
                         ],
-                        SizedBox(height: dimension.d8.h),
-                        Text(
-                          strings.distanceLabelText,
-                          style: customButtonAndTextStyles.dobLabelTextStyle,
-                        ),
-                        SizedBox(height: dimension.d12.h),
-                        controller.distanceText.isEmpty
-                            ? Row(children: [
-                                SizedBox(width: dimension.d8),
-                                Text('Calculating ...',
-                                    style: customButtonAndTextStyles
-                                        .locationTextStyle),
-                              ])
-                            : Text(
-                                controller.distanceText,
-                                style:
-                                    customButtonAndTextStyles.userNameTextStyle,
-                              ),
-                        SizedBox(height: dimension.d12.h),
-                        Text(
-                          strings.meetupTypeLabelText,
-                          style: customButtonAndTextStyles.dobLabelTextStyle,
-                        ),
-                        SizedBox(height: dimension.d12.h),
-                        Container(
-                          width: dimension.d80,
-                          height: dimension.d80,
-                          decoration: BoxDecoration(
-                            border: Border.all(color: const Color(0xFFCFCFCF)),
-                            borderRadius: BorderRadius.circular(dimension.d8),
-                          ),
+                      ),
+                      SafeArea(
+                        top: false,
+                        child: Padding(
+                          padding: EdgeInsets.all(dimension.d16),
                           child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Icon(types['icon'] as IconData,
-                                  size: dimension.d28.sp,
-                                  color: appTheme.b_Primary),
-                              SizedBox(height: dimension.d8.h),
-                              Text(types['label'] as String,
-                                  style: TextStyle(fontSize: dimension.d14.sp)),
-                            ],
+                          Text(
+                            meetup.title,
+                            style: customButtonAndTextStyles.titleTextStyle,
                           ),
-                        ),
-                        if (meetup.description.isNotEmpty) ...[
+                          SizedBox(height: dimension.d8.h),
+                          Text(
+                            strings.hostedByLabel,
+                            style: customButtonAndTextStyles.dobLabelTextStyle,
+                          ),
+                          SizedBox(height: dimension.d8.h),
+                          controller.isProfileLoading
+                              ? SizedBox(
+                                  height: dimension.d20,
+                                  width: dimension.d20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: dimension.d2,
+                                  ),
+                                )
+                              : Text(
+                                  hostName,
+                                  style:
+                                      customButtonAndTextStyles.userNameTextStyle,
+                                ),
                           SizedBox(height: dimension.d12.h),
                           Text(
-                            meetup.description,
-                            style: customButtonAndTextStyles.userNameTextStyle,
+                            strings.timeLabelText,
+                            style: customButtonAndTextStyles.dobLabelTextStyle,
                           ),
-                        ],
-                        SizedBox(height: dimension.d12.h),
-                        Text(
-                          strings.meetupStatusLabelText,
-                          style: customButtonAndTextStyles.dobLabelTextStyle,
-                        ),
-                        SizedBox(height: dimension.d4.h),
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFEDE9FE),
-                            borderRadius: BorderRadius.circular(dimension.d20),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
+                          SizedBox(height: dimension.d8.h),
+                          Row(
                             children: [
-                              const Icon(
-                                Icons.date_range,
-                                color: Color.fromARGB(255, 123, 93, 255),
+                              Icon(
+                                Icons.calendar_today_outlined,
+                                size: dimension.d16,
                               ),
-                              SizedBox(height: dimension.d4.w),
-                              Text(
-                                _formatStatus(meetup.status),
-                                style:
-                                    customButtonAndTextStyles.userNameTextStyle,
+                              SizedBox(width: dimension.d6),
+                              Expanded(
+                                child: Text(
+                                  controller.formattedTime,
+                                  style:
+                                      customButtonAndTextStyles.userNameTextStyle,
+                                ),
                               ),
                             ],
                           ),
-                        ),
-                        SizedBox(height: dimension.d8.h),
-                        Center(
-                          child: CustomOutlinedButton(
-                            buttonStyle:
-                                customButtonAndTextStyles.googleButtonStyle,
-                            onPressed: _viewProfile,
-                            text: strings.viewProfileBtn,
+                          SizedBox(height: dimension.d8.h),
+                          Text(
+                            strings.locationLabelText,
+                            style: customButtonAndTextStyles.dobLabelTextStyle,
+                          ),
+                          SizedBox(height: dimension.d12.h),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.location_on_outlined,
+                                size: dimension.d16,
+                              ),
+                              SizedBox(width: dimension.d6),
+                              Expanded(
+                                child: Text(
+                                  controller.visibleLocation,
+                                  style:
+                                      customButtonAndTextStyles.userNameTextStyle,
+                                ),
+                              ),
+                            ],
+                          ),
+                          SizedBox(height: dimension.d8.h),
+                          Text(
+                            strings.distanceLabelText,
+                            style: customButtonAndTextStyles.dobLabelTextStyle,
+                          ),
+                          SizedBox(height: dimension.d12.h),
+                          controller.distanceText.isEmpty
+                              ? Row(children: [
+                                  SizedBox(width: dimension.d8),
+                                  Text('Calculating ...',
+                                      style: customButtonAndTextStyles
+                                          .locationTextStyle),
+                                ])
+                              : Text(
+                                  controller.distanceText,
+                                  style:
+                                      customButtonAndTextStyles.userNameTextStyle,
+                                ),
+                          SizedBox(height: dimension.d12.h),
+                          Text(
+                            strings.meetupTypeLabelText,
+                            style: customButtonAndTextStyles.dobLabelTextStyle,
+                          ),
+                          SizedBox(height: dimension.d12.h),
+                          Container(
+                            width: dimension.d80,
+                            height: dimension.d80,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFFCFCFCF)),
+                              borderRadius: BorderRadius.circular(dimension.d8),
+                            ),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(types['icon'] as IconData,
+                                    size: dimension.d28.sp,
+                                    color: appTheme.b_Primary),
+                                SizedBox(height: dimension.d8.h),
+                                Text(types['label'] as String,
+                                    style: TextStyle(fontSize: dimension.d14.sp)),
+                              ],
+                            ),
+                          ),
+                          if (meetup.description.isNotEmpty) ...[
+                            SizedBox(height: dimension.d12.h),
+                            Text(
+                              meetup.description,
+                              style: customButtonAndTextStyles.userNameTextStyle,
+                            ),
+                          ],
+                          SizedBox(height: dimension.d12.h),
+                          Text(
+                            strings.meetupStatusLabelText,
+                            style: customButtonAndTextStyles.dobLabelTextStyle,
+                          ),
+                          SizedBox(height: dimension.d4.h),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEDE9FE),
+                              borderRadius: BorderRadius.circular(dimension.d20),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.date_range,
+                                  color: Color.fromARGB(255, 123, 93, 255),
+                                ),
+                                SizedBox(height: dimension.d4.w),
+                                Text(
+                                  _formatStatus(meetup.status),
+                                  style:
+                                      customButtonAndTextStyles.userNameTextStyle,
+                                ),
+                              ],
+                            ),
+                          ),
+                          SizedBox(height: dimension.d8.h),
+                        ],
                           ),
                         ),
-                        SizedBox(height: dimension.d10.h),
-                        if (!controller.isOwnMeetup)
-                          Center(
-                            child: controller.isLoading
-                                ? const CircularProgressIndicator()
-                                : CustomElevatedButton(
-                                    buttonStyle: customButtonAndTextStyles
-                                        .loginButtonStyle,
-                                    buttonTextStyle: customButtonAndTextStyles
-                                        .loginButtonTextStyle,
-                                    onPressed: _requestToJoin,
-                                    text: controller.isRequested
-                                        ? strings.requestedLabel
-                                        : strings.requestToJoinBtn,
-                                  ),
-                          ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+              // ── Pinned bottom buttons ────────────────────────────────────
+              SafeArea(
+                top: false,
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(16.w, 8.h, 16.w, 20.h),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CustomOutlinedButton(
+                        buttonStyle: customButtonAndTextStyles.googleButtonStyle,
+                        onPressed: _viewProfile,
+                        text: strings.viewProfileBtn,
+                      ),
+                      if (!controller.isOwnMeetup) ...[
+                        SizedBox(height: 10.h),
+                        controller.isLoading
+                            ? const CircularProgressIndicator()
+                            : CustomElevatedButton(
+                                buttonStyle: customButtonAndTextStyles.loginButtonStyle,
+                                buttonTextStyle: customButtonAndTextStyles.loginButtonTextStyle,
+                                onPressed: _requestToJoin,
+                                text: controller.isRequested
+                                    ? strings.requestedLabel
+                                    : strings.requestToJoinBtn,
+                              ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

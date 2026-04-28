@@ -79,9 +79,11 @@ class ChatScreen extends StatelessWidget {
                                   horizontal: dimension.d16.w,
                                   vertical: dimension.d24.h,
                                 ),
-                                child: Text(
-                                  'No chats yet.',
-                                  style: styles.locationTextStyle,
+                                child: Center(
+                                  child: Text(
+                                    'No chats yet.',
+                                    style: styles.locationTextStyle,
+                                  ),
                                 ),
                               ),
                             if (pendingItems.isNotEmpty)
@@ -177,8 +179,7 @@ class _ChatListItem extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
                     SizedBox(height: dimension.d4.h),
-                    Text(
-                        item.message.isNotEmpty ? item.message : item.subtitle,
+                    Text(item.message.isNotEmpty ? item.message : item.subtitle,
                         style: styles.locationTextStyle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),

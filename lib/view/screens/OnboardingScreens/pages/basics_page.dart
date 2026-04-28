@@ -58,10 +58,10 @@ class BasicsPage extends StatelessWidget {
         List<String>.from(options[strings.orientationKey] ?? []);
     final ethnicities = List<String>.from(options[strings.ethnicityKey] ?? []);
     final languages = List<String>.from(options[strings.languagesKey] ?? []);
-    return Padding(
+    return SingleChildScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.symmetric(horizontal: dimension.d20.w),
-      child: SingleChildScrollView(
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           SizedBox(height: dimension.d16.h),
           Text(strings.startWithBasicsTitle,
               style: customButtonandTextStyles.titleTextStyle),
@@ -165,7 +165,6 @@ class BasicsPage extends StatelessWidget {
             buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
           ),
         ]),
-      ),
-    );
+      );
   }
 }

@@ -37,7 +37,8 @@ class LocationPage extends StatelessWidget {
       builder: (controller) => Padding(
         padding: EdgeInsets.symmetric(horizontal: dimension.d20.w),
         child: SingleChildScrollView(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          child:
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SizedBox(height: dimension.d16.h),
             Text(strings.locationRequiredTitle,
                 style: customButtonandTextStyles.titleTextStyle),
@@ -52,7 +53,7 @@ class LocationPage extends StatelessWidget {
                 height: dimension.d367.h,
               ),
             ),
-            SizedBox(height: dimension.d58.h),
+            SizedBox(height: dimension.d80.h),
             CustomOutlinedButton(
               onPressed: () {
                 SystemNavigator.pop();
@@ -79,8 +80,11 @@ class LocationPage extends StatelessWidget {
                         }
                       : null,
                   buttonStyle: customButtonandTextStyles.loginButtonStyle,
-                  text: controller.loading ? "Loading..." : strings.enableLocationButton,
-                  buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
+                  text: controller.loading
+                      ? "Loading..."
+                      : strings.enableLocationButton,
+                  buttonTextStyle:
+                      customButtonandTextStyles.loginButtonTextStyle,
                 ),
               ),
             ),
