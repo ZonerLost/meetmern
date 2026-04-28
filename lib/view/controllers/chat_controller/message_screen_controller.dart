@@ -47,6 +47,7 @@ class MessageController extends GetxController {
   String? _chatId;
   String? _chatStatus;
   String? _chatType;
+  String _meetupSubtitle = '';
   String? _latestRequestId;
   String? _latestRequestMessageId;
   String? _latestRequestSenderId;
@@ -62,6 +63,14 @@ class MessageController extends GetxController {
   String? get latestRequestId => _latestRequestId;
   String get effectiveChatStatus => _chatStatus ?? 'requested';
   bool get continueChatMode => _continueChatMode;
+
+  /// The formatted subtitle shown in the appbar: "Fri · 5–6 PM · Near Soho, London"
+  /// Built from the cached meetup row; falls back to chat.subtitle.
+  String get appBarSubtitle {
+    print('[AppBarSubtitle] _meetupSubtitle="$_meetupSubtitle" chat.subtitle="${chat?.subtitle}"');
+    if (_meetupSubtitle.isNotEmpty) return _meetupSubtitle;
+    return chat?.subtitle ?? '';
+  }
 
   bool get isOwner {
     final uid = currentUserId;
@@ -177,6 +186,7 @@ class MessageController extends GetxController {
     _hasPendingLoad = false;
     _pendingLoadWantsLoader = false;
     _continueChatMode = false;
+    _meetupSubtitle = '';
     _realtimeReloadDebounce?.cancel();
     _realtimeReloadDebounce = null;
     isLoading = true;
@@ -185,10 +195,13 @@ class MessageController extends GetxController {
     _chatId = initialChat.id;
     _chatStatus = initialChat.dbStatus;
     if (_chatStatus == 'pending') _chatStatus = 'requested';
-    // Default to 'meetup' — all chats in this app are meetup chats.
     _chatType = (initialChat.chatType?.isNotEmpty == true)
         ? initialChat.chatType
         : 'meetup';
+    // Seed subtitle immediately so appbar shows it before DB load.
+    if (initialChat.subtitle.isNotEmpty) {
+      _meetupSubtitle = initialChat.subtitle;
+    }
 
     print(
         '🔵 [MessageController] Chat initialized - ID: $_chatId, Status: $_chatStatus, Type: $_chatType');
@@ -288,17 +301,55 @@ class MessageController extends GetxController {
           var dbStatus = chatRow['status']?.toString() ?? 'requested';
           if (dbStatus == 'pending') dbStatus = 'requested';
           _chatStatus = dbStatus;
-          // Restore continue-chat mode if the DB says so.
           if (dbStatus == 'continue_chat') {
             _chatStatus = 'completed';
             _continueChatMode = true;
           }
+
+          // Build subtitle from the linked meetup row.
+          // Try chat.meetup_id first, then fall back to latest request's meetup_id.
+          final chatMeetupId = chatRow['meetup_id']?.toString() ?? '';
+          print('[AppBarSubtitle] chatRow meetup_id="$chatMeetupId" chat_type="${chatRow['chat_type']}"');
+          String builtSubtitle = chat?.subtitle ?? '';
+          String builtType = chat?.type ?? '';
+
+          // Resolve the meetup ID — chat.meetup_id may be null if the meetup was deleted.
+          String resolvedMeetupId = chatMeetupId;
+          if (resolvedMeetupId.isEmpty && _chatId != null) {
+            try {
+              resolvedMeetupId =
+                  await MeetupService.resolveMeetupIdForChat(_chatId!) ?? '';
+              print('[AppBarSubtitle] resolved meetup_id from requests: "$resolvedMeetupId"');
+            } catch (_) {}
+          }
+
+          if (resolvedMeetupId.isNotEmpty) {
+            try {
+              final meetupRow = await MeetupService.getMeetupRowForSubtitle(resolvedMeetupId);
+              print('[AppBarSubtitle] meetupRow=$meetupRow');
+              if (meetupRow != null) {
+                builtSubtitle = _buildSubtitleFromMeetup(meetupRow);
+                final mt = meetupRow['type']?.toString().trim() ?? '';
+                if (mt.isNotEmpty) builtType = mt;
+                print('[AppBarSubtitle] builtSubtitle="$builtSubtitle" builtType="$builtType"');
+              }
+            } catch (e) {
+              print('[AppBarSubtitle] ERROR fetching meetup row: $e');
+            }
+          } else {
+            print('[AppBarSubtitle] meetup_id is empty — cannot build subtitle');
+          }
+          if (builtSubtitle.isNotEmpty) _meetupSubtitle = builtSubtitle;
+
           chat = Chat.fromSupabase(
             chatRow,
             otherUserName: chat?.name ?? '',
             otherUserAvatar: chat?.avatarUrl ?? '',
             lastMessage: chat?.message ?? '',
+            subtitle: builtSubtitle,
           );
+          // Restore the meetup type (fromSupabase sets type = chat_type = 'meetup').
+          if (builtType.isNotEmpty) chat!.type = builtType;
         }
       } catch (e) {
         print('🔴 [MessageController] Error fetching chat: $e');
@@ -616,6 +667,44 @@ class MessageController extends GetxController {
       print('🔴 [MessageController] sendNewMeetupRequest error: $e');
       rethrow;
     }
+  }
+
+  String _buildSubtitleFromMeetup(Map<String, dynamic> meetup) {
+    final dateRaw = meetup['meetup_date']?.toString().trim() ?? '';
+    final timeRaw = meetup['meetup_time']?.toString().trim() ?? '';
+    final address = meetup['address']?.toString().trim() ?? '';
+    print('[AppBarSubtitle] _buildSubtitleFromMeetup: date="$dateRaw" time="$timeRaw" address="$address"');
+
+    final parts = <String>[];
+
+    DateTime? dt;
+    if (dateRaw.isNotEmpty && timeRaw.isNotEmpty) {
+      dt = DateTime.tryParse('${dateRaw}T$timeRaw');
+    }
+    dt ??= dateRaw.isNotEmpty ? DateTime.tryParse(dateRaw) : null;
+
+    if (dt != null) {
+      const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      parts.add(weekdays[dt.weekday - 1]);
+      final end = dt.add(const Duration(hours: 1));
+      final sh = dt.hour == 0 || dt.hour == 12 ? 12 : dt.hour % 12;
+      final eh = end.hour == 0 || end.hour == 12 ? 12 : end.hour % 12;
+      final sp = dt.hour >= 12 ? 'PM' : 'AM';
+      final ep = end.hour >= 12 ? 'PM' : 'AM';
+      parts.add(sp == ep ? '$sh–$eh $ep' : '$sh $sp–$eh $ep');
+    }
+
+    if (address.isNotEmpty) {
+      final addrParts = address.split(',').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
+      final approx = addrParts.length >= 2
+          ? '${addrParts[addrParts.length - 2]}, ${addrParts.last}'
+          : addrParts.isNotEmpty ? addrParts.first : address;
+      parts.add('Near $approx');
+    }
+
+    final result = parts.where((p) => p.isNotEmpty).join(' · ');
+    print('[AppBarSubtitle] _buildSubtitleFromMeetup result="$result"');
+    return result;
   }
 
   String _readString(Map<String, dynamic> row, List<String> keys) {

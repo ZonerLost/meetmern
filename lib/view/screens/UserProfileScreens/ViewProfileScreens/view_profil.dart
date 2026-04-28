@@ -146,7 +146,7 @@ class ViewProfileScreen extends StatelessWidget {
                           SizedBox(height: dimension.d12.h),
                         ],
 
-                        // Meetups
+                        // My Meetups (own ads)
                         Text(strings.meetupsLabel,
                             style: styles.titleTextStyle),
                         SizedBox(height: dimension.d10.h),
@@ -166,7 +166,7 @@ class ViewProfileScreen extends StatelessWidget {
                           ...controller.allMeetups.map(
                             (m) => MeetupCard(
                               meetup: m,
-                              onFavorite: () => controller.toggleFavorite(m.id),
+                              onFavorite: () {},
                               onTap: () =>
                                   _openMeetupDetails(context, m, controller),
                               showFavorite: false,
@@ -201,8 +201,10 @@ class ViewProfileScreen extends StatelessWidget {
     Meetup meetup,
     ViewProfileController controller,
   ) async {
-    final res = await context.navigateToScreen1<dynamic>(
-      ViewMeetupDeleteScreen(meetup: meetup),
+    final res = await Navigator.of(context).push<dynamic>(
+      MaterialPageRoute(
+        builder: (_) => ViewMeetupDeleteScreen(meetup: meetup),
+      ),
     );
     if (res is Map<String, dynamic> &&
         res['action'] == 'delete' &&

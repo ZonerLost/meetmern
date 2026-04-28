@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
+import 'package:meetmern/data/service/profile_service.dart';
+import 'package:meetmern/main.dart';
 import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/review_meetup.dart';
 import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/meetup_draft.dart';
 import 'package:meetmern/core/extensions/date_picker_extension.dart';
@@ -30,6 +32,21 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillAddress();
+  }
+
+  Future<void> _prefillAddress() async {
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return;
+    final profile = await ProfileService.getLocationAndRadius(userId);
+    if (profile?.location != null && profile!.location!.isNotEmpty) {
+      setState(() => addressController.text = profile.location!);
+    }
+  }
 
   @override
   void dispose() {

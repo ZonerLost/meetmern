@@ -22,6 +22,7 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
   @override
   void initState() {
     super.initState();
+    // Always refresh from DB when the screen opens.
     _controller.loadFavourites();
   }
 

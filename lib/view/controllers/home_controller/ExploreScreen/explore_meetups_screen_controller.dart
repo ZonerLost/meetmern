@@ -3,6 +3,7 @@ import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/models/profile_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/discovery_service.dart';
+import 'package:meetmern/data/service/favorite_service.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
 import 'package:meetmern/data/service/meetup_store.dart';
 import 'package:meetmern/data/service/profile_service.dart';
@@ -104,26 +105,7 @@ class ExploreController extends GetxController {
   }
 
   Future<void> toggleFavorite(String meetupId) async {
-    final uid = AuthService.currentUser?.id;
-    final meetup = _store.meetups.firstWhereOrNull((m) => m.id == meetupId);
-    if (meetup == null) return;
-
-    final newValue = !meetup.isFavorite;
-    _store.setFavorite(meetupId, newValue); // optimistic
-    update();
-
-    if (uid == null) return;
-    try {
-      if (newValue) {
-        await MeetupService.addFavourite(userId: uid, meetupId: meetupId);
-      } else {
-        await MeetupService.removeFavourite(userId: uid, meetupId: meetupId);
-      }
-    } catch (_) {
-      // Revert on failure
-      _store.setFavorite(meetupId, !newValue);
-      update();
-    }
+    await FavoriteService.instance.toggle(meetupId);
   }
 
   void refreshUi() => update();
@@ -134,16 +116,16 @@ class ExploreController extends GetxController {
   }
 
   bool _isAvailableMeetup(Meetup meetup) {
-    // Hide meetups that have an active/accepted request from the current user.
+    // Hide meetups the current user has already requested or completed.
     if (_store.hiddenMeetupIds.contains(meetup.id)) return false;
 
+    // Only show meetups that are open/active and not expired.
     final status = meetup.status.trim().toLowerCase();
-    // 'accepted' means someone already has an active request — hide from explore.
     final isAvailableStatus = status.isEmpty ||
         status == 'open' ||
-        status == 'active' ||
-        status == 'requested';
+        status == 'active';
     if (!isAvailableStatus) return false;
+
     return meetup.time
         .isAfter(DateTime.now().subtract(const Duration(hours: 4)));
   }

@@ -69,8 +69,8 @@ class ViewProfileController extends GetxController {
         allMeetups = <Meetup>[];
         return;
       }
-
-      final rows = await MeetupService.fetchMeetupHistoryForUser(uid);
+      // Only load meetups the current user has posted (their own ads).
+      final rows = await MeetupService.fetchMeetupsForUser(uid);
       allMeetups = rows.map(Meetup.fromSupabase).toList(growable: false);
     } catch (_) {
       allMeetups = <Meetup>[];

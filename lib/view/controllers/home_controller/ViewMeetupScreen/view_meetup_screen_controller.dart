@@ -355,9 +355,7 @@ class ViewMeetupController extends GetxController {
       chat.type = m.type;
       chat.time = formattedTime;
       final normalizedLocation = _approximateLocation(m.location.trim());
-      chat.subtitle = normalizedLocation.isEmpty
-          ? formattedTime
-          : '$formattedTime · Near $normalizedLocation';
+      chat.subtitle = _buildSubtitle(m);
       return chat;
     } catch (e, st) {
       print('[ViewMeetup] requestToJoin — ERROR: $e\n$st');
@@ -367,6 +365,21 @@ class ViewMeetupController extends GetxController {
       isLoading = false;
       update();
     }
+  }
+
+  String _buildSubtitle(Meetup m) {
+    final dt = m.time;
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    final day = weekdays[dt.weekday - 1];
+    final end = dt.add(const Duration(hours: 1));
+    final sh = dt.hour == 0 || dt.hour == 12 ? 12 : dt.hour % 12;
+    final eh = end.hour == 0 || end.hour == 12 ? 12 : end.hour % 12;
+    final sp = dt.hour >= 12 ? 'PM' : 'AM';
+    final ep = end.hour >= 12 ? 'PM' : 'AM';
+    final timeRange = sp == ep ? '$sh–$eh $ep' : '$sh $sp–$eh $ep';
+    final approx = _approximateLocation(m.location.trim());
+    final parts = [day, timeRange, if (approx.isNotEmpty) 'Near $approx'];
+    return parts.join(' · ');
   }
 
   void markRequested() {

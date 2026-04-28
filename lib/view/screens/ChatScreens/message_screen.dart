@@ -103,6 +103,11 @@ class _MessageScreenState extends State<MessageScreen> {
     );
   }
 
+  String _buildAppBarSubtitle(Chat chat, Strings strings) {
+    if (chat.subtitle.trim().isNotEmpty) return chat.subtitle.trim();
+    return '';
+  }
+
   PreferredSizeWidget _buildAppBar(
       BuildContext context, MessageController c, Strings strings) {
     final displayChat = c.chat ?? widget.chat;
@@ -165,7 +170,7 @@ class _MessageScreenState extends State<MessageScreen> {
                           fontWeight: FontWeight.w600)),
                   SizedBox(height: dimension.d3),
                   Text(
-                    '${displayChat.type}${displayChat.time.isNotEmpty ? ' ${strings.dotSeparator} ' : ''}${displayChat.time}',
+                    c.appBarSubtitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -237,8 +242,8 @@ class _MessageScreenState extends State<MessageScreen> {
     if (reqStatus == 'pending') reqStatus = 'requested';
 
     // For the LATEST request card, sync badge with live chat status.
-    final isLatest = msg.meetupRequestId != null &&
-        msg.meetupRequestId == c.latestRequestId;
+    final isLatest =
+        msg.meetupRequestId != null && msg.meetupRequestId == c.latestRequestId;
     if (isLatest) {
       final chatStatus = c.effectiveChatStatus;
       if (chatStatus == 'accepted' ||
@@ -260,7 +265,9 @@ class _MessageScreenState extends State<MessageScreen> {
 
     final cardText = msg.text.isNotEmpty
         ? msg.text
-        : (msg.isMe ? 'You sent a meetup request' : 'Sent you a meetup request');
+        : (msg.isMe
+            ? 'You sent a meetup request'
+            : 'Sent you a meetup request');
 
     Color statusColor;
     String statusLabel;
@@ -514,8 +521,8 @@ class _MessageScreenState extends State<MessageScreen> {
           focusNode: c.focusNode,
           textInputAction: TextInputAction.send,
           onFieldSubmitted: (_) => c.sendMessage(),
-          suffixConstraints:
-              BoxConstraints.tightFor(width: dimension.d48, height: dimension.d48),
+          suffixConstraints: BoxConstraints.tightFor(
+              width: dimension.d48, height: dimension.d48),
           suffix: Center(
             child: GestureDetector(
               onTap: c.canSend ? c.sendMessage : null,

@@ -169,17 +169,50 @@ class ChatListController extends GetxController {
             .toSet()
             .toList(growable: false);
 
-        final meetupIds = rows
+        // Resolve meetup IDs: use chat.meetup_id if set, otherwise look up
+        // the latest meetup_request for that chat.
+        final chatMeetupIds = rows
             .map((r) => r['meetup_id']?.toString() ?? '')
             .where((id) => id.isNotEmpty)
             .toSet()
             .toList(growable: false);
+
+        // For chats with no meetup_id, resolve via meetup_requests.
+        final chatsWithNoMeetup = rows
+            .where((r) => (r['meetup_id']?.toString() ?? '').isEmpty)
+            .map((r) => r['id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList(growable: false);
+
+        final resolvedMeetupIds = <String, String>{}; // chatId -> meetupId
+        if (chatsWithNoMeetup.isNotEmpty) {
+          try {
+            final reqRows = await supabase
+                .from('meetup_requests')
+                .select('chat_id, meetup_id')
+                .inFilter('chat_id', chatsWithNoMeetup)
+                .order('created_at', ascending: false);
+            for (final r in List<Map<String, dynamic>>.from(reqRows)) {
+              final cId = r['chat_id']?.toString() ?? '';
+              final mId = r['meetup_id']?.toString() ?? '';
+              if (cId.isNotEmpty && mId.isNotEmpty && !resolvedMeetupIds.containsKey(cId)) {
+                resolvedMeetupIds[cId] = mId;
+              }
+            }
+          } catch (_) {}
+        }
+
+        final meetupIds = <String>{
+          ...chatMeetupIds,
+          ...resolvedMeetupIds.values,
+        }.toList(growable: false);
 
         print(
             '🔵 [ChatListController] Fetching profiles, messages, and meetups');
         final profileRows = await _fetchProfiles(otherUserIds);
         final messageRows = await _fetchLatestMessages(chatIds);
         final meetupRows = await _fetchMeetupRows(meetupIds);
+        final requestRows = await _fetchLatestRequestStatuses(chatIds);
         print(
             '🔵 [ChatListController] Fetched ${profileRows.length} profiles, ${messageRows.length} messages, ${meetupRows.length} meetups');
 
@@ -187,18 +220,14 @@ class ChatListController extends GetxController {
         for (final raw in profileRows) {
           final row = Map<String, dynamic>.from(raw);
           final id = row['id']?.toString() ?? '';
-          if (id.isNotEmpty) {
-            profileById[id] = row;
-          }
+          if (id.isNotEmpty) profileById[id] = row;
         }
 
         final latestMessageByChatId = <String, Map<String, dynamic>>{};
         for (final raw in messageRows) {
           final row = Map<String, dynamic>.from(raw);
           final chatId = row['chat_id']?.toString() ?? '';
-          if (chatId.isEmpty || latestMessageByChatId.containsKey(chatId)) {
-            continue;
-          }
+          if (chatId.isEmpty || latestMessageByChatId.containsKey(chatId)) continue;
           latestMessageByChatId[chatId] = row;
         }
 
@@ -206,8 +235,15 @@ class ChatListController extends GetxController {
         for (final raw in meetupRows) {
           final row = Map<String, dynamic>.from(raw);
           final id = row['id']?.toString() ?? '';
-          if (id.isNotEmpty) {
-            meetupById[id] = row;
+          if (id.isNotEmpty) meetupById[id] = row;
+        }
+
+        final latestRequestByChatId = <String, Map<String, dynamic>>{};
+        for (final raw in requestRows) {
+          final row = Map<String, dynamic>.from(raw);
+          final cId = row['chat_id']?.toString() ?? '';
+          if (cId.isNotEmpty && !latestRequestByChatId.containsKey(cId)) {
+            latestRequestByChatId[cId] = row;
           }
         }
 
@@ -246,7 +282,19 @@ class ChatListController extends GetxController {
             chat.status = RequestStatus.requested;
           }
 
-          final meetupId = row['meetup_id']?.toString() ?? '';
+          // Use latest request status as authoritative pill status.
+          final latestReq = latestRequestByChatId[chatId];
+          if (latestReq != null) {
+            final reqStatus = latestReq['status']?.toString() ?? '';
+            final mapped = requestStatusFromDbString(reqStatus);
+            if (mapped != RequestStatus.none) chat.status = mapped;
+          }
+
+          // Resolve meetup: use chat.meetup_id or fall back to resolvedMeetupIds.
+          final rawMeetupId = row['meetup_id']?.toString() ?? '';
+          final meetupId = rawMeetupId.isNotEmpty
+              ? rawMeetupId
+              : (resolvedMeetupIds[chatId] ?? '');
           final meetup = meetupById[meetupId];
           if (meetup != null) {
             final meetupType = meetup['type']?.toString().trim() ?? '';
@@ -275,6 +323,12 @@ class ChatListController extends GetxController {
         }
 
         items = loaded;
+        // Sort by latest activity (updated_at) descending.
+        items.sort((a, b) {
+          final ta = DateTime.tryParse(a.time) ?? DateTime(0);
+          final tb = DateTime.tryParse(b.time) ?? DateTime(0);
+          return tb.compareTo(ta);
+        });
         print(
             '🔵 [ChatListController] Chat list built with ${items.length} items');
       } catch (e) {
@@ -329,21 +383,34 @@ class ChatListController extends GetxController {
 
   Future<List<dynamic>> _fetchMeetupRows(List<String> meetupIds) async {
     if (meetupIds.isEmpty) return const <dynamic>[];
+    try {
+      final rows = await supabase
+          .from('meetups')
+          .select('id, type, address, date, time')
+          .inFilter('id', meetupIds);
+      // Normalise to meetup_date/meetup_time so subtitle builders find the right keys.
+      return List<Map<String, dynamic>>.from(rows).map((raw) {
+        final r = Map<String, dynamic>.from(raw);
+        r['meetup_date'] = r['date'];
+        r['meetup_time'] = r['time'];
+        return r;
+      }).toList();
+    } catch (e) {
+      print('🔴 [ChatListController] _fetchMeetupRows error: $e');
+      return const <dynamic>[];
+    }
+  }
 
+  Future<List<dynamic>> _fetchLatestRequestStatuses(List<String> chatIds) async {
+    if (chatIds.isEmpty) return const <dynamic>[];
     try {
       return await supabase
-          .from('meetups')
-          .select('id, type, address, date, time, meetup_date, meetup_time')
-          .inFilter('id', meetupIds);
+          .from('meetup_requests')
+          .select('chat_id, status, created_at')
+          .inFilter('chat_id', chatIds)
+          .order('created_at', ascending: false);
     } catch (_) {
-      try {
-        return await supabase
-            .from('meetups')
-            .select('id, type, address, meetup_date, meetup_time')
-            .inFilter('id', meetupIds);
-      } catch (_) {
-        return const <dynamic>[];
-      }
+      return const <dynamic>[];
     }
   }
 
@@ -369,44 +436,35 @@ class ChatListController extends GetxController {
     if (dt != null) {
       parts.add(_weekdayShort(dt));
       parts.add(_hourRangeLabel(dt));
-    } else {
-      final scheduleRaw = _formatMeetupSchedule(meetup);
-      if (scheduleRaw.isNotEmpty) {
-        parts.add(scheduleRaw);
-      }
     }
     if (address.isNotEmpty) {
-      final normalized =
-          address.toLowerCase().startsWith('near ') ? address : 'Near $address';
-      parts.add(normalized);
+      parts.add('Near ${_approximateAddress(address)}');
     }
 
-    return parts
-        .where((p) => p.trim().isNotEmpty)
-        .join(' ${_strings.dotSeparator} ');
+    return parts.where((p) => p.trim().isNotEmpty).join(' · ');
+  }
+
+  /// Returns the last 1–2 meaningful parts of an address for display.
+  String _approximateAddress(String raw) {
+    final parts = raw
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+    if (parts.length >= 2) return '${parts[parts.length - 2]}, ${parts.last}';
+    return parts.isNotEmpty ? parts.first : raw;
   }
 
   DateTime? _parseMeetupDateTime(Map<String, dynamic> meetup) {
-    final dateRaw = meetup['date']?.toString().trim() ??
-        meetup['meetup_date']?.toString().trim() ??
-        '';
-    final timeRaw = meetup['time']?.toString().trim() ??
-        meetup['meetup_time']?.toString().trim() ??
-        '';
+    final dateRaw = (meetup['meetup_date'] ?? meetup['date'])?.toString().trim() ?? '';
+    final timeRaw = (meetup['meetup_time'] ?? meetup['time'])?.toString().trim() ?? '';
 
-    if (dateRaw.isEmpty && timeRaw.isEmpty) return null;
-
-    if (dateRaw.isNotEmpty && timeRaw.isNotEmpty) {
+    if (dateRaw.isEmpty) return null;
+    if (timeRaw.isNotEmpty) {
       final parsed = DateTime.tryParse('${dateRaw}T$timeRaw');
       if (parsed != null) return parsed;
     }
-
-    if (dateRaw.isNotEmpty) {
-      final parsed = DateTime.tryParse(dateRaw);
-      if (parsed != null) return parsed;
-    }
-
-    return null;
+    return DateTime.tryParse(dateRaw);
   }
 
   String _weekdayShort(DateTime dt) {
@@ -422,9 +480,9 @@ class ChatListController extends GetxController {
     final endPeriod = end.hour >= 12 ? 'PM' : 'AM';
 
     if (startPeriod == endPeriod) {
-      return '$startHour12-$endHour12 $endPeriod';
+      return '$startHour12–$endHour12 $endPeriod';
     }
-    return '$startHour12 $startPeriod-$endHour12 $endPeriod';
+    return '$startHour12 $startPeriod–$endHour12 $endPeriod';
   }
 
   int _hour12(int hour24) {

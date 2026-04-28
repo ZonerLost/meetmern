@@ -178,7 +178,7 @@ class _ChatListItem extends StatelessWidget {
                         overflow: TextOverflow.ellipsis),
                     SizedBox(height: dimension.d4.h),
                     Text(
-                        item.subtitle.isNotEmpty ? item.subtitle : item.message,
+                        item.message.isNotEmpty ? item.message : item.subtitle,
                         style: styles.locationTextStyle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),

@@ -10,7 +10,7 @@ class SettingController extends GetxController {
     'My Location',
     'Support and Feedback',
     'Notifications',
-    'Share App',
+    // 'Share App',
     'Logout',
   ];
 

@@ -229,69 +229,19 @@ class MeetupService {
     String userId,
   ) async {
     try {
-      // Fetch all non-terminal requests where this user is the requester.
+      // Hide meetups where the current user has any non-cancelled request.
+      // completed = meetup happened, hide permanently.
+      // requested/accepted = active cycle, hide until terminal.
       final rows = await supabase
           .from('meetup_requests')
-          .select('meetup_id, status, meetup_owner_id')
+          .select('meetup_id, status')
           .eq('requester_id', userId)
-          .inFilter('status', ['requested', 'accepted']);
+          .not('status', 'in', '(cancelled,rejected)');
 
-      final hidden = <String>{};
-      final now = DateTime.now();
-
-      for (final raw in List<Map<String, dynamic>>.from(rows)) {
-        final meetupId = _text(raw['meetup_id']);
-        if (meetupId.isEmpty) continue;
-        final status = _text(raw['status']);
-
-        if (status == 'requested') {
-          hidden.add(meetupId);
-          continue;
-        }
-
-        // For accepted: hide only while meetup time hasn't passed.
-        if (status == 'accepted') {
-          try {
-            Map<String, dynamic>? meetupRow;
-            try {
-              meetupRow = await supabase
-                  .from('meetups')
-                  .select('date, time')
-                  .eq('id', meetupId)
-                  .maybeSingle();
-            } catch (_) {
-              meetupRow = await supabase
-                  .from('meetups')
-                  .select('meetup_date, meetup_time')
-                  .eq('id', meetupId)
-                  .maybeSingle();
-            }
-            if (meetupRow == null) {
-              hidden.add(meetupId);
-              continue;
-            }
-            final dateStr =
-                (meetupRow['date'] ?? meetupRow['meetup_date'])?.toString().trim() ?? '';
-            final timeStr =
-                (meetupRow['time'] ?? meetupRow['meetup_time'])?.toString().trim() ?? '';
-            if (dateStr.isEmpty) {
-              hidden.add(meetupId);
-              continue;
-            }
-            final dt = DateTime.tryParse(
-                timeStr.isNotEmpty ? '${dateStr}T$timeStr' : dateStr);
-            // Hide while meetup is in the future (not yet completed).
-            if (dt == null || dt.isAfter(now)) {
-              hidden.add(meetupId);
-            }
-            // If dt is in the past the meetup is completed — leave visible.
-          } catch (_) {
-            hidden.add(meetupId);
-          }
-        }
-      }
-
-      return hidden;
+      return List<Map<String, dynamic>>.from(rows)
+          .map((r) => r['meetup_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
     } catch (e, st) {
       debugPrint(
         '[MeetupService] fetchHiddenMeetupIdsForUser - failed: $e\n$st',
@@ -986,6 +936,46 @@ class MeetupService {
         .order('updated_at', ascending: false);
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  static Future<Map<String, dynamic>?> getMeetupRowForSubtitle(String meetupId) async {
+    try {
+      final row = await supabase
+          .from('meetups')
+          .select('id, type, address, date, time')
+          .eq('id', meetupId)
+          .maybeSingle();
+      if (row == null) {
+        print('[getMeetupRowForSubtitle] No row found for meetupId=$meetupId');
+        return null;
+      }
+      final r = Map<String, dynamic>.from(row);
+      // Normalise to meetup_date / meetup_time for subtitle builder.
+      r['meetup_date'] = r['date'];
+      r['meetup_time'] = r['time'];
+      print('[getMeetupRowForSubtitle] Found row: date=${r['date']} time=${r['time']} address=${r['address']}');
+      return r;
+    } catch (e) {
+      print('[getMeetupRowForSubtitle] ERROR: $e');
+    }
+    return null;
+  }
+
+  /// Resolves the meetup ID for a chat by looking at meetup_requests
+  /// when chat.meetup_id is null or the meetup row has been deleted.
+  static Future<String?> resolveMeetupIdForChat(String chatId) async {
+    try {
+      final row = await supabase
+          .from('meetup_requests')
+          .select('meetup_id')
+          .eq('chat_id', chatId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .maybeSingle();
+      return row?['meetup_id']?.toString();
+    } catch (_) {
+      return null;
+    }
   }
 
   static Future<Map<String, dynamic>?> getChatById(String chatId) async {
