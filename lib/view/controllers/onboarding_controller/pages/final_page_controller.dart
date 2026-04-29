@@ -4,7 +4,7 @@ import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/view/controllers/onboarding_controller/OnboardingScreen/onboarding_screen_controller.dart';
 import 'package:meetmern/core/routes/route_names.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_model.dart';
+import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_model.dart';
 
 class FinalPageController extends GetxController {
   bool isSubmitting = false;

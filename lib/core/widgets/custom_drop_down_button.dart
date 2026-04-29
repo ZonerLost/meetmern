@@ -17,6 +17,7 @@ class CustomDropdownButton extends StatefulWidget {
   final bool isExpanded;
   final bool alignMenuRight;
   final TextStyle? itemTextStyle;
+  final TextStyle? textStyle;
   final EdgeInsetsGeometry? contentPadding;
   final Color? menuColor;
 
@@ -37,6 +38,7 @@ class CustomDropdownButton extends StatefulWidget {
     this.isExpanded = true,
     this.alignMenuRight = false,
     this.itemTextStyle,
+    this.textStyle,
     this.contentPadding,
   });
 
@@ -155,6 +157,7 @@ class _CustomDropdownButtonState extends State<CustomDropdownButton> {
       focusNode: _focusNode,
       validator: widget.validator,
       onChanged: widget.onChanged,
+      style: widget.textStyle,
       decoration: effectiveDecoration,
       textAlignVertical: TextAlignVertical.center,
     );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
+import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
 
 class FilterController extends GetxController {
   final GlobalKey<FormState> formKey = GlobalKey<FormState>();

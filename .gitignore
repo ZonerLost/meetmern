@@ -51,3 +51,4 @@ devtools_options.yaml
 .gitignore
 supabase/migrations/20260506000000_explore_hide_completed.sql
 supabase/migrations/20260507000000_fix_meetup_requests_unique_constraint.sql
+supabase/migrations/20260508000000_create_user_traits.sql

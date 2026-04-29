@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/profile_service.dart';
+import 'package:meetmern/data/service/user_traits_service.dart';
+import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
 
 class AccountPreferencesController extends GetxController {
   final Set<String> interests = <String>{};
@@ -34,6 +36,14 @@ class AccountPreferencesController extends GetxController {
   void onInit() {
     super.onInit();
     _loadFromProfile();
+    _loadTraitOptions();
+  }
+
+  Future<void> _loadTraitOptions() async {
+    final traits = await UserTraitsService.fetchTraitOptions();
+    if (traits.isEmpty) return;
+    OnboardingMockData.applyRuntimeTraitOptions(traits);
+    update();
   }
 
   void _loadFromProfile() {

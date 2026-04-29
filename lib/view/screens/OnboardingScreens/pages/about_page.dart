@@ -53,12 +53,9 @@ class AboutPage extends StatelessWidget {
         apppTheme: Theme.of(context), theme: customThemeData);
     final childrenOpts = List<String>.from(options['children'] ?? []);
     final religionOpts = List<String>.from(options['religion'] ?? []);
-    final dietExamples = List<String>.from(options['Dietarypreferences'] ?? []);
-    final isLocallyValid =
-        (selectedChildren != null && selectedChildren!.trim().isNotEmpty) &&
-            (selectedRelationship != null &&
-                selectedRelationship!.trim().isNotEmpty);
-
+    final dietExamples = List<String>.from(
+      options['dietary_preferences'] ?? options['Dietarypreferences'] ?? [],
+    );
     return SingleChildScrollView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.symmetric(horizontal: dimension.d20.w),
@@ -86,9 +83,8 @@ class AboutPage extends StatelessWidget {
               onChanged: onChildrenChanged,
               decoration: customButtonandTextStyles.genderFInputDecoration,
               itemHeight: dimension.d48.h,
-              menuMaxHeight: dimension.d200.h,
-              menuMaxWidth: dimension.d320.h,
-              alignMenuRight: true,
+              itemTextStyle: customButtonandTextStyles.userNameTextStyle,
+              textStyle: customButtonandTextStyles.userNameTextStyle,
             ),
             SizedBox(height: dimension.d14.h),
 
@@ -102,9 +98,8 @@ class AboutPage extends StatelessWidget {
               onChanged: onRelationshipChanged,
               decoration: customButtonandTextStyles.genderFInputDecoration,
               itemHeight: dimension.d48.h,
-              menuMaxHeight: dimension.d200.h,
-              menuMaxWidth: dimension.d320.h,
-              alignMenuRight: true,
+              itemTextStyle: customButtonandTextStyles.userNameTextStyle,
+              textStyle: customButtonandTextStyles.userNameTextStyle,
             ),
             SizedBox(height: dimension.d14.h),
 
@@ -133,9 +128,8 @@ class AboutPage extends StatelessWidget {
               onChanged: onReligionChanged,
               decoration: customButtonandTextStyles.genderFInputDecoration,
               itemHeight: dimension.d48.h,
-              menuMaxHeight: dimension.d200.h,
-              menuMaxWidth: dimension.d320.h,
-              alignMenuRight: true,
+              itemTextStyle: customButtonandTextStyles.userNameTextStyle,
+              textStyle: customButtonandTextStyles.userNameTextStyle,
             ),
             SizedBox(height: dimension.d14.h),
 

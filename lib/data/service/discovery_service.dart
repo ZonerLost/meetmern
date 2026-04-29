@@ -1,5 +1,6 @@
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/main.dart';
+import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
 
 class DiscoveryService {
   DiscoveryService._();
@@ -69,6 +70,56 @@ class DiscoveryService {
   }
 
   static Future<Map<String, dynamic>> fetchFilterOptions() async {
+    try {
+      final traitsRaw = await supabase
+          .from('user_traits')
+          .select('trait_key, trait_value')
+          .eq('is_active', true)
+          .order('trait_key', ascending: true)
+          .order('sort_order', ascending: true)
+          .order('trait_value', ascending: true);
+
+      final traitMap = <String, List<String>>{};
+      for (final raw in List<Map<String, dynamic>>.from(traitsRaw)) {
+        final row = Map<String, dynamic>.from(raw);
+        final key = row['trait_key']?.toString().trim() ?? '';
+        final value = row['trait_value']?.toString().trim() ?? '';
+        if (key.isEmpty || value.isEmpty) continue;
+        traitMap.putIfAbsent(key, () => <String>[]).add(value);
+      }
+
+      final withAny = <String>[
+        'gender',
+        'orientation',
+        'religion',
+        'relationship_status'
+      ];
+      List<String> listFor(String key) {
+        final values = _dedupeOrdered(traitMap[key] ?? const <String>[]);
+        if (values.isEmpty) return const <String>[];
+        if (!withAny.contains(key)) return values;
+        return _withAnyPrefix(values);
+      }
+
+      final fromTraits = <String, dynamic>{
+        'genders': listFor('gender'),
+        'orientations': listFor('orientation'),
+        'religion': listFor('religion'),
+        'relationship_status': listFor('relationship_status'),
+        'languages': listFor('languages'),
+        'interests': listFor('interests'),
+        'host_ratings': listFor('host_ratings'),
+      };
+
+      final hasAnyOptions =
+          fromTraits.values.any((value) => value is List && value.isNotEmpty);
+      if (hasAnyOptions) {
+        return fromTraits;
+      }
+    } catch (_) {
+      // Keep fallback path below.
+    }
+
     final genders = <String>[];
     final orientations = <String>[];
     final religions = <String>[];
@@ -115,14 +166,26 @@ class DiscoveryService {
     }
 
     return <String, dynamic>{
-      'genders': _withAnyPrefix(genders),
-      'orientations': _withAnyPrefix(orientations),
-      'religion': _withAnyPrefix(religions),
-      'relationship_status': _withAnyPrefix(relationships),
-      'languages': _dedupeOrdered(languages),
-      'interests': _dedupeOrdered(interests),
+      'genders': genders.isEmpty
+          ? OnboardingMockData.genders
+          : _withAnyPrefix(genders),
+      'orientations': orientations.isEmpty
+          ? OnboardingMockData.orientations
+          : _withAnyPrefix(orientations),
+      'religion': religions.isEmpty
+          ? OnboardingMockData.religion
+          : _withAnyPrefix(religions),
+      'relationship_status': relationships.isEmpty
+          ? OnboardingMockData.relationshipStatus
+          : _withAnyPrefix(relationships),
+      'languages': languages.isEmpty
+          ? OnboardingMockData.languages
+          : _dedupeOrdered(languages),
+      'interests': interests.isEmpty
+          ? OnboardingMockData.interests
+          : _dedupeOrdered(interests),
       // No host rating table yet, keep a simple option list fetched by app.
-      'host_ratings': const <String>['Any', 'Highly responsive', 'Responsive'],
+      'host_ratings': OnboardingMockData.hostRatings,
     };
   }
 

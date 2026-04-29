@@ -3,13 +3,13 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/view/controllers/onboarding_controller/OnboardingScreen/onboarding_screen_controller.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/pages/about_page.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/pages/basics_page.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/pages/final_page.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/pages/interests_page.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/pages/location_page.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/pages/onboarding_topbar.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/pages/photo_page.dart';
+import 'package:meetmern/view/screens/onboardingscreens/pages/about_page.dart';
+import 'package:meetmern/view/screens/onboardingscreens/pages/basics_page.dart';
+import 'package:meetmern/view/screens/onboardingscreens/pages/final_page.dart';
+import 'package:meetmern/view/screens/onboardingscreens/pages/interests_page.dart';
+import 'package:meetmern/view/screens/onboardingscreens/pages/location_page.dart';
+import 'package:meetmern/view/screens/onboardingscreens/pages/onboarding_topbar.dart';
+import 'package:meetmern/view/screens/onboardingscreens/pages/photo_page.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 
 class OnboardingScreen extends StatelessWidget {

@@ -9,7 +9,8 @@ import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/data/service/storage_service.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
+import 'package:meetmern/data/service/user_traits_service.dart';
+import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
 
 class ProfileDetailsController extends GetxController {
   final Strings _strings = const Strings();
@@ -38,6 +39,25 @@ class ProfileDetailsController extends GetxController {
   void onInit() {
     super.onInit();
     _loadFromProfile();
+    _loadTraitOptions();
+  }
+
+  Future<void> _loadTraitOptions() async {
+    final traits = await UserTraitsService.fetchTraitOptions();
+    if (traits.isEmpty) return;
+    OnboardingMockData.applyRuntimeTraitOptions(traits);
+    if (gender == null || !OnboardingMockData.genders.contains(gender)) {
+      gender = OnboardingMockData.genders.isNotEmpty
+          ? OnboardingMockData.genders.first
+          : null;
+    }
+    if (ethnicity == null ||
+        !OnboardingMockData.ethnicities.contains(ethnicity)) {
+      ethnicity = OnboardingMockData.ethnicities.isNotEmpty
+          ? OnboardingMockData.ethnicities.first
+          : null;
+    }
+    update();
   }
 
   void _loadFromProfile() {
@@ -68,10 +88,25 @@ class ProfileDetailsController extends GetxController {
     update();
   }
 
-  void setGender(String? value) { gender = value; update(); }
-  void setEthnicity(String? value) { ethnicity = value; update(); }
-  void setLanguages(List<String> values) { languages = values; update(); }
-  void setDobText(String value) { dobController.text = value; update(); }
+  void setGender(String? value) {
+    gender = value;
+    update();
+  }
+
+  void setEthnicity(String? value) {
+    ethnicity = value;
+    update();
+  }
+
+  void setLanguages(List<String> values) {
+    languages = values;
+    update();
+  }
+
+  void setDobText(String value) {
+    dobController.text = value;
+    update();
+  }
 
   bool validateForm() => formKey.currentState?.validate() ?? false;
 

@@ -12,7 +12,7 @@ import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
 import 'package:meetmern/view/screens/chatscreens/user_meetup_info_screen.dart';
 import 'package:meetmern/view/screens/homescreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
-import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
+import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
 import 'package:meetmern/core/constants/dimension_resource.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
