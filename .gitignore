@@ -50,3 +50,4 @@ supabase/migrations/20260505000000_chat_continue_status.sql
 devtools_options.yaml
 .gitignore
 supabase/migrations/20260506000000_explore_hide_completed.sql
+supabase/migrations/20260507000000_fix_meetup_requests_unique_constraint.sql

@@ -201,11 +201,6 @@ class _ReviewMeetupScreenState extends State<ReviewMeetupScreen> {
                   ? draft.address
                   : strings.notProvidedLabel),
               SizedBox(height: dimension.d8.h),
-              Text(strings.distanceLabelText,
-                  style: customButtonandTextStyles.dobLabelTextStyle),
-              SizedBox(height: dimension.d8.h),
-              Text('21 ${strings.kmAwayLabel}'),
-              SizedBox(height: dimension.d12.h),
               Text(strings.repetitionLabel,
                   style: customButtonandTextStyles.dobLabelTextStyle),
               SizedBox(height: dimension.d8.h),
@@ -217,17 +212,24 @@ class _ReviewMeetupScreenState extends State<ReviewMeetupScreen> {
               SizedBox(height: dimension.d8.h),
               Wrap(children: [
                 Container(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: dimension.d12.w, vertical: dimension.d10.h),
+                  width: dimension.d80,
+                  height: dimension.d80,
                   decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(dimension.d12),
-                      color: appTheme.infieldColor),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(_typeIcon(draft.type), color: appTheme.b_Primary),
-                    SizedBox(height: dimension.d8.h),
-                    Text(_typeLabel(draft.type),
-                        style: customButtonandTextStyles.userNameTextStyle),
-                  ]),
+                    border: Border.all(color: const Color(0xFFCFCFCF)),
+                    borderRadius: BorderRadius.circular(dimension.d8),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_typeIcon(draft.type),
+                          size: dimension.d28.sp,
+                          color: appTheme.b_Primary),
+                      SizedBox(height: dimension.d8.h),
+                      Text(_typeLabel(draft.type),
+                          style: TextStyle(fontSize: dimension.d14.sp)),
+                    ],
+                  ),
                 ),
               ]),
               SizedBox(height: dimension.d12.h),

@@ -89,8 +89,10 @@ class UserMeetupInfoScreen extends StatelessWidget {
                           Icon(Icons.calendar_today_outlined,
                               size: dimension.d16.sp),
                           SizedBox(width: dimension.d6.w),
-                          Text('${meetup.time.toLocal()}',
-                              style: styles.userNameTextStyle),
+                          Expanded(
+                            child: Text(c.formattedTime,
+                                style: styles.userNameTextStyle),
+                          ),
                         ]),
                         SizedBox(height: dimension.d8.h),
                         Text(strings.locationLabelText,
@@ -108,23 +110,61 @@ class UserMeetupInfoScreen extends StatelessWidget {
                         Text(strings.distanceLabelText,
                             style: styles.dobLabelTextStyle),
                         SizedBox(height: dimension.d12.h),
-                        Text('${meetup.distanceKm} km',
-                            style: styles.userNameTextStyle),
+                        c.distanceText.isEmpty
+                            ? Row(children: [
+                                SizedBox(width: dimension.d8.w),
+                                Text('Calculating ...',
+                                    style: styles.locationTextStyle),
+                              ])
+                            : Text(c.distanceText,
+                                style: styles.userNameTextStyle),
                         SizedBox(height: dimension.d12.h),
                         Text(strings.meetupTypeLabelText,
                             style: styles.dobLabelTextStyle),
                         SizedBox(height: dimension.d12.h),
-                        Icon(Icons.local_cafe,
-                            size: dimension.d20.sp, color: appTheme.b_Primary),
+                        Container(
+                          width: dimension.d80,
+                          height: dimension.d80,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: const Color(0xFFCFCFCF)),
+                            borderRadius: BorderRadius.circular(dimension.d8),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(_typeIcon(meetup.type),
+                                  size: dimension.d28.sp,
+                                  color: appTheme.b_Primary),
+                              SizedBox(height: dimension.d8.h),
+                              Text(_typeLabel(meetup.type, strings),
+                                  style: TextStyle(fontSize: dimension.d14.sp)),
+                            ],
+                          ),
+                        ),
                         SizedBox(height: dimension.d12.h),
                         Text(strings.meetupStatusLabelText,
                             style: styles.dobLabelTextStyle),
-                        Text(_formatStatus(c.meetupStatus),
-                            style: styles.userNameTextStyle.copyWith(
-                              color: c.isConfirmed
-                                  ? appTheme.accentsgreen
-                                  : appTheme.red,
-                            )),
+                        SizedBox(height: dimension.d4.h),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEDE9FE),
+                            borderRadius: BorderRadius.circular(dimension.d20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.date_range,
+                                  color: Color.fromARGB(255, 123, 93, 255)),
+                              SizedBox(width: dimension.d4.w),
+                              Text(
+                                _formatStatus(c.meetupStatus),
+                                style: styles.userNameTextStyle,
+                              ),
+                            ],
+                          ),
+                        ),
                         SizedBox(height: dimension.d20.h),
                         Center(
                           child: CustomOutlinedButton(
@@ -164,21 +204,49 @@ class UserMeetupInfoScreen extends StatelessWidget {
     );
   }
 
+  IconData _typeIcon(String type) {
+    switch (type.toLowerCase()) {
+      case 'coffee': return Icons.coffee;
+      case 'drink':  return Icons.local_bar;
+      default:       return Icons.restaurant;
+    }
+  }
+
+  String _typeLabel(String type, Strings strings) {
+    switch (type.toLowerCase()) {
+      case 'coffee': return strings.typeCoffee;
+      case 'drink':  return strings.typeDrink;
+      default:       return strings.typeMeal;
+    }
+  }
+
   String _formatStatus(String status) {
     switch (status.toLowerCase()) {
-      case 'accepted': return 'Accepted';
-      case 'requested': return 'Pending';
-      case 'cancelled': return 'Cancelled';
-      case 'rejected': return 'Rejected';
-      case 'completed': return 'Completed';
-      case 'active': case 'open': return 'Active';
-      default: return status.isEmpty ? 'Active' :
-          '${status[0].toUpperCase()}${status.substring(1)}';
+      case 'open':
+      case 'active':
+        return 'Ongoing';
+      case 'accepted':
+        return 'Accepted';
+      case 'requested':
+        return 'Pending';
+      case 'completed':
+        return 'Completed';
+      case 'cancelled':
+        return 'Cancelled';
+      case 'rejected':
+        return 'Rejected';
+      case 'closed':
+        return 'Closed';
+      default:
+        return status.isEmpty
+            ? 'Ongoing'
+            : '${status[0].toUpperCase()}${status.substring(1)}';
     }
   }
 
   void _showCancelDialog(BuildContext context, UserMeetupInfoController c,
-      CustomButtonStyles styles, Strings strings) {    showDialog(
+      CustomButtonStyles styles, Strings strings) {
+    showDialog(
       context: context,
       barrierDismissible: false,
       builder: (ctx) => CustomModalDialog(
@@ -216,4 +284,3 @@ class UserMeetupInfoScreen extends StatelessWidget {
     );
   }
 }
-

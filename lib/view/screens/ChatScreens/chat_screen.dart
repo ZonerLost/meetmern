@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
+import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/view/controllers/chat_controller/chat_screen_controller.dart';
 import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/view/screens/chatscreens/message_screen.dart';
@@ -130,7 +131,17 @@ class _ChatListItem extends StatelessWidget {
       padding: EdgeInsets.symmetric(
           vertical: dimension.d8.h, horizontal: dimension.d16.w),
       child: GestureDetector(
-        onTap: () => context.navigateToScreen(MessageScreen(chat: item)),
+        onTap: () {
+          final uid = AuthService.currentUser?.id;
+          final isReceiver = uid != null &&
+              item.userOne == uid &&
+              item.status == RequestStatus.requested;
+          if (isReceiver) {
+            _openAcceptDialog(context);
+          } else {
+            context.navigateToScreen(MessageScreen(chat: item));
+          }
+        },
         onLongPress: () {
           if (item.status == RequestStatus.requested) {
             _openAcceptDialog(context);
@@ -365,4 +376,69 @@ class _StatusPill extends StatelessWidget {
                 fontSize: dimension.d12.sp,
                 fontWeight: FontWeight.w600)),
       );
+}
+
+/// Shows the decline-request dialog from any screen.
+/// [onConfirm] is called when the user picks a reason and taps Decline.
+Future<void> showDeclineRequestDialog(
+  BuildContext context, {
+  required String name,
+  required VoidCallback onConfirm,
+}) async {
+  String? selectedReason;
+  const strings = Strings();
+  final customThemeData =
+      ThemeHelper(appThemeName: strings.lightCode).themeData;
+  final dialogStyles =
+      CustomButtonStyles(apppTheme: Theme.of(context), theme: customThemeData);
+
+  await showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (ctx) => StatefulBuilder(
+      builder: (_, setDialogState) => CustomModalDialog(
+        backgroundColor: appTheme.coreWhite,
+        topLeftIcon:
+            Icon(Icons.block, size: dimension.d20.r, color: appTheme.b_Primary),
+        topRightIcon: IconButton(
+          icon: Icon(Icons.close,
+              size: dimension.d20.r, color: appTheme.neutral_600),
+          onPressed: () => Navigator.of(ctx).pop(),
+        ),
+        title: strings.declineRequestTitlePattern.replaceFirst('{name}', name),
+        titleTextStyle: dialogStyles.emailLabelTextStyle,
+        subtitle: strings.declineRequestSubtitle,
+        subtitleTextStyle: dialogStyles.locationTextStyle,
+        text1: strings.reasonLabel,
+        text1Style: dialogStyles.dobLabelTextStyle,
+        primaryLabel: strings.declineRequestPrimaryLabel,
+        primaryButtonStyle: dialogStyles.loginButtonStyle,
+        primaryTextStyle: dialogStyles.acceptCahtButtonTextStyle,
+        primaryBold: true,
+        secondaryLabel: strings.cancelLabel,
+        secondaryButtonStyle: dialogStyles.googleButtonStyle,
+        secondaryTextStyle: dialogStyles.googleButtonTextStyle,
+        onPrimary: selectedReason == null
+            ? null
+            : () {
+                Navigator.of(ctx).pop();
+                onConfirm();
+              },
+        onSecondary: () => Navigator.of(ctx).pop(),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CustomDropdownButton(
+              decoration: dialogStyles.genderFInputDecoration,
+              hint: strings.selectReasonHint,
+              items: strings.declineReasons,
+              value: selectedReason,
+              onChanged: (val) => setDialogState(() => selectedReason = val),
+              width: double.infinity,
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }

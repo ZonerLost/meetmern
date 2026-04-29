@@ -304,6 +304,12 @@ class MessageController extends GetxController {
           if (dbStatus == 'continue_chat') {
             _chatStatus = 'completed';
             _continueChatMode = true;
+          } else {
+            // Reset continue-chat mode if the chat moved to a new state
+            // (e.g. a new request was sent after completion).
+            if (dbStatus == 'requested' || dbStatus == 'rejected' || dbStatus == 'cancelled') {
+              _continueChatMode = false;
+            }
           }
 
           // Build subtitle from the linked meetup row.
@@ -376,8 +382,7 @@ class MessageController extends GetxController {
         print('🔴 [MessageController] Error refreshing block state: $e');
       }
 
-      // 4. Latest request metadata — source of truth for request state.
-      // Also sync chat status with request status to fix mismatches.
+      // 4. Latest request metadata — needed for accept/reject button logic.
       try {
         final reqRow = await MeetupService.getLatestRequestForChat(_chatId!);
         _latestRequestId = reqRow?['id']?.toString();
@@ -387,13 +392,6 @@ class MessageController extends GetxController {
         if (_latestRequestId != null) {
           final reqMsg = await MeetupService.getRequestMessageForRequest(_latestRequestId!);
           _latestRequestMessageId = reqMsg?['id']?.toString();
-
-          // Sync: if the request row says 'requested' but chat says something
-          // else (e.g. 'completed' from a previous cycle), trust the request row.
-          final reqStatus = reqRow?['status']?.toString() ?? '';
-          if (reqStatus == 'requested' || reqStatus == 'pending') {
-            _chatStatus = 'requested';
-          }
         } else {
           _latestRequestMessageId = null;
           _latestRequestSenderId = null;
@@ -408,6 +406,7 @@ class MessageController extends GetxController {
         print('🔵 [MessageController] Fetching messages from Supabase');
         final rows = await MeetupService.fetchMessages(_chatId!);
         print('🔵 [MessageController] Fetched ${rows.length} messages');
+        print('🔵 [MessageController] Chat status: $_chatStatus, Latest request ID: $_latestRequestId');
         final uid = currentUserId ?? '';
         messages
           ..clear()
@@ -423,11 +422,15 @@ class MessageController extends GetxController {
 
             if (messageType == 'meetup_request') {
               if (requestStatus == 'pending') requestStatus = 'requested';
-              if (msgRequestId == _latestRequestId &&
-                  requestStatus == 'accepted' &&
-                  _chatStatus == 'completed') {
-                requestStatus = 'completed';
-              }
+              final isLatestReq = msgRequestId.isNotEmpty &&
+                  msgRequestId == _latestRequestId;
+              // Skip non-latest request messages entirely.
+              if (!isLatestReq) return null;
+              // Sync latest request badge with live chat status.
+              if (_chatStatus == 'accepted') requestStatus = 'accepted';
+              else if (_chatStatus == 'completed') requestStatus = 'completed';
+              else if (_chatStatus == 'rejected') requestStatus = 'rejected';
+              else if (_chatStatus == 'cancelled') requestStatus = 'cancelled';
               if (text.trim().toLowerCase() == 'sent you a meetup request') {
                 text = isMe
                     ? 'You sent a meetup request'
@@ -444,7 +447,7 @@ class MessageController extends GetxController {
               meetupRequestId: msgRequestId,
               meetupId: _readString(r, const ['meetup_id']),
             );
-          }));
+          }).whereType<ChatMessageItem>());
         print(
             '🔵 [MessageController] Messages list built with ${messages.length} items');
       } catch (e) {
@@ -578,13 +581,6 @@ class MessageController extends GetxController {
       return;
     }
 
-    _chatStatus = 'accepted';
-    print(
-        '🟡 [MessageController] Status changed to accepted, calling update()');
-    update();
-    print(
-        '🟡 [MessageController] update() called - UI should show accepted status now');
-
     try {
       print('🟡 [MessageController] Calling backend acceptRequest');
       await MeetupService.acceptRequest(
@@ -610,13 +606,6 @@ class MessageController extends GetxController {
           '🔴 [MessageController] Cannot reject - missing chat ID or request ID');
       return;
     }
-
-    _chatStatus = 'rejected';
-    print(
-        '🟠 [MessageController] Status changed to rejected, calling update()');
-    update();
-    print(
-        '🟠 [MessageController] update() called - UI should show rejected status now');
 
     try {
       print('🟠 [MessageController] Calling backend rejectRequest');

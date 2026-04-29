@@ -221,31 +221,33 @@ class ViewMeetupController extends GetxController {
     if (uid == null || m == null) return;
 
     try {
-      final existing = await MeetupService.getExistingRequest(
-        meetupId: m.id,
-        requesterId: uid,
+      // Check if there's an ACTIVE request between these users (not just for this meetup)
+      final hasActive = await MeetupService.hasActiveMeetupRequestBetween(
+        userA: uid,
+        userB: m.userId ?? '',
       );
 
       if (meetup?.id != m.id) return; // meetup changed while loading
 
+      // If there's an active request between these users, disable the button
+      isRequested = hasActive;
+      
+      // Check the specific request for this meetup to determine location visibility
+      final existing = await MeetupService.getExistingRequest(
+        meetupId: m.id,
+        requesterId: uid,
+      );
+      
       if (existing != null) {
         final status =
             existing['status']?.toString().trim().toLowerCase() ?? '';
-        // Terminal statuses: request is over, button should be available again.
-        final isTerminal = status == 'rejected' ||
-            status == 'cancelled' ||
-            status == 'completed';
         final isConfirmed = status == 'accepted';
-
-        isRequested = !isTerminal;
         isLocationExactVisible = isOwnMeetup || isConfirmed;
-        m.joinRequested = isRequested;
       } else {
-        // No request exists — button is available.
-        isRequested = false;
         isLocationExactVisible = isOwnMeetup;
-        m.joinRequested = false;
       }
+      
+      m.joinRequested = isRequested;
       update();
     } catch (e, st) {
       debugPrint('[ViewMeetup] _checkExistingRequest — ERROR: $e\n$st');

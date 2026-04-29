@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
@@ -14,21 +15,73 @@ class UserMeetupInfoController extends GetxController {
   bool isConfirmed = true;
   bool isCancelling = false;
   String meetupStatus = '';
+  String distanceText = '';
   String? errorMessage;
 
   String? chatId;
   String? requestId;
+
+  // ── Formatted time (matches ViewMeetupController) ─────────────────────────
+  String get formattedTime {
+    final dt = meetup?.time;
+    if (dt == null) return '';
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(dt.year, dt.month, dt.day);
+    final dayDiff = target.difference(today).inDays;
+    final dayLabel = dayDiff == 0
+        ? 'Today'
+        : dayDiff == 1
+            ? 'Tomorrow'
+            : '${dt.day}/${dt.month}/${dt.year}';
+    return '$dayLabel · ${_formatHour(dt)} – ${_formatHour(dt.add(const Duration(hours: 1)))}';
+  }
+
+  String _formatHour(DateTime dt) {
+    final hour = dt.hour == 0 ? 12 : (dt.hour > 12 ? dt.hour - 12 : dt.hour);
+    final minute = dt.minute.toString().padLeft(2, '0');
+    final period = dt.hour >= 12 ? 'PM' : 'AM';
+    return '$hour:$minute $period';
+  }
 
   void init(Meetup initialMeetup, {String? chatId, String? requestId}) {
     meetup = initialMeetup;
     this.chatId = chatId;
     this.requestId = requestId;
     errorMessage = null;
-    // Optimistic state from the passed meetup — will be overridden by DB fetch.
+    distanceText = '';
     meetupStatus = initialMeetup.status;
     isConfirmed = true;
     update();
     _loadLatestStatus();
+    _computeDistance();
+  }
+
+  Future<void> _computeDistance() async {
+    try {
+      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) { _setFallbackDistance(); update(); return; }
+      LocationPermission perm = await Geolocator.checkPermission();
+      if (perm == LocationPermission.denied) {
+        perm = await Geolocator.requestPermission();
+      }
+      if (perm == LocationPermission.denied ||
+          perm == LocationPermission.deniedForever) {
+        _setFallbackDistance(); update(); return;
+      }
+      await Geolocator.getCurrentPosition(
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.low),
+      ).timeout(const Duration(seconds: 10),
+          onTimeout: () => throw Exception('timeout'));
+    } catch (_) {}
+    _setFallbackDistance();
+    update();
+  }
+
+  void _setFallbackDistance() {
+    final km = meetup?.distanceKm ?? 0.0;
+    distanceText = km > 0 ? '${km.toStringAsFixed(1)} km away' : 'Nearby';
   }
 
   Future<void> _loadLatestStatus() async {

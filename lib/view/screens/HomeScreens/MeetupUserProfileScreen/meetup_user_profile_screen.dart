@@ -5,9 +5,15 @@ import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/routes/route_names.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/extensions/snackbar_extensions.dart';
+import 'package:meetmern/core/theme/theme.dart';
+import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
+import 'package:meetmern/core/widgets/custom_dialog_widget.dart';
+import 'package:meetmern/core/widgets/custom_drop_down_button.dart';
+import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/MeetupUserProfileScreen/meetup_user_profile_screen_controller.dart';
 import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_screen.dart';
+import 'package:meetmern/view/screens/OnboardingScreens/dummy_data/onboarding_mock_data.dart';
 
 class MeetupUserProfileScreen extends StatefulWidget {
   final Meetup meetup;
@@ -103,14 +109,7 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
                                         color: Colors.white,
                                         onSelected: (value) async {
                                           if (value == 'report') {
-                                            final msg = await c.reportOwner(
-                                              reason:
-                                                  _strings.reportReasonOtherValue,
-                                              description:
-                                                  'Reported from meetup profile screen.',
-                                            );
-                                            if (!context.mounted) return;
-                                            context.showCustomSnackBar(msg);
+                                            _showReportDialog(context, c);
                                           } else if (value == 'block') {
                                             final wasBlocked =
                                                 c.isOwnerBlockedByMe;
@@ -396,6 +395,26 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
     );
   }
 
+  void _showReportDialog(BuildContext context, MeetupUserProfileController c) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => _ReportDialog(
+        ownerName: c.ownerName.isNotEmpty ? c.ownerName : 'User',
+        strings: _strings,
+        accent: _accent,
+        onSubmit: (reason, description) async {
+          final msg = await c.reportOwner(
+            reason: reason,
+            description: description,
+          );
+          if (!context.mounted) return;
+          context.showCustomSnackBar(msg);
+        },
+      ),
+    );
+  }
+
   Widget _buildHeaderImage(MeetupUserProfileController c, Meetup meetup) {
     final url =
         c.ownerPhotoUrl.isNotEmpty ? c.ownerPhotoUrl.trim() : meetup.image.trim();
@@ -609,5 +628,110 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
     if (!birthdayPassed) age--;
     if (age <= 0 || age > 120) return null;
     return age;
+  }
+}
+
+class _ReportDialog extends StatefulWidget {
+  final String ownerName;
+  final Strings strings;
+  final Color accent;
+  final Future<void> Function(String reason, String description) onSubmit;
+
+  const _ReportDialog({
+    required this.ownerName,
+    required this.strings,
+    required this.accent,
+    required this.onSubmit,
+  });
+
+  @override
+  State<_ReportDialog> createState() => _ReportDialogState();
+}
+
+class _ReportDialogState extends State<_ReportDialog> {
+  String? _selectedReason;
+  final _descCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _descCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final customThemeData =
+        ThemeHelper(appThemeName: widget.strings.lightCode).themeData;
+    final styles = CustomButtonStyles(
+        apppTheme: Theme.of(context), theme: customThemeData);
+
+    return CustomModalDialog(
+      showLeftIconBackground: false,
+      topRightIcon: IconButton(
+        icon: Icon(Icons.close, size: 20.sp),
+        onPressed: () => Navigator.of(context).pop(),
+      ),
+      topLeftIcon:
+          Icon(Icons.flag_outlined, color: widget.accent, size: 20.sp),
+      title: widget.strings.reportUserDialogTitle,
+      titleTextStyle: styles.emailLabelTextStyle,
+      subtitle: widget.strings.reportUserDialogSubtitle
+          .replaceAll('{name}', widget.ownerName),
+      subtitleHighlightedText: widget.ownerName,
+      subtitleHighlightedTextStyle:
+          styles.locationTextStyle.copyWith(fontWeight: FontWeight.bold),
+      content: StatefulBuilder(
+        builder: (_, setState) => Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.strings.reasonLabel, style: styles.dobLabelTextStyle),
+            SizedBox(height: 8.h),
+            CustomDropdownButton(
+              hint: widget.strings.reasonLabel,
+              items: OnboardingMockData.reportReason,
+              value: _selectedReason,
+              onChanged: (v) => setState(() => _selectedReason = v),
+              decoration: styles.genderFInputDecoration,
+              menuColor: Colors.white,
+              itemTextStyle: const TextStyle(fontSize: 14),
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
+            ),
+            SizedBox(height: 12.h),
+            Text(widget.strings.discriptionLabel,
+                style: styles.dobLabelTextStyle),
+            SizedBox(height: 8.h),
+            CustomTextFormField(
+              hintText: widget.strings.reportDescriptionHint,
+              controller: _descCtrl,
+              maxLines: 10,
+              contentPadding:
+                  EdgeInsets.symmetric(horizontal: 14.w, vertical: 14.h),
+              inputDecoration: styles.messagefInputDecoration.copyWith(
+                hintStyle: styles.dateFieldTextStyle
+                    .copyWith(color: const Color(0xFFAAAAAA), fontSize: 14.sp),
+              ),
+            ),
+          ],
+        ),
+      ),
+      primaryLabel: widget.strings.reportPrimaryLabel,
+      primaryButtonStyle: styles.loginButtonStyle,
+      primaryTextStyle: styles.loginButtonTextStyle,
+      onPrimary: () async {
+        final reason = (_selectedReason ?? '').trim().isNotEmpty
+            ? _selectedReason!
+            : widget.strings.reportReasonOtherValue;
+        final description = _descCtrl.text.trim().isNotEmpty
+            ? _descCtrl.text.trim()
+            : 'Reported from profile screen.';
+        Navigator.of(context).pop();
+        await widget.onSubmit(reason, description);
+      },
+      secondaryLabel: widget.strings.cancelLabel,
+      secondaryButtonStyle: styles.googleButtonStyle,
+      secondaryTextStyle: styles.cancelButtonTextStyle,
+      onSecondary: () => Navigator.of(context).pop(),
+    );
   }
 }

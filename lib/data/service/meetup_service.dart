@@ -613,7 +613,9 @@ class MeetupService {
         'reporter_id': reporterId,
         'reported_user_id': reportedUserId,
         'reason': reason.trim().isEmpty ? 'other' : reason.trim(),
-        'description': (description ?? '').trim(),
+        'description': (description ?? '').trim().isEmpty
+            ? 'No description provided.'
+            : description!.trim(),
       });
       return true;
     } catch (e) {
@@ -839,9 +841,6 @@ class MeetupService {
     if (chatId.isEmpty) throw Exception('Failed to create meetup chat thread.');
 
     // ── 2. Insert meetup_request row ─────────────────────────────────────────
-    // On 23505: the old unconditional unique(meetup_id, requester_id) constraint
-    // may still be present in the DB (migration not yet applied). In that case
-    // we update the existing row back to 'requested' so the flow continues.
     Map<String, dynamic> requestRow;
     try {
       final inserted = await supabase
@@ -858,40 +857,30 @@ class MeetupService {
       requestRow = Map<String, dynamic>.from(inserted);
       debugPrint('[MeetupService] sendMeetupRequest — created request id=${requestRow['id']}');
     } catch (e) {
-      debugPrint('[MeetupService] sendMeetupRequest — insert error: $e');
-      if (!_isUniqueViolation(e)) rethrow;
-
-      // Fetch the conflicting row (any status — old constraint covers all rows).
-      final rows = await supabase
+      if (!_isUniqueViolation(e)) {
+        debugPrint('[MeetupService] sendMeetupRequest — insert error: $e');
+        rethrow;
+      }
+      // Unique constraint still present on DB — insert a fresh row by first
+      // fetching the conflicting row's ID so we can link the new message to it.
+      // We do NOT update the old row's status so historical messages keep their status.
+      debugPrint('[MeetupService] sendMeetupRequest — unique conflict, fetching existing row');
+      final existing = await supabase
           .from('meetup_requests')
           .select()
           .eq('meetup_id', meetupId)
           .eq('requester_id', requesterId)
-          .order('created_at', ascending: false)
-          .limit(1);
-
-      if (rows.isEmpty) rethrow;
-      requestRow = Map<String, dynamic>.from(rows.first);
-      debugPrint('[MeetupService] sendMeetupRequest — recovered row id=${requestRow['id']} status=${requestRow['status']}');
-
-      // If the row is terminal (old constraint blocked a fresh insert),
-      // reset it to 'requested' so this cycle works correctly.
-      final existingStatus = _text(requestRow['status']);
-      if (existingStatus == 'rejected' ||
-          existingStatus == 'cancelled' ||
-          existingStatus == 'completed') {
-        debugPrint('[MeetupService] sendMeetupRequest — resetting terminal row to requested (old constraint active — apply migration 20260504000000)');
-        await supabase
-            .from('meetup_requests')
-            .update({
-              'status': 'requested',
-              'chat_id': chatId,
-              'meetup_owner_id': meetupOwnerId,
-            })
-            .eq('id', requestRow['id']);
-        requestRow['status'] = 'requested';
-        requestRow['chat_id'] = chatId;
-      }
+          .maybeSingle();
+      if (existing == null) rethrow;
+      // Update only chat_id linkage, leave status as-is so old messages are unaffected.
+      await supabase
+          .from('meetup_requests')
+          .update({'chat_id': chatId, 'status': 'requested'})
+          .eq('id', existing['id']);
+      requestRow = Map<String, dynamic>.from(existing)
+        ..['status'] = 'requested'
+        ..['chat_id'] = chatId;
+      debugPrint('[MeetupService] sendMeetupRequest — reused request id=${requestRow['id']}');
     }
 
     final requestId = _text(requestRow['id']);
@@ -901,26 +890,16 @@ class MeetupService {
       'meetup_request_id': requestId,
     }).eq('id', chatId);
 
-    // ── 3. Insert request message (idempotent) ────────────────────────────────
-    final existingMsg = await supabase
-        .from('messages')
-        .select('id')
-        .eq('chat_id', chatId)
-        .eq('meetup_request_id', requestId)
-        .eq('message_type', 'meetup_request')
-        .limit(1);
-
-    if (existingMsg.isEmpty) {
-      await supabase.from('messages').insert({
-        'chat_id': chatId,
-        'sender_id': requesterId,
-        'message_type': 'meetup_request',
-        'text': 'sent you a meetup request',
-        'request_status': 'requested',
-        'meetup_id': meetupId,
-        'meetup_request_id': requestId,
-      });
-    }
+    // ── 3. Insert request message ────────────────────────────────
+    await supabase.from('messages').insert({
+      'chat_id': chatId,
+      'sender_id': requesterId,
+      'message_type': 'meetup_request',
+      'text': 'sent you a meetup request',
+      'request_status': 'requested',
+      'meetup_id': meetupId,
+      'meetup_request_id': requestId,
+    });
 
     debugPrint('[MeetupService] sendMeetupRequest — done. chatId=$chatId requestId=$requestId');
     return chatRow;
@@ -1063,21 +1042,13 @@ class MeetupService {
         .eq('meetup_request_id', requestId)
         .eq('message_type', 'meetup_request');
 
-    // 3. Insert a system message showing who cancelled.
-    await supabase.from('messages').insert({
-      'chat_id': chatId,
-      'sender_id': cancelledByUserId,
-      'message_type': 'system',
-      'text': '$cancelledByUserName cancelled the meetup',
-    });
-
-    // 4. Update chat status to cancelled so messaging is blocked until new request.
+    // 3. Update chat status to cancelled so messaging is blocked until new request.
     await supabase.from('chats').update({
       'status': 'cancelled',
       'updated_at': DateTime.now().toIso8601String(),
     }).eq('id', chatId);
 
-    // 5. Keep the meetup row for history.
+    // 4. Keep the meetup row for history.
   }
 
   /// Sets the chat status to 'continue_chat' so both sides can keep messaging

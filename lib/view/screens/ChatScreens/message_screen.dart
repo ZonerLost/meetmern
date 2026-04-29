@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:meetmern/view/controllers/chat_controller/message_screen_controller.dart';
 import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/view/screens/chatscreens/chat_detail_screen.dart';
+import 'package:meetmern/view/screens/chatscreens/chat_screen.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/theme/theme.dart';
@@ -77,12 +78,12 @@ class _MessageScreenState extends State<MessageScreen> {
                                 return _buildStatusHeader(c, strings);
                               }
                               final msg = c.messages[index - 1];
+                              if (msg.messageType == 'system') {
+                                return _buildSystemMessage(msg, strings);
+                              }
                               if (msg.messageType == 'meetup_request') {
                                 return _buildRequestCard(
                                     context, c, msg, styles, strings);
-                              }
-                              if (msg.messageType == 'system') {
-                                return _buildSystemMessage(msg);
                               }
                               return _buildMessageBubble(context, msg);
                             },
@@ -237,27 +238,12 @@ class _MessageScreenState extends State<MessageScreen> {
     CustomButtonStyles styles,
     Strings strings,
   ) {
-    // Determine display status for the badge.
     String reqStatus = msg.requestStatus ?? 'requested';
     if (reqStatus == 'pending') reqStatus = 'requested';
 
-    // For the LATEST request card, sync badge with live chat status.
     final isLatest =
         msg.meetupRequestId != null && msg.meetupRequestId == c.latestRequestId;
-    if (isLatest) {
-      final chatStatus = c.effectiveChatStatus;
-      if (chatStatus == 'accepted' ||
-          chatStatus == 'rejected' ||
-          chatStatus == 'completed' ||
-          chatStatus == 'cancelled') {
-        reqStatus = chatStatus;
-      }
-    }
 
-    // Show Accept/Decline buttons when:
-    // - this is the latest request card
-    // - current user is the receiver (meetup owner)
-    // - the request is still pending (chat status is requested/pending)
     final showActions = isLatest &&
         c.canRespondToLatestRequest &&
         (c.effectiveChatStatus == 'requested' ||
@@ -340,7 +326,11 @@ class _MessageScreenState extends State<MessageScreen> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () async => c.rejectRequest(),
+                      onPressed: () => showDeclineRequestDialog(
+                        context,
+                        name: c.chat?.name ?? '',
+                        onConfirm: c.rejectRequest,
+                      ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: appTheme.red),
                         shape: RoundedRectangleBorder(
@@ -372,10 +362,10 @@ class _MessageScreenState extends State<MessageScreen> {
     );
   }
 
-  Widget _buildSystemMessage(ChatMessageItem message) {
+  Widget _buildSystemMessage(ChatMessageItem message, Strings strings) {
     return Padding(
       padding: EdgeInsets.symmetric(
-          horizontal: dimension.d16, vertical: dimension.d8),
+          horizontal: dimension.d16, vertical: dimension.d10),
       child: Row(
         children: [
           Expanded(
@@ -383,13 +373,15 @@ class _MessageScreenState extends State<MessageScreen> {
                   height: dimension.d1,
                   color: appTheme.neutral_400.withValues(alpha: 0.25))),
           Padding(
-            padding: EdgeInsets.symmetric(horizontal: dimension.d10),
+            padding: EdgeInsets.symmetric(horizontal: dimension.d12),
             child: Text(
               message.text,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                  color: appTheme.neutral_400,
+                  fontFamily: strings.fontFamily,
+                  color: appTheme.neutral_500,
                   fontSize: dimension.d12,
-                  fontWeight: FontWeight.w500),
+                  fontWeight: FontWeight.w600),
             ),
           ),
           Expanded(
