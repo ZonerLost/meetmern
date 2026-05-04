@@ -83,26 +83,86 @@ class _RepeatMeetupDialogContentState
   }
 
   Future<void> pickDate() async {
+    final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+      initialDate: now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365 * 2)),
     );
-    if (picked != null) dateController.text = formatDate(picked);
+    if (picked != null) {
+      dateController.text = formatDate(picked);
+      // If the previously picked time is now in the past, clear it.
+      if (timeController.text.isNotEmpty) {
+        final t = _parsedTime(timeController.text);
+        if (t != null) {
+          final combined = DateTime(
+              picked.year, picked.month, picked.day, t.hour, t.minute);
+          if (combined.isBefore(DateTime.now())) timeController.clear();
+        }
+      }
+    }
   }
 
   Future<void> pickTime() async {
+    final now = DateTime.now();
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.now(),
     );
-    if (picked != null) {
-      final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
-      final minute = picked.minute.toString().padLeft(2, '0');
-      final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
-      timeController.text = '$hour:$minute $period';
+    if (picked == null) return;
+
+    // If date is today, reject times in the past.
+    if (dateController.text.isNotEmpty) {
+      final selectedDate = _parseFormattedDate(dateController.text);
+      if (selectedDate != null) {
+        final combined = DateTime(selectedDate.year, selectedDate.month,
+            selectedDate.day, picked.hour, picked.minute);
+        if (combined.isBefore(now)) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please select a future time.')),
+            );
+          }
+          return;
+        }
+      }
     }
+
+    final hour = picked.hourOfPeriod == 0 ? 12 : picked.hourOfPeriod;
+    final minute = picked.minute.toString().padLeft(2, '0');
+    final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+    timeController.text = '$hour:$minute $period';
+  }
+
+  /// Parses a time string like "6:30 PM" into a TimeOfDay-equivalent DateTime.
+  DateTime? _parsedTime(String text) {
+    final parts = text.trim().split(' ');
+    if (parts.length != 2) return null;
+    final hm = parts[0].split(':');
+    if (hm.length != 2) return null;
+    int hour = int.tryParse(hm[0]) ?? 0;
+    final minute = int.tryParse(hm[1]) ?? 0;
+    final isPm = parts[1].toUpperCase() == 'PM';
+    if (isPm && hour != 12) hour += 12;
+    if (!isPm && hour == 12) hour = 0;
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, hour, minute);
+  }
+
+  /// Parses a formatted date string like "17 Jan 2025".
+  DateTime? _parseFormattedDate(String text) {
+    const monthNames = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final parts = text.trim().split(' ');
+    if (parts.length != 3) return null;
+    final day = int.tryParse(parts[0]);
+    final month = monthNames.indexOf(parts[1]) + 1;
+    final year = int.tryParse(parts[2]);
+    if (day == null || month == 0 || year == null) return null;
+    return DateTime(year, month, day);
   }
 
   void _toggleType(int i) {

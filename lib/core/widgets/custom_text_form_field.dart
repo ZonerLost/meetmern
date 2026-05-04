@@ -26,6 +26,7 @@ class CustomTextFormField extends StatefulWidget {
   final TextInputAction textInputAction;
   final TextInputType textInputType;
   final int? maxLines;
+  final int? minLines;
   final String? hintText;
   final String? labelText;
   final String? errorMessage;
@@ -65,6 +66,7 @@ class CustomTextFormField extends StatefulWidget {
     this.textInputAction = TextInputAction.next,
     this.textInputType = TextInputType.text,
     this.maxLines = 1,
+    this.minLines,
     this.hintText,
     this.labelText,
     this.errorMessage,
@@ -236,7 +238,7 @@ class _CustomTextFormFieldState extends State<CustomTextFormField> {
 
       // Fixed-height multiline support
       maxLines: widget.expands ? null : widget.maxLines,
-      minLines: widget.expands ? null : 1,
+      minLines: widget.expands ? null : (widget.minLines ?? 1),
       expands: widget.expands,
 
       maxLength: widget.maxLength,

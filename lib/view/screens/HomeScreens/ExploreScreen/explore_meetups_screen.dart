@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
 import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
@@ -14,7 +15,7 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/meetup_card.dart';
-import 'package:meetmern/view/screens/onboardingscreens/pages/onboarding_topbar.dart';
+import 'package:meetmern/view/screens/homescreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
 
 class ExploreMeetupsScreen extends StatefulWidget {
   const ExploreMeetupsScreen({super.key});
@@ -257,6 +258,12 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
               ),
               margin: EdgeInsets.only(bottom: dimension.d10.h),
               child: ListTile(
+                onTap: () => context.navigateToScreen(
+                  MeetupUserProfileScreen(
+                    meetup: user,
+                    showRequestButton: true,
+                  ),
+                ),
                 leading: CircleAvatar(
                   backgroundImage: user.image.startsWith('http')
                       ? NetworkImage(user.image)

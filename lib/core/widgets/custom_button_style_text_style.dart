@@ -285,15 +285,17 @@ class CustomButtonStyles {
         filled: true,
         fillColor: appTheme.infieldColor,
         hintText: strings.shortBioHintText,
-        hintStyle: userNameTextStyle,
+        hintStyle: dateFieldTextStyle,
         suffixIcon: suffix,
         contentPadding: EdgeInsets.symmetric(
             vertical: dimension.d14, horizontal: dimension.d16),
         enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d20),
           borderSide:
               BorderSide(color: appTheme.borderColor, width: dimension.d1),
         ),
         focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(dimension.d20),
           borderSide:
               BorderSide(color: appTheme.borderColor, width: dimension.d1),
         ),

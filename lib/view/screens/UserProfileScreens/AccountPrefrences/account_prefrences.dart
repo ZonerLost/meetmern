@@ -178,18 +178,15 @@ class AccountPreferencesScreen extends StatelessWidget {
                   CustomTextFormField(
                     controller: c.shortBioController,
                     maxLines: 5,
+                    minLines: 5,
                     textInputType: TextInputType.multiline,
                     textInputAction: TextInputAction.newline,
                     hintText: strings.shortBioHintText,
-                    height: dimension.d120.h,
                     contentPadding: EdgeInsets.symmetric(
-                      horizontal: dimension.d12.w,
-                      vertical: dimension.d12.h,
+                      horizontal: dimension.d16.w,
+                      vertical: dimension.d14.h,
                     ),
-                    inputDecoration: styles.messagefInputDecoration.copyWith(
-                      labelStyle: TextStyle(color: appTheme.neutral_400),
-                      floatingLabelStyle: TextStyle(color: appTheme.black90001),
-                    ),
+                    inputDecoration: styles.bioFieldInputDecoration(),
                     onChanged: c.onBioChanged,
                   ),
                   SizedBox(height: dimension.d20.h),
