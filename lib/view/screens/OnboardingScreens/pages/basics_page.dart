@@ -84,11 +84,16 @@ class BasicsPage extends StatelessWidget {
                   color: Theme.of(context).colorScheme.onSurface,
                 ),
                 onPressed: () async {
+                  final maxDob = DateTime(
+                    DateTime.now().year - 13,
+                    DateTime.now().month,
+                    DateTime.now().day,
+                  );
                   final DateTime? picked = await showDatePicker(
                     context: context,
                     initialDate: DateTime(1995),
                     firstDate: DateTime(1900),
-                    lastDate: DateTime.now(),
+                    lastDate: maxDob,
                   );
                   if (picked != null) {
                     dobController.text =
@@ -100,6 +105,14 @@ class BasicsPage extends StatelessWidget {
             validator: (v) {
               if (!showErrors) return null;
               if (v == null || v.isEmpty) return strings.selectDateOfBirth;
+              final dt = DateTime.tryParse(v);
+              if (dt == null) return strings.selectDateOfBirth;
+              final minAge = DateTime(
+                DateTime.now().year - 13,
+                DateTime.now().month,
+                DateTime.now().day,
+              );
+              if (dt.isAfter(minAge)) return 'You must be at least 13 years old';
               return null;
             },
           ),

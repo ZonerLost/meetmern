@@ -54,6 +54,7 @@ class Strings {
   final String enterEmailToResetPasswordText;
   final String sendResetLinkButtonText;
   final String rememberYourAccountText;
+  final String selectdietaryPreferencesText;
   final String loginLinkText;
   final String setNewKeyTitle;
   final String setNewKeySubtitle;
@@ -313,10 +314,12 @@ class Strings {
   final String descriptionLabel;
   final String descriptionHintText;
   final String attachmentsLabel;
+  final String submitLabel;
   final String dropImagesText;
   final String chooseFromGalleryText;
   final String takeAPhotoText;
   final String submitSnackText;
+  final String feedbacksubmitSnackText;
   final String fillRequiredFieldsSnackText;
   final String errorSelectingImagesText;
   final String errorTakingPhotoText;
@@ -517,6 +520,7 @@ class Strings {
         selectDateOfBirth = 'Select date of birth',
         genderKey = 'gender',
         orientationKey = 'orientation',
+        submitLabel = 'Submit',
         ethnicityKey = 'ethnicity',
         languagesKey = 'languages',
         nextButtonText = 'Next',
@@ -703,11 +707,17 @@ class Strings {
             'Shared interests help us show you better meetup suggestions.',
         dietaryPreferencesText = 'Dietary Preferences',
         selectLanguagesYouSpeakText = 'Select languages you speak',
+        selectdietaryPreferencesText = 'Select dietary preference',
         shortBioHintText = 'Love good coffee and spontaneous conversations',
         saveDetailsText = 'Save details',
-        deleteAccountTitleText = 'Delete your account?',
+        deleteAccountTitleText = 'Delete Your Account?',
         deleteAccountSubtitleText =
-            'This will permanently delete your account and remove your personal data from our system. You will lose your profile and meetup history, messages and matches, saved preferences and settings. This action cannot be undone.',
+            '''This will permanently delete your account and remove your personal data from our system.
+You will lose:
+ • Your profile and meetup history
+ • Messages and matches
+ • Saved preferences and settings
+This action cannot be undone.''',
         yesDeleteText = 'Yes, Delete',
         preferencesUpdatedSnackText = 'Preferences updated',
         allSelectionsClearedSnackText = 'All selections cleared',
@@ -745,6 +755,7 @@ class Strings {
         chooseFromGalleryText = 'Choose from gallery',
         takeAPhotoText = 'Take a photo',
         submitSnackText = 'Submitted',
+        feedbacksubmitSnackText = 'Feedback submitted successfully',
         fillRequiredFieldsSnackText = 'Please fill required fields',
         errorSelectingImagesText = 'Error selecting images',
         errorTakingPhotoText = 'Error taking photo',

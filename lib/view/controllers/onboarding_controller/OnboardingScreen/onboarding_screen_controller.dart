@@ -112,8 +112,17 @@ class OnboardingController extends GetxController {
 
   bool isValidForPage(int page) {
     if (page == 0) {
-      return dobController.text.trim().isNotEmpty &&
-          selectedGender != null &&
+      final dob = dobController.text.trim();
+      if (dob.isEmpty) return false;
+      final dt = DateTime.tryParse(dob);
+      if (dt == null) return false;
+      final minAge = DateTime(
+        DateTime.now().year - 13,
+        DateTime.now().month,
+        DateTime.now().day,
+      );
+      if (dt.isAfter(minAge)) return false;
+      return selectedGender != null &&
           selectedEthnicity != null &&
           selectedOrientation != null;
     }

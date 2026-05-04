@@ -18,6 +18,7 @@ class AccountPreferencesController extends GetxController {
 
   final RxBool isLoading = true.obs;
   final RxBool isSaving = false.obs;
+  final RxBool isDeleting = false.obs;
 
   /// Maps backend bool? → display string
   static String childrenBoolToString(bool? value) {
@@ -67,13 +68,10 @@ class AccountPreferencesController extends GetxController {
   }
 
   bool get canSave =>
-      interests.isNotEmpty ||
-      passions.isNotEmpty ||
-      dietary.isNotEmpty ||
-      relationship != null ||
-      children != null ||
-      religion != null ||
-      shortBioController.text.trim().isNotEmpty;
+      interests.isNotEmpty &&
+      passions.isNotEmpty &&
+      relationship != null &&
+      children != null;
 
   void toggleInterest(String value) {
     if (interests.contains(value)) {
@@ -142,6 +140,15 @@ class AccountPreferencesController extends GetxController {
       return false;
     } finally {
       isSaving.value = false;
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    isDeleting.value = true;
+    try {
+      await AuthService.deleteAccount();
+    } finally {
+      isDeleting.value = false;
     }
   }
 

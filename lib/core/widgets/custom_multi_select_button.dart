@@ -36,8 +36,7 @@ class CustomMultiSelectButton extends StatelessWidget {
           ),
         );
 
-    final InputDecoration effectiveDecoration =
-        baseDecoration.copyWith(hintText: selectedValues.isEmpty ? hint : null);
+    final InputDecoration effectiveDecoration = baseDecoration;
     Widget field = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () async {

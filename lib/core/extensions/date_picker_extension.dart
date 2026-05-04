@@ -61,11 +61,14 @@ extension PickerExtensions on TextEditingController {
     void Function(DateTime)? onPicked,
   }) async {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     final picked = await showDatePicker(
       context: context,
-      initialDate: initialDate ?? now,
-      firstDate: firstDate ?? now.subtract(const Duration(days: 365)),
-      lastDate: lastDate ?? now.add(const Duration(days: 365 * 2)),
+      initialDate: initialDate != null && !initialDate.isBefore(today)
+          ? initialDate
+          : today,
+      firstDate: firstDate ?? today,
+      lastDate: lastDate ?? today.add(const Duration(days: 365 * 2)),
     );
 
     if (picked != null) {

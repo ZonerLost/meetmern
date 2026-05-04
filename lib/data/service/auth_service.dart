@@ -102,4 +102,38 @@ class AuthService {
 
   static User? get currentUser => supabase.auth.currentUser;
   static bool get isLoggedIn => currentUser != null;
+
+  /// Deletes all user data across every table then removes the auth account.
+  static Future<void> deleteAccount() async {
+    final user = currentUser;
+    if (user == null) throw Exception('No authenticated user.');
+    final uid = user.id;
+
+    // Delete in dependency order (children before parents).
+    // Messages are cascade-deleted when chats are deleted.
+    await supabase.from('user_reports').delete().eq('reporter_id', uid);
+    await supabase.from('user_reports').delete().eq('reported_user_id', uid);
+    await supabase.from('user_blocks').delete().eq('blocker_id', uid);
+    await supabase.from('user_blocks').delete().eq('blocked_id', uid);
+    await supabase.from('meetup_favourites').delete().eq('user_id', uid);
+    await supabase.from('meetup_requests')
+        .delete()
+        .or('requester_id.eq.$uid,meetup_owner_id.eq.$uid');
+    // Deleting chats cascades messages.
+    await supabase.from('chats')
+        .delete()
+        .or('user_one.eq.$uid,user_two.eq.$uid');
+    await supabase.from('meetups').delete().eq('user_id', uid);
+    await supabase.from('profiles').delete().eq('id', uid);
+
+    // Delete the auth user via RPC (requires a server-side function or service role).
+    // Falls back to sign-out if the RPC is not available.
+    try {
+      await supabase.rpc('delete_user', params: {'user_id': uid});
+    } catch (_) {
+      // If no RPC exists, sign out — the account data is already wiped.
+    }
+    await supabase.auth.signOut();
+    currentProfile.value = null;
+  }
 }

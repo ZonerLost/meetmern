@@ -216,8 +216,25 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                             context: context,
                             initialDate: _selectedDate,
                             format: (d) => formatDate(d),
-                            onPicked: (picked) =>
-                                setState(() => _selectedDate = picked),
+                            onPicked: (picked) => setState(() {
+                              _selectedDate = picked;
+                              // Clear time if it's now in the past for today.
+                              if (_selectedTime != null) {
+                                final now = DateTime.now();
+                                final isToday = picked.year == now.year &&
+                                    picked.month == now.month &&
+                                    picked.day == now.day;
+                                if (isToday) {
+                                  final pickedDt = DateTime(picked.year,
+                                      picked.month, picked.day,
+                                      _selectedTime!.hour, _selectedTime!.minute);
+                                  if (!pickedDt.isAfter(now)) {
+                                    _selectedTime = null;
+                                    timeController.clear();
+                                  }
+                                }
+                              }
+                            }),
                           );
                         },
                         child: AbsorbPointer(
@@ -232,10 +249,42 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                     Expanded(
                       child: GestureDetector(
                         onTap: () {
+                          final now = DateTime.now();
+                          final isToday = _selectedDate != null &&
+                              _selectedDate!.year == now.year &&
+                              _selectedDate!.month == now.month &&
+                              _selectedDate!.day == now.day;
+                          // For today, start the clock at the next minute.
+                          final minTime = isToday
+                              ? TimeOfDay(
+                                  hour: now.minute < 59 ? now.hour : (now.hour + 1) % 24,
+                                  minute: now.minute < 59 ? now.minute + 1 : 0,
+                                )
+                              : const TimeOfDay(hour: 0, minute: 0);
                           timeController.pickTime(
                             context: context,
-                            initialTime: _selectedTime,
-                            onPicked: (t) => setState(() => _selectedTime = t),
+                            initialTime: (_selectedTime != null &&
+                                    (!isToday ||
+                                        _selectedTime!.hour > minTime.hour ||
+                                        (_selectedTime!.hour == minTime.hour &&
+                                            _selectedTime!.minute >= minTime.minute)))
+                                ? _selectedTime
+                                : minTime,
+                            onPicked: (t) {
+                              if (isToday) {
+                                final picked = DateTime(now.year, now.month,
+                                    now.day, t.hour, t.minute);
+                                if (!picked.isAfter(now)) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text(
+                                            'Please select a future time.')),
+                                  );
+                                  return;
+                                }
+                              }
+                              setState(() => _selectedTime = t);
+                            },
                           );
                         },
                         child: AbsorbPointer(

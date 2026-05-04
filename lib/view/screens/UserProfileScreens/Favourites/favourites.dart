@@ -202,7 +202,7 @@ class _FavouritesScreenState extends State<FavouritesScreen> {
                           title: meetup.title,
                           subtitle: '${meetup.hostName} - ${meetup.location}',
                           leadingImage: meetup.image,
-                          trailingIcon: Icons.favorite_rounded,
+                          trailingIcon: Icons.star,
                           onTap: () => _showRemoveDialog(meetup),
                           backgroundColor: appTheme.infieldColor,
                           borderColor: appTheme.borderColor,

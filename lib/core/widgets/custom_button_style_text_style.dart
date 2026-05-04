@@ -284,7 +284,7 @@ class CustomButtonStyles {
   InputDecoration bioFieldInputDecoration({Widget? suffix}) => InputDecoration(
         filled: true,
         fillColor: appTheme.infieldColor,
-        hintText: strings.dateFormatHint,
+        hintText: strings.shortBioHintText,
         hintStyle: userNameTextStyle,
         suffixIcon: suffix,
         contentPadding: EdgeInsets.symmetric(
@@ -355,7 +355,7 @@ class CustomButtonStyles {
         filled: true,
         fillColor: appTheme.infieldColor,
         suffixIcon: const Icon(Icons.map),
-        prefixIcon: const Icon(Icons.maps_home_work_rounded),
+        prefixIcon: const Icon(Icons.location_on_sharp),
         hintText: strings.nearSohoHint,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(dimension.d12),

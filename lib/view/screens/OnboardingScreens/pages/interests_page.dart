@@ -48,21 +48,28 @@ class InterestsPage extends StatelessWidget {
     ) {
       return ChoiceChip(
         showCheckmark: false,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         labelPadding: EdgeInsets.symmetric(
-            horizontal: dimension.d12.w, vertical: dimension.d6.h),
-        label: Text(
-          text,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: dimension.d14.sp,
-            color: selected ? appTheme.b_600 : appTheme.black900,
-            fontWeight: FontWeight.w600,
-          ),
+            horizontal: dimension.d4.w, vertical: dimension.d6.h),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected) ...[
+              Icon(Icons.close, size: dimension.d14.r, color: appTheme.b_600),
+              SizedBox(width: dimension.d4.w),
+            ],
+            Text(
+              text,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: dimension.d14.sp,
+                color: selected ? appTheme.b_600 : appTheme.black900,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
         ),
         selected: selected,
-        avatar: selected
-            ? Icon(Icons.close, size: dimension.d16.r, color: appTheme.b_600)
-            : null,
         onSelected: onSelected,
         selectedColor: appTheme.b_100,
         backgroundColor: appTheme.infieldColor,

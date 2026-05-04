@@ -344,15 +344,15 @@ class FeedbackSupportScreen extends StatelessWidget {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(
                                               SnackBar(
-                                                  content: Text(
-                                                      strings.submitSnackText)),
+                                                  content: Text(strings
+                                                      .feedbacksubmitSnackText)),
                                             );
                                           }
                                         }
                                       : null,
                                   buttonStyle: customButtonandTextStyles
                                       .loginButtonStyle,
-                                  text: strings.saveDetailsText,
+                                  text: strings.submitLabel,
                                   buttonTextStyle: customButtonandTextStyles
                                       .loginButtonTextStyle,
                                 ),

@@ -150,7 +150,7 @@ class PhotoPage extends StatelessWidget {
               ),
             ]),
           ],
-          SizedBox(height: dimension.d40.h),
+          SizedBox(height: dimension.d100.h),
           CustomElevatedButton(
             onPressed: stepValid ? onNext : null,
             buttonStyle: customButtonandTextStyles.loginButtonStyle,

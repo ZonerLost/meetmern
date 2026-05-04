@@ -11,6 +11,17 @@ import 'package:meetmern/core/widgets/custom_multi_select_button.dart';
 import 'package:meetmern/core/widgets/custom_required_label.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/view/controllers/userprofile_controller/AccountPrefrences/account_prefrences_controller.dart';
+import 'package:meetmern/core/routes/route_names.dart';
+import 'package:meetmern/view/controllers/chat_controller/chat_screen_controller.dart';
+import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/BlockedUser/block_user_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/Favourites/favourites_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/ManageAds/ads_screen_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/ManageAds/delete_meetup_screen_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/NotificationScreens/notification_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/ProfileMenuItemsScreens/personal_profile_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/ProfileMenuItemsScreens/personal_profile_setting_controller.dart';
+import 'package:meetmern/view/controllers/onboarding_controller/OnboardingScreen/onboarding_screen_controller.dart';
 
 class AccountPreferencesScreen extends StatelessWidget {
   const AccountPreferencesScreen({super.key});
@@ -97,7 +108,7 @@ class AccountPreferencesScreen extends StatelessWidget {
                   ),
                   SizedBox(height: dimension.d10.h),
                   CustomMultiSelectButton(
-                    hint: strings.selectLanguagesYouSpeakText,
+                    hint: strings.selectdietaryPreferencesText,
                     items: OnboardingMockData.dietaryPreferences,
                     selectedValues: c.dietary,
                     decoration: styles.genderFInputDecoration,
@@ -212,23 +223,30 @@ class AccountPreferencesScreen extends StatelessWidget {
   Widget _buildChip(String label, bool selected) {
     return ChoiceChip(
       showCheckmark: false,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       labelPadding: EdgeInsets.symmetric(
-        horizontal: dimension.d12.w,
+        horizontal: dimension.d4.w,
         vertical: dimension.d6.h,
       ),
-      label: Text(
-        label,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: dimension.d14.sp,
-          color: selected ? appTheme.b_600 : appTheme.neutral_700,
-          fontWeight: FontWeight.w600,
-        ),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (selected) ...[
+            Icon(Icons.close, size: dimension.d14.sp, color: appTheme.b_600),
+            SizedBox(width: dimension.d4.w),
+          ],
+          Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: dimension.d14.sp,
+              color: selected ? appTheme.b_600 : appTheme.neutral_700,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
       selected: selected,
-      avatar: selected
-          ? Icon(Icons.close, size: dimension.d16.sp, color: appTheme.b_600)
-          : null,
       selectedColor: appTheme.b_100,
       backgroundColor: appTheme.infieldColor,
       shape: StadiumBorder(
@@ -303,7 +321,7 @@ class AccountPreferencesScreen extends StatelessWidget {
       builder: (ctx) => CustomModalDialog(
         showLeftIconBackground: true,
         leftIconBackgroundColor: appTheme.redshade,
-        topLeftIcon: Icon(Icons.delete, color: appTheme.red),
+        topLeftIcon: Icon(Icons.delete_forever, color: appTheme.red),
         showCloseButton: true,
         title: strings.deleteAccountTitleText,
         subtitle: strings.deleteAccountSubtitleText,
@@ -312,15 +330,40 @@ class AccountPreferencesScreen extends StatelessWidget {
         primaryTextStyle: styles.loginButtonTextStyle,
         secondaryLabel: strings.closeLabel,
         secondaryTextStyle: styles.cancelButtonTextStyle,
-        onPrimary: () {
+        onPrimary: () async {
           Navigator.of(ctx).pop();
-          c.resetAllFields();
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(strings.allSelectionsClearedSnackText)),
-          );
+          await _executeDelete(context, c);
         },
         onSecondary: () => Navigator.of(ctx).pop(),
       ),
     );
+  }
+
+  Future<void> _executeDelete(
+      BuildContext context, AccountPreferencesController c) async {
+    try {
+      await c.deleteAccount();
+      _clearUserControllers();
+      Get.offAllNamed(Routes.login);
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete account: $e')),
+      );
+    }
+  }
+
+  void _clearUserControllers() {
+    Get.delete<ChatListController>(force: true);
+    Get.delete<ExploreController>(force: true);
+    Get.delete<PersonalProfileController>(force: true);
+    Get.delete<PersonalProfileSettingController>(force: true);
+    Get.delete<AccountPreferencesController>(force: true);
+    Get.delete<FavouritesController>(force: true);
+    Get.delete<AdsScreenController>(force: true);
+    Get.delete<DeleteMeetupController>(force: true);
+    Get.delete<BlockedUserController>(force: true);
+    Get.delete<NotificationController>(force: true);
+    Get.delete<OnboardingController>(force: true);
   }
 }
