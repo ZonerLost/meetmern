@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/core/services/notification_service.dart';
 import 'package:meetmern/view/controllers/chat_controller/message_screen_controller.dart';
 import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/view/screens/chatscreens/chat_detail_screen.dart';
@@ -26,6 +27,7 @@ class _MessageScreenState extends State<MessageScreen> {
   void initState() {
     super.initState();
     _controllerTag = widget.chat.id ?? 'local_${widget.hashCode}';
+    ActiveChatTracker.activeChatId = widget.chat.id;
     if (Get.isRegistered<MessageController>(tag: _controllerTag)) {
       _c = Get.find<MessageController>(tag: _controllerTag);
     } else {
@@ -36,6 +38,9 @@ class _MessageScreenState extends State<MessageScreen> {
 
   @override
   void dispose() {
+    if (ActiveChatTracker.activeChatId == widget.chat.id) {
+      ActiveChatTracker.activeChatId = null;
+    }
     if (Get.isRegistered<MessageController>(tag: _controllerTag)) {
       Get.delete<MessageController>(tag: _controllerTag);
     }

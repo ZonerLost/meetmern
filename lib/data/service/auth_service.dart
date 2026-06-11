@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:meetmern/core/services/notification_service.dart';
 import 'package:meetmern/data/models/profile_model.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/main.dart';
@@ -61,6 +62,7 @@ class AuthService {
   }
 
   static Future<void> signOut() async {
+    await NotificationService.instance.deactivateCurrentToken();
     await supabase.auth.signOut();
     currentProfile.value = null;
   }
@@ -131,9 +133,11 @@ class AuthService {
     try {
       await supabase.rpc('delete_user', params: {'user_id': uid});
     } catch (_) {
-      // If no RPC exists, sign out — the account data is already wiped.
+      // If no RPC exists, sign out - the account data is already wiped.
     }
+    await NotificationService.instance.deactivateCurrentToken();
     await supabase.auth.signOut();
     currentProfile.value = null;
   }
 }
+

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/validation_extention.dart';
+import 'package:meetmern/core/services/notification_service.dart';
 import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/core/routes/route_names.dart';
@@ -43,6 +44,7 @@ class LoginController extends GetxController {
         email: emailController.text.trim(),
         password: passwordController.text.trim(),
       );
+      await NotificationService.instance.syncTokenWithSupabase();
 
       final profile = await AuthService.loadProfile();
 

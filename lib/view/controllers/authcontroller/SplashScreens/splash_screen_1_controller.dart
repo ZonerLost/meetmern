@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui';
 
 import 'package:get/get.dart';
+import 'package:meetmern/core/services/notification_service.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/core/routes/route_names.dart';
 
@@ -19,6 +20,7 @@ class SplashController extends GetxController {
       return;
     }
 
+    await NotificationService.instance.syncTokenWithSupabase();
     final profile = await AuthService.loadProfile();
 
     if (profile != null && profile.isDisabled) {
