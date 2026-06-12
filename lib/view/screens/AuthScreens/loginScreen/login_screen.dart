@@ -130,17 +130,31 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         SizedBox(height: dimension.d16.h),
                         CustomOutlinedButton(
-                          onPressed: () {},
+                          onPressed: (c.isGoogleLoading || c.isLoading)
+                              ? null
+                              : () => c.signInWithGoogle(),
                           buttonStyle: styles.googleButtonStyle,
-                          leftIcon: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Image.asset(strings.googleIconPath,
-                                    width: dimension.d20.w,
-                                    height: dimension.d20.h),
-                                SizedBox(width: dimension.d10.w),
-                              ]),
-                          text: strings.googleText,
+                          leftIcon: c.isGoogleLoading
+                              ? Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    SizedBox(
+                                      height: dimension.d20.h,
+                                      width: dimension.d20.h,
+                                      child: const CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    ),
+                                    SizedBox(width: dimension.d10.w),
+                                  ])
+                              : Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Image.asset(strings.googleIconPath,
+                                        width: dimension.d20.w,
+                                        height: dimension.d20.h),
+                                    SizedBox(width: dimension.d10.w),
+                                  ]),
+                          text: c.isGoogleLoading ? '' : strings.googleText,
                           buttonTextStyle: styles.googleButtonTextStyle,
                         ),
                         SizedBox(height: dimension.d10.h),

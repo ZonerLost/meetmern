@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/core/services/notification_service.dart';
@@ -15,6 +16,7 @@ class LoginController extends GetxController {
 
   bool isObscure = true;
   bool isLoading = false;
+  bool isGoogleLoading = false;
 
   void togglePasswordVisibility() {
     isObscure = !isObscure;
@@ -66,6 +68,46 @@ class LoginController extends GetxController {
       AppSnackbar.error(_parseError(e));
     } finally {
       isLoading = false;
+      update();
+    }
+  }
+
+  Future<void> signInWithGoogle() async {
+    isGoogleLoading = true;
+    update();
+    try {
+      await AuthService.signInWithGoogle();
+      await NotificationService.instance.syncTokenWithSupabase();
+
+      final profile = await AuthService.loadProfile();
+
+      if (profile != null && profile.isDisabled) {
+        await AuthService.signOut();
+        AppSnackbar.error(
+          'Your account has been disabled due to repeated reports.',
+        );
+        Get.offAllNamed(Routes.login);
+        return;
+      }
+
+      // New Google user (no profile yet) → onboarding; returning → explore.
+      if (profile == null || profile.showOnboarding) {
+        Get.offAllNamed(Routes.onboarding);
+      } else {
+        Get.offAllNamed(Routes.explore);
+      }
+    } on GoogleSignInException catch (e) {
+      // User dismissed the account picker — not an error, stay on login.
+      debugPrint('GoogleSignInException: code=${e.code} details=${e.description}');
+      if (e.code != GoogleSignInExceptionCode.canceled) {
+        AppSnackbar.error('Google sign-in failed: ${e.code.name}');
+      }
+    } catch (e) {
+      // TEMP: surface the real error to diagnose the silent failure.
+      debugPrint('Google sign-in error: $e');
+      AppSnackbar.error('Google sign-in error: $e');
+    } finally {
+      isGoogleLoading = false;
       update();
     }
   }

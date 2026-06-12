@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:meetmern/core/services/notification_service.dart';
 import 'package:meetmern/data/models/profile_model.dart';
 import 'package:meetmern/data/service/profile_service.dart';
@@ -13,6 +14,106 @@ class AuthService {
   // Held temporarily between signup and first login
   static String? pendingName;
   static String? pendingPhone;
+
+  // ---- Google Sign-In (google_sign_in v7 API) ----
+  // serverClientId MUST be the Web client ID so Google returns an idToken
+  // whose audience Supabase can verify.
+  static const String _googleWebClientId =
+      '925940972492-ra5qffje9c2g6ihblcol44addv1bqmfc.apps.googleusercontent.com';
+  static bool _googleInitialized = false;
+
+  /// Signs in with Google natively and exchanges the Google idToken for a
+  /// Supabase session. Mirrors the email/password path so the rest of the
+  /// app (profile load, onboarding check, routing) is unchanged.
+  static Future<AuthResponse> signInWithGoogle() async {
+    final googleSignIn = GoogleSignIn.instance;
+    if (!_googleInitialized) {
+      await googleSignIn.initialize(serverClientId: _googleWebClientId);
+      _googleInitialized = true;
+    }
+
+    // v7: authenticate() throws GoogleSignInException(canceled) if the user
+    // dismisses the picker — handled by the caller.
+    final googleUser = await googleSignIn.authenticate();
+    print('Google: authenticated as ${googleUser.email}');
+
+    final idToken = googleUser.authentication.idToken;
+    print('Google: idToken is ${idToken == null ? "NULL" : "present (len ${idToken.length})"}');
+    if (idToken == null) {
+      throw Exception('No ID token received from Google');
+    }
+
+    final response = await supabase.auth.signInWithIdToken(
+      provider: OAuthProvider.google,
+      idToken: idToken,
+    );
+    print('Google: Supabase session user = ${response.user?.id}');
+
+    // Seed the profiles table with the Google name/email/avatar.
+    await _syncGoogleProfile(response.user, googleUser);
+
+    return response;
+  }
+
+  /// Persists Google's display name, email and avatar into the profiles table.
+  /// New users get a fresh row (showOnboarding: true → onboarding flow).
+  /// Returning users only have *missing* fields backfilled — never overwriting
+  /// anything they already set during onboarding.
+  static Future<void> _syncGoogleProfile(
+    User? user,
+    GoogleSignInAccount googleUser,
+  ) async {
+    if (user == null) return;
+    final googleName = googleUser.displayName;
+    final googlePhoto = googleUser.photoUrl;
+    try {
+      final existing = await ProfileService.getProfile(user.id);
+
+      if (existing == null) {
+        // Brand-new Google user — create the profile row with Google details.
+        await ProfileService.upsertProfile(ProfileModel(
+          id: user.id,
+          name: googleName,
+          email: user.email ?? googleUser.email,
+          photoUrl: googlePhoto,
+          showOnboarding: true,
+        ));
+        print('Google: seeded new profile for ${user.id}');
+        return;
+      }
+
+      // Returning user — only backfill fields that are still empty.
+      final updates = <String, dynamic>{};
+      if ((existing.name == null || existing.name!.isEmpty) &&
+          googleName != null) {
+        updates['name'] = googleName;
+      }
+      if ((existing.photoUrl == null || existing.photoUrl!.isEmpty) &&
+          googlePhoto != null) {
+        updates['photo_url'] = googlePhoto;
+      }
+      if ((existing.email == null || existing.email!.isEmpty) &&
+          user.email != null) {
+        updates['email'] = user.email;
+      }
+      if (updates.isNotEmpty) {
+        await ProfileService.updateProfile(user.id, updates);
+        print('Google: backfilled profile fields $updates');
+      }
+    } catch (e) {
+      // Non-fatal: sign-in already succeeded. Onboarding can still collect data.
+      print('Google: profile sync failed: $e');
+    }
+  }
+
+  /// Clears the cached Google account so the picker reappears next time.
+  static Future<void> signOutGoogle() async {
+    try {
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {
+      // Ignore — Google SDK may not be initialized if user never used it.
+    }
+  }
 
   static Future<AuthResponse> signIn({
     required String email,
@@ -63,6 +164,7 @@ class AuthService {
 
   static Future<void> signOut() async {
     await NotificationService.instance.deactivateCurrentToken();
+    await signOutGoogle();
     await supabase.auth.signOut();
     currentProfile.value = null;
   }
@@ -136,6 +238,7 @@ class AuthService {
       // If no RPC exists, sign out - the account data is already wiped.
     }
     await NotificationService.instance.deactivateCurrentToken();
+    await signOutGoogle();
     await supabase.auth.signOut();
     currentProfile.value = null;
   }

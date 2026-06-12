@@ -20,7 +20,7 @@ class SplashScreen2 extends StatelessWidget {
         apppTheme: Theme.of(context), theme: customThemeData);
 
     return GetBuilder<Splash2Controller>(
-      builder: (_) => Scaffold(
+      builder: (controller) => Scaffold(
         backgroundColor: appTheme.b_Primary,
         body: Stack(
           children: [
@@ -99,7 +99,9 @@ class SplashScreen2 extends StatelessWidget {
                       ),
                       SizedBox(height: dimension.d16.h),
                       CustomOutlinedButton(
-                        onPressed: () {},
+                        onPressed: controller.isGoogleLoading
+                            ? () {}
+                            : () => controller.signInWithGoogle(),
                         buttonStyle: styles.googleButtonStyle,
                         leftIcon: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -109,7 +111,9 @@ class SplashScreen2 extends StatelessWidget {
                                   height: dimension.d20.h),
                               SizedBox(width: dimension.d10.w),
                             ]),
-                        text: strings.googleText,
+                        text: controller.isGoogleLoading
+                            ? 'Signing in...'
+                            : strings.googleText,
                         buttonTextStyle: styles.googleButtonTextStyle,
                       ),
                       SizedBox(height: dimension.d10.h),
