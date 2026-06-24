@@ -56,7 +56,9 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _controller.init(widget.meetup);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.init(widget.meetup);
+    });
   }
 
   @override
@@ -66,6 +68,11 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
     return GetBuilder<MeetupUserProfileController>(
       builder: (c) {
         final currentMeetup = c.currentMeetup;
+        if (currentMeetup == null) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
         final heroImage = _buildHeaderImage(c, currentMeetup);
         final displayName = _displayNameWithAge(c);
         final distance = currentMeetup.distanceKm > 0

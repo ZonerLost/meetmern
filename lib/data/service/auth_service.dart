@@ -207,40 +207,123 @@ class AuthService {
   static User? get currentUser => supabase.auth.currentUser;
   static bool get isLoggedIn => currentUser != null;
 
-  /// Deletes all user data across every table then removes the auth account.
+  /// Deletes all user data across every table and storage bucket, then removes
+  /// the auth account. Deletion order respects FK dependencies so no constraint
+  /// violation can leave the operation in a partial state.
+  ///
+  /// Tables covered (in deletion order):
+  ///   messages → chats → meetup_requests → meetup_favourites (own + on own meetups)
+  ///   → user_reports → user_blocks → user_fcm_tokens → feedbacks
+  ///   → meetups → profiles
+  ///
+  /// Storage buckets covered:
+  ///   profile-images  (profiles/profile_<uid>.jpg, profiles/photo_<uid>_*.jpg)
+  ///   feedback-attachments  (<uid>/*)
   static Future<void> deleteAccount() async {
     final user = currentUser;
     if (user == null) throw Exception('No authenticated user.');
     final uid = user.id;
 
-    // Delete in dependency order (children before parents).
-    // Messages are cascade-deleted when chats are deleted.
+    // ── 1. Storage ────────────────────────────────────────────────────────────
+    // Errors here are non-fatal; orphaned files cause no FK violations.
+    await _deleteProfileStorageFiles(uid);
+    await _deleteFeedbackStorageFiles(uid);
+
+    // ── 2. Leaf records with no dependents ───────────────────────────────────
+    await supabase.from('user_fcm_tokens').delete().eq('user_id', uid);
+    await supabase.from('feedbacks').delete().eq('user_id', uid);
     await supabase.from('user_reports').delete().eq('reporter_id', uid);
     await supabase.from('user_reports').delete().eq('reported_user_id', uid);
     await supabase.from('user_blocks').delete().eq('blocker_id', uid);
     await supabase.from('user_blocks').delete().eq('blocked_id', uid);
-    await supabase.from('meetup_favourites').delete().eq('user_id', uid);
-    await supabase.from('meetup_requests')
-        .delete()
-        .or('requester_id.eq.$uid,meetup_owner_id.eq.$uid');
-    // Deleting chats cascades messages.
-    await supabase.from('chats')
+
+    // ── 3. Messages (before chats) ────────────────────────────────────────────
+    // Delete by sender first, then sweep any remaining messages in user's chats.
+    await supabase.from('messages').delete().eq('sender_id', uid);
+    final chatRows = await supabase
+        .from('chats')
+        .select('id')
+        .or('user_one.eq.$uid,user_two.eq.$uid');
+    final chatIds = List<Map<String, dynamic>>.from(chatRows as List)
+        .map((r) => r['id'].toString())
+        .toList();
+    if (chatIds.isNotEmpty) {
+      await supabase.from('messages').delete().inFilter('chat_id', chatIds);
+    }
+
+    // ── 4. Chats ──────────────────────────────────────────────────────────────
+    await supabase
+        .from('chats')
         .delete()
         .or('user_one.eq.$uid,user_two.eq.$uid');
+
+    // ── 5. Meetup requests ────────────────────────────────────────────────────
+    await supabase
+        .from('meetup_requests')
+        .delete()
+        .or('requester_id.eq.$uid,meetup_owner_id.eq.$uid');
+
+    // ── 6. Meetup favourites ──────────────────────────────────────────────────
+    // Remove favourites added by this user.
+    await supabase.from('meetup_favourites').delete().eq('user_id', uid);
+    // Remove favourites other users added to this user's meetups.
+    final meetupRows = await supabase
+        .from('meetups')
+        .select('id')
+        .eq('user_id', uid);
+    final meetupIds = List<Map<String, dynamic>>.from(meetupRows as List)
+        .map((r) => r['id'].toString())
+        .toList();
+    if (meetupIds.isNotEmpty) {
+      await supabase
+          .from('meetup_favourites')
+          .delete()
+          .inFilter('meetup_id', meetupIds);
+    }
+
+    // ── 7. Meetups ────────────────────────────────────────────────────────────
     await supabase.from('meetups').delete().eq('user_id', uid);
+
+    // ── 8. Profile ────────────────────────────────────────────────────────────
     await supabase.from('profiles').delete().eq('id', uid);
 
-    // Delete the auth user via RPC (requires a server-side function or service role).
-    // Falls back to sign-out if the RPC is not available.
+    // ── 9. Auth account ───────────────────────────────────────────────────────
+    // Requires a Supabase Edge Function or DB function with service-role rights.
     try {
       await supabase.rpc('delete_user', params: {'user_id': uid});
     } catch (_) {
-      // If no RPC exists, sign out - the account data is already wiped.
+      // No RPC available — data is already wiped; sign-out invalidates the session.
     }
+
+    // ── 10. Local cleanup ─────────────────────────────────────────────────────
     await NotificationService.instance.deactivateCurrentToken();
     await signOutGoogle();
     await supabase.auth.signOut();
     currentProfile.value = null;
+  }
+
+  /// Lists every file in the `profile-images` bucket that belongs to [uid]
+  /// and removes them all. Silently ignores errors (storage is non-critical).
+  static Future<void> _deleteProfileStorageFiles(String uid) async {
+    try {
+      final bucket = supabase.storage.from('profile-images');
+      final files = await bucket.list(path: 'profiles');
+      final toDelete = files
+          .where((f) => f.name.contains(uid))
+          .map((f) => 'profiles/${f.name}')
+          .toList();
+      if (toDelete.isNotEmpty) await bucket.remove(toDelete);
+    } catch (_) {}
+  }
+
+  /// Deletes the entire `<uid>/` folder inside the `feedback-attachments` bucket.
+  static Future<void> _deleteFeedbackStorageFiles(String uid) async {
+    try {
+      final bucket = supabase.storage.from('feedback-attachments');
+      final files = await bucket.list(path: uid);
+      final toDelete = files.map((f) => '$uid/${f.name}').toList();
+      if (toDelete.isNotEmpty) await bucket.remove(toDelete);
+    } catch (_) {}
   }
 }
 

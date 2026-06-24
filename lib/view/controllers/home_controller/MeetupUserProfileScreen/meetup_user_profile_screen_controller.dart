@@ -157,9 +157,9 @@ class MeetupUserProfileController extends GetxController {
     update();
   }
 
-  Meetup get currentMeetup {
+  Meetup? get currentMeetup {
     final m = meetup;
-    if (m == null) throw StateError('Meetup controller is not initialized');
+    if (m == null) return null;
     return _store.byId(m.id) ?? m;
   }
 

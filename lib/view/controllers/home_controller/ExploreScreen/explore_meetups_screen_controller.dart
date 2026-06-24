@@ -79,7 +79,7 @@ class ExploreController extends GetxController {
       );
 
     final activeUsers = await DiscoveryService.fetchActiveUsers(
-      limit: 8,
+      limit: 20,
       excludeUserId: currentUserId,
     );
     _activeUsers
