@@ -347,10 +347,35 @@ class MessageController extends GetxController {
           }
           if (builtSubtitle.isNotEmpty) _meetupSubtitle = builtSubtitle;
 
+          // Re-fetch the other user's profile so name/avatar stay current.
+          final uid = currentUserId ?? '';
+          final uOne = chatRow['user_one']?.toString() ?? '';
+          final uTwo = chatRow['user_two']?.toString() ?? '';
+          final otherId = uOne == uid ? uTwo : uOne;
+
+          String otherName = chat?.name ?? '';
+          String otherAvatar = chat?.avatarUrl ?? '';
+
+          if (otherId.isNotEmpty) {
+            try {
+              final profileRow = await supabase
+                  .from('profiles')
+                  .select('name, photo_url')
+                  .eq('id', otherId)
+                  .maybeSingle();
+              if (profileRow != null) {
+                final fetchedName = profileRow['name']?.toString().trim() ?? '';
+                final fetchedAvatar = profileRow['photo_url']?.toString() ?? '';
+                if (fetchedName.isNotEmpty) otherName = fetchedName;
+                if (fetchedAvatar.isNotEmpty) otherAvatar = fetchedAvatar;
+              }
+            } catch (_) {}
+          }
+
           chat = Chat.fromSupabase(
             chatRow,
-            otherUserName: chat?.name ?? '',
-            otherUserAvatar: chat?.avatarUrl ?? '',
+            otherUserName: otherName,
+            otherUserAvatar: otherAvatar,
             lastMessage: chat?.message ?? '',
             subtitle: builtSubtitle,
           );

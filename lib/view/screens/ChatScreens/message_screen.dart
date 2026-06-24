@@ -555,7 +555,7 @@ class _MessageScreenState extends State<MessageScreen> {
                 border: Border.all(color: appTheme.borderColor),
               ),
               child: Text(
-                'Meetup completed — continue the conversation or send a new request.',
+                'Meetup completed — continue the conversation or send a new request by exploring new opportunities.',
                 style: TextStyle(
                     color: appTheme.neutral_400, fontSize: dimension.d13),
                 textAlign: TextAlign.center,
