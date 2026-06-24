@@ -255,6 +255,7 @@ class DiscoveryService {
         items.add(
           Nearby(
             id: meetup['id']?.toString() ?? userId,
+            userId: userId,
             title: 'Active user',
             hostName: name,
             time: createdAt,
@@ -262,7 +263,7 @@ class DiscoveryService {
             distanceKm: 0,
             type: type,
             status: meetup['status']?.toString() ?? 'open',
-            image: photoUrl.isNotEmpty ? photoUrl : 'assets/images/img9.jpg',
+            image: photoUrl,
             description: '',
             icon: _iconForType(type),
             languages: _asStringList(profile['languages']),

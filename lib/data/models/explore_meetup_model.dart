@@ -193,6 +193,7 @@ class Nearby extends Meetup {
 
   Nearby({
     required super.id,
+    super.userId,
     required super.title,
     required super.hostName,
     required super.time,

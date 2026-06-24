@@ -54,8 +54,10 @@ class ViewProfileController extends GetxController {
           profile.children == null ? '' : (profile.children! ? 'Yes' : 'No');
       religion = profile.religion ?? '';
       photoUrl = profile.photoUrl ?? '';
-      photos = profile.photos?.where((e) => e.isNotEmpty).toList() ??
-          (photoUrl.isNotEmpty ? [photoUrl] : []);
+      final filtered = profile.photos?.where((e) => e.isNotEmpty).toList();
+      photos = (filtered != null && filtered.isNotEmpty)
+          ? filtered
+          : (photoUrl.isNotEmpty ? [photoUrl] : []);
       languages = profile.languages ?? [];
       passionTopics = profile.passionTopics ?? [];
       interests = profile.interests ?? [];

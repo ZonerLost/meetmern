@@ -272,11 +272,11 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
                   backgroundColor: appTheme.neutral_200,
                   backgroundImage: user.image.startsWith('http')
                       ? NetworkImage(user.image) as ImageProvider
-                      : (user.image.isNotEmpty
-                          ? AssetImage(user.image) as ImageProvider
-                          : null),
-                  onBackgroundImageError: (_, __) {},
-                  child: !user.image.startsWith('http') && user.image.isEmpty
+                      : null,
+                  onBackgroundImageError: user.image.startsWith('http')
+                      ? (_, __) {}
+                      : null,
+                  child: !user.image.startsWith('http')
                       ? Icon(Icons.person,
                           size: dimension.d22.sp, color: appTheme.neutral_600)
                       : null,

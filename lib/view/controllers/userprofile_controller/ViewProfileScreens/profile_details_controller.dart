@@ -10,6 +10,8 @@ import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/data/service/storage_service.dart';
 import 'package:meetmern/data/service/user_traits_service.dart';
+import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
+import 'package:meetmern/view/controllers/userprofile_controller/ViewProfileScreens/view_profil_controller.dart';
 import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -197,6 +199,19 @@ class ProfileDetailsController extends GetxController {
   Future<bool> saveProfile() async {
     if (!validateForm()) return false;
 
+    if (gender == null || gender!.trim().isEmpty) {
+      AppSnackbar.error('Please select a gender.');
+      return false;
+    }
+    if (dobController.text.trim().isEmpty) {
+      AppSnackbar.error('Please enter your date of birth.');
+      return false;
+    }
+    if (ethnicity == null || ethnicity!.trim().isEmpty) {
+      AppSnackbar.error('Please select an ethnicity.');
+      return false;
+    }
+
     final user = AuthService.currentUser;
     if (user == null) {
       AppSnackbar.error('Not authenticated');
@@ -210,18 +225,11 @@ class ProfileDetailsController extends GetxController {
       final updates = <String, dynamic>{
         'name': nameController.text.trim(),
         'email': emailController.text.trim(),
-        'short_bio': bioController.text.trim(),
         'dob': dobController.text.trim(),
         'gender': gender,
         'ethnicity': ethnicity,
         'orientation': orientation,
-        if (children != null) 'children': children == 'Yes',
-        'relationship_status': relationshipStatus,
-        'dietary_preferences': dietaryPreferences,
-        'religion': religion,
         'languages': languages,
-        'interests': interests.toList(),
-        'passion_topics': passionTopics.toList(),
       };
 
       // Upload new image if one was picked
@@ -233,6 +241,15 @@ class ProfileDetailsController extends GetxController {
 
       await ProfileService.updateProfile(user.id, updates);
       await AuthService.loadProfile();
+
+      // Propagate changes to other live controllers
+      try {
+        Get.find<ViewProfileController>().refreshProfile();
+      } catch (_) {}
+      try {
+        Get.find<ExploreController>().loadData();
+      } catch (_) {}
+
       AppSnackbar.success(_strings.profileUpdatedSnackText);
       return true;
     } catch (e) {
