@@ -50,20 +50,20 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDgIRnyhOtorqkJ3g9AxqKEiTjM4h1tpg4',
-    appId: '1:925940972492:android:001df3f4a357a9de8afb69',
-    messagingSenderId: '925940972492',
-    projectId: 'meetmerightnow-299b6',
-    storageBucket: 'meetmerightnow-299b6.firebasestorage.app',
+    apiKey: String.fromEnvironment('ANDROID_FIREBASE_API_KEY'),
+    appId: String.fromEnvironment('ANDROID_FIREBASE_APP_ID'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET'),
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAkNPf8Cf8Ru-l71VAVO4BPMtYaQ_PqFAU',
-    appId: '1:925940972492:ios:1dde74ca62e5a7078afb69',
-    messagingSenderId: '925940972492',
-    projectId: 'meetmerightnow-299b6',
-    storageBucket: 'meetmerightnow-299b6.firebasestorage.app',
-    iosClientId: '925940972492-57srnrhf5hqp3mfv2fe76v541b83vpdr.apps.googleusercontent.com',
-    iosBundleId: 'com.example.meetmern',
+    apiKey: String.fromEnvironment('IOS_FIREBASE_API_KEY'),
+    appId: String.fromEnvironment('IOS_FIREBASE_APP_ID'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET'),
+    iosClientId: String.fromEnvironment('IOS_FIREBASE_CLIENT_ID'),
+    iosBundleId: String.fromEnvironment('IOS_BUNDLE_ID'),
   );
 }
