@@ -25,6 +25,7 @@ class MeetupUserProfileController extends GetxController {
   List<String> ownerLanguages = [];
   List<String> ownerInterests = [];
   List<String> ownerPassionTopics = [];
+  List<String> ownerPhotos = [];
   bool isOwnerBlockedByMe = false;
 
   String? get _currentUserId => AuthService.currentUser?.id;
@@ -61,6 +62,7 @@ class MeetupUserProfileController extends GetxController {
     ownerLanguages = [];
     ownerInterests = [];
     ownerPassionTopics = [];
+    ownerPhotos = [];
     isOwnerBlockedByMe = false;
     isLoading = true;
     update();
@@ -112,6 +114,11 @@ class MeetupUserProfileController extends GetxController {
                 ?.map((e) => e.toString())
                 .toList() ??
             [];
+        ownerPhotos = (row['photos'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .where((e) => e.isNotEmpty)
+                .toList() ??
+            (ownerPhotoUrl.isNotEmpty ? [ownerPhotoUrl] : []);
         debugPrint(
             '[UserProfile] _loadOwnerProfile — resolved name=$ownerName bio=$ownerBio gender=$ownerGender location=$ownerLocation languages=$ownerLanguages interests=$ownerInterests');
       } else {

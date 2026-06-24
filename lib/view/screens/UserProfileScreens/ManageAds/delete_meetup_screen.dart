@@ -78,27 +78,36 @@ class _ViewMeetupDeleteScreenState extends State<ViewMeetupDeleteScreen> {
         width: double.infinity,
         height: dimension.d300.h,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _fallbackImage(),
+        errorBuilder: (_, __, ___) => _initialsHeader(),
       );
     }
-    if (img.isNotEmpty) {
-      return Image.asset(
-        img,
-        width: double.infinity,
-        height: dimension.d300.h,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _fallbackImage(),
-      );
-    }
-    return _fallbackImage();
+    return _initialsHeader();
   }
 
-  Widget _fallbackImage() => Image.asset(
-        'assets/images/img9.jpg',
-        width: double.infinity,
-        height: dimension.d300.h,
-        fit: BoxFit.cover,
-      );
+  Widget _initialsHeader() {
+    final name = widget.meetup.hostName.trim();
+    final parts = name.split(RegExp(r'\s+'));
+    final initials = parts.isEmpty || parts.first.isEmpty
+        ? '?'
+        : parts.length == 1
+            ? parts.first[0].toUpperCase()
+            : (parts.first[0] + parts.last[0]).toUpperCase();
+    return Container(
+      width: double.infinity,
+      height: dimension.d300.h,
+      color: appTheme.neutral_200,
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: dimension.d80.sp,
+            fontWeight: FontWeight.bold,
+            color: appTheme.neutral_500,
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

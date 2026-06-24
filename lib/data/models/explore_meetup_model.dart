@@ -117,7 +117,7 @@ class Meetup {
           ? ownerPhotoUrl
           : (profilePicUrl != null && profilePicUrl.isNotEmpty)
               ? profilePicUrl
-          : 'assets/images/img9.jpg',
+          : '',
       icon: _iconForType(type),
       description: '',
       languages: ownerLanguages,

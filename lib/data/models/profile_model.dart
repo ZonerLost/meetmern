@@ -16,6 +16,7 @@ class ProfileModel {
   final String? shortBio;
   final List<String>? interests;
   final List<String>? passionTopics;
+  final List<String>? photos;
   final String? location;
   final String? discoveryRadius;
   final bool showOnboarding;
@@ -42,6 +43,7 @@ class ProfileModel {
     this.shortBio,
     this.interests,
     this.passionTopics,
+    this.photos,
     this.location,
     this.discoveryRadius,
     this.showOnboarding = true,
@@ -78,6 +80,10 @@ class ProfileModel {
       passionTopics: (json['passion_topics'] as List<dynamic>?)
           ?.map((e) => e.toString())
           .toList(),
+      photos: (json['photos'] as List<dynamic>?)
+          ?.map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList(),
       location: json['location'] as String?,
       discoveryRadius: json['discovery_radius'] as String?,
       showOnboarding: json['show_onboarding'] as bool? ?? true,
@@ -113,6 +119,7 @@ class ProfileModel {
       if (interests != null && interests!.isNotEmpty) 'interests': interests,
       if (passionTopics != null && passionTopics!.isNotEmpty)
         'passion_topics': passionTopics,
+      if (photos != null && photos!.isNotEmpty) 'photos': photos,
       if (location != null) 'location': location,
       if (discoveryRadius != null) 'discovery_radius': discoveryRadius,
       'show_onboarding': showOnboarding,

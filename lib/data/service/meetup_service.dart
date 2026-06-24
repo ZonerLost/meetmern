@@ -417,7 +417,7 @@ class MeetupService {
     final row = await _fetchProfileByUserId(
       userId: userId,
       columns:
-          'id, name, photo_url, location, short_bio, gender, relationship_status, religion, ethnicity, languages, interests, passion_topics, children, dob',
+          'id, name, photo_url, photos, location, short_bio, gender, relationship_status, religion, ethnicity, languages, interests, passion_topics, children, dob',
     );
 
     if (row == null) {
@@ -431,6 +431,7 @@ class MeetupService {
       'id': _text(row['id']),
       'name': _text(row['name']),
       'photo_url': _text(row['photo_url']),
+      'photos': _stringList(row['photos']),
       'location': _text(row['location']),
       'short_bio': _text(row['short_bio']),
       'gender': _text(row['gender']),

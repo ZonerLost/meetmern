@@ -177,20 +177,8 @@ class _BlockedUsersScreenState extends State<BlockedUsersScreen> {
             backgroundImage:
                 user.photoUrl.isNotEmpty ? NetworkImage(user.photoUrl) : null,
             child: user.photoUrl.isEmpty
-                ? Text(
-                    user.name
-                        .split(' ')
-                        .where((s) => s.isNotEmpty)
-                        .map((s) => s[0])
-                        .take(2)
-                        .join()
-                        .toUpperCase(),
-                    style: TextStyle(
-                      color: appTheme.coreWhite,
-                      fontWeight: FontWeight.w700,
-                      fontSize: dimension.d12.sp,
-                    ),
-                  )
+                ? Icon(Icons.person,
+                    size: dimension.d20.sp, color: appTheme.neutral_600)
                 : null,
           ),
           showCloseButton: true,

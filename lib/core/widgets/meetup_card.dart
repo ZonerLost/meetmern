@@ -193,25 +193,14 @@ class MeetupCard extends StatelessWidget {
                       child: Stack(
                         fit: StackFit.expand,
                         children: [
-                          meetup.image.isNotEmpty
-                              ? (_isNetwork(meetup.image)
-                                  ? Image.network(
-                                      meetup.image,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (c, e, st) => Container(
-                                        color: Colors.grey.shade200,
-                                        child: const Icon(Icons.broken_image),
-                                      ),
-                                    )
-                                  : Image.asset(
-                                      meetup.image,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (c, e, st) => Container(
-                                        color: Colors.grey.shade200,
-                                        child: const Icon(Icons.broken_image),
-                                      ),
-                                    ))
-                              : Container(color: Colors.grey.shade200),
+                          _isNetwork(meetup.image)
+                              ? Image.network(
+                                  meetup.image,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (c, e, st) =>
+                                      _InitialsBox(name: meetup.hostName),
+                                )
+                              : _InitialsBox(name: meetup.hostName),
                           if (showFavorite)
                             Positioned(
                               bottom: 8.h,
@@ -239,6 +228,35 @@ class MeetupCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _InitialsBox extends StatelessWidget {
+  final String name;
+  const _InitialsBox({required this.name});
+
+  String get _initials {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.isEmpty || parts.first.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: appTheme.neutral_200,
+      child: Center(
+        child: Text(
+          _initials,
+          style: TextStyle(
+            fontSize: 28.sp,
+            fontWeight: FontWeight.bold,
+            color: appTheme.neutral_600,
+          ),
+        ),
+      ),
     );
   }
 }

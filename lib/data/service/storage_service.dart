@@ -37,4 +37,20 @@ class StorageService {
       return null;
     }
   }
+
+  static Future<String?> uploadProfilePhotoAtIndex(
+      String userId, File imageFile, int index) async {
+    try {
+      final path = 'profiles/photo_${userId}_$index.jpg';
+      await supabase.storage.from('profile-images').upload(
+            path,
+            imageFile,
+            fileOptions: const FileOptions(upsert: true),
+          );
+      return supabase.storage.from('profile-images').getPublicUrl(path);
+    } catch (e) {
+      print('StorageService: uploadProfilePhotoAtIndex error: $e');
+      return null;
+    }
+  }
 }

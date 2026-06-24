@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/data/service/storage_service.dart';
@@ -30,7 +29,8 @@ class OnboardingController extends GetxController {
   final Set<String> selectedInterests = <String>{};
   final Set<String> selectedPassions = <String>{};
 
-  File? pickedImage;
+  List<File> pickedImages = <File>[];
+  List<String> existingPhotoUrls = <String>[];
   String? locationCoords;
 
   final Map<String, dynamic> options = <String, dynamic>{};
@@ -92,22 +92,21 @@ class OnboardingController extends GetxController {
     if (profile.passionTopics != null)
       selectedPassions.addAll(profile.passionTopics!);
     locationCoords = profile.location;
+    existingPhotoUrls = profile.photos ??
+        (profile.photoUrl?.isNotEmpty == true ? [profile.photoUrl!] : []);
     update();
   }
 
-  Future<void> pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? file =
-        await picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-    if (file != null) {
-      pickedImage = File(file.path);
+  void addImage(File file) {
+    pickedImages.add(file);
+    update();
+  }
+
+  void removeImage(int index) {
+    if (index >= 0 && index < pickedImages.length) {
+      pickedImages.removeAt(index);
       update();
     }
-  }
-
-  void removeImage() {
-    pickedImage = null;
-    update();
   }
 
   bool isValidForPage(int page) {
@@ -168,7 +167,7 @@ class OnboardingController extends GetxController {
       model.languages = selectedLanguages;
       await saveProfileData();
     } else if (currentPage == 1) {
-      model.photoPath = pickedImage?.path;
+      model.photoPath = pickedImages.isNotEmpty ? pickedImages.first.path : null;
       await uploadImageIfNeeded();
     } else if (currentPage == 2) {
       model.bio = bioController.text;
@@ -192,33 +191,39 @@ class OnboardingController extends GetxController {
 
   Future<void> uploadImageIfNeeded() async {
     final user = AuthService.currentUser;
-    if (user == null) {
-      print('OnboardingController: No authenticated user for image upload');
-      return;
-    }
-
-    if (pickedImage == null) {
-      print('OnboardingController: No image selected to upload');
-      return;
-    }
+    if (user == null || pickedImages.isEmpty) return;
 
     try {
-      print('OnboardingController: Uploading image for user: ${user.id}');
-      print('OnboardingController: Image path: ${pickedImage!.path}');
-      print('OnboardingController: Image exists: ${pickedImage!.existsSync()}');
+      final startIndex = existingPhotoUrls.length;
+      final newUrls = <String>[];
 
-      final imageUrl =
-          await StorageService.uploadProfileImage(user.id, pickedImage!);
+      for (int i = 0; i < pickedImages.length; i++) {
+        final url = await StorageService.uploadProfilePhotoAtIndex(
+            user.id, pickedImages[i], startIndex + i);
+        if (url != null) newUrls.add(url);
+      }
 
-      if (imageUrl != null) {
-        print('OnboardingController: Image uploaded successfully: $imageUrl');
-        await ProfileService.updateProfile(user.id, {'photo_url': imageUrl});
-        print('OnboardingController: Photo URL saved to profile');
-      } else {
-        print('OnboardingController: Image upload returned null');
+      if (newUrls.isNotEmpty) {
+        final allPhotos = [...existingPhotoUrls, ...newUrls];
+
+        // Always save photo_url first (guaranteed column), then photos array.
+        await ProfileService.updateProfile(user.id, {
+          'photo_url': allPhotos.first,
+        });
+        try {
+          await ProfileService.updateProfile(user.id, {
+            'photos': allPhotos,
+          });
+        } catch (e) {
+          debugPrint(
+              'OnboardingController: photos column may not exist yet — run: ALTER TABLE profiles ADD COLUMN IF NOT EXISTS photos text[] DEFAULT \'{}\'; Error: $e');
+        }
+
+        existingPhotoUrls = allPhotos;
+        pickedImages.clear();
       }
     } catch (e) {
-      print('OnboardingController: Error uploading image: $e');
+      print('OnboardingController: Error uploading images: $e');
     }
   }
 

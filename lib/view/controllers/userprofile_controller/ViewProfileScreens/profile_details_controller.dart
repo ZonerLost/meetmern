@@ -11,6 +11,7 @@ import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/data/service/storage_service.dart';
 import 'package:meetmern/data/service/user_traits_service.dart';
 import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProfileDetailsController extends GetxController {
   final Strings _strings = const Strings();
@@ -168,6 +169,30 @@ class ProfileDetailsController extends GetxController {
   }
 
   bool validateForm() => formKey.currentState?.validate() ?? false;
+
+  /// Returns null on success, or an error message string on failure.
+  Future<String?> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = AuthService.currentUser;
+    if (user == null) return 'Not authenticated.';
+    final email = user.email;
+    if (email == null || email.isEmpty) return 'No email on account.';
+    try {
+      // Re-authenticate to verify current password.
+      await Supabase.instance.client.auth
+          .signInWithPassword(email: email, password: currentPassword);
+      // Update to the new password.
+      await Supabase.instance.client.auth
+          .updateUser(UserAttributes(password: newPassword));
+      return null;
+    } on AuthException catch (e) {
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
+  }
 
   Future<bool> saveProfile() async {
     if (!validateForm()) return false;

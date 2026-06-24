@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
@@ -50,10 +51,11 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
     }
   }
 
-  void _openMeetup(Meetup m) async {
-    final res = await Navigator.of(context)
+  Future<void> _openMeetup(Meetup m) async {
+    await Navigator.of(context)
         .push(MaterialPageRoute(builder: (_) => ViewMeetupScreen(meetup: m)));
-    if (res == true) _controller.refreshUi();
+    if (!mounted) return;
+    _controller.loadData();
   }
 
   Future<void> _openCreateMeetupFlow() async {
@@ -61,10 +63,12 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
         .push<Meetup?>(MaterialPageRoute(builder: (_) {
       return const CreateMeetupScreen(origin: 'explore');
     }));
+    if (!mounted) return;
     if (created != null) {
-      if (!mounted) return;
-      context.navigateToScreen(ManageAds(initialMeetup: created));
+      await context.navigateToScreen(ManageAds(initialMeetup: created));
     }
+    if (!mounted) return;
+    _controller.loadData();
   }
 
   @override
@@ -95,7 +99,7 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.filter_list),
+                  icon:  Icon(LucideIcons.filter, size: dimension.d22.sp),
                   onPressed: () => _openFilter(context),
                 )
               ],
@@ -103,7 +107,7 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
             Row(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.chat_bubble_outline),
+                  icon:  const Icon(LucideIcons.messageSquare),
                   onPressed: () => Get.toNamed(Routes.chat),
                 ),
                 IconButton(
@@ -265,9 +269,17 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
                   ),
                 ),
                 leading: CircleAvatar(
+                  backgroundColor: appTheme.neutral_200,
                   backgroundImage: user.image.startsWith('http')
-                      ? NetworkImage(user.image)
-                      : AssetImage(user.image) as ImageProvider,
+                      ? NetworkImage(user.image) as ImageProvider
+                      : (user.image.isNotEmpty
+                          ? AssetImage(user.image) as ImageProvider
+                          : null),
+                  onBackgroundImageError: (_, __) {},
+                  child: !user.image.startsWith('http') && user.image.isEmpty
+                      ? Icon(Icons.person,
+                          size: dimension.d22.sp, color: appTheme.neutral_600)
+                      : null,
                 ),
                 title: Text(
                   user.name,

@@ -76,20 +76,34 @@ class _ReviewMeetupScreenState extends State<ReviewMeetupScreen> {
         width: double.infinity,
         height: dimension.d300,
         fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Image.asset(
-          strings.img9,
-          width: double.infinity,
-          height: dimension.d300,
-          fit: BoxFit.cover,
-        ),
+        errorBuilder: (_, __, ___) => _placeholderHeader(),
       );
     }
+    return _placeholderHeader();
+  }
 
-    return Image.asset(
-      strings.img9,
+  Widget _placeholderHeader() {
+    final parts = _ownerName.trim().split(RegExp(r'\s+'));
+    final initials = parts.isEmpty || parts.first.isEmpty
+        ? '?'
+        : parts.length == 1
+            ? parts.first[0].toUpperCase()
+            : (parts.first[0] + parts.last[0]).toUpperCase();
+
+    return Container(
       width: double.infinity,
       height: dimension.d300,
-      fit: BoxFit.cover,
+      color: appTheme.neutral_200,
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: dimension.d80.sp,
+            fontWeight: FontWeight.bold,
+            color: appTheme.neutral_500,
+          ),
+        ),
+      ),
     );
   }
 

@@ -169,13 +169,8 @@ class _ChatListItem extends StatelessWidget {
                       ? NetworkImage(item.avatarUrl)
                       : null,
                   child: item.avatarUrl.isEmpty
-                      ? Text(
-                          item.name
-                              .split(' ')
-                              .map((s) => s.isNotEmpty ? s[0] : '')
-                              .take(2)
-                              .join(),
-                          style: styles.userNameTextStyle)
+                      ? Icon(Icons.person,
+                          size: dimension.d22.sp, color: appTheme.neutral_600)
                       : null,
                 ),
               ),

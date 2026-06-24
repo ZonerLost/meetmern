@@ -16,6 +16,7 @@ class ViewProfileController extends GetxController {
   String children = '';
   String religion = '';
   String photoUrl = '';
+  List<String> photos = <String>[];
   List<String> languages = <String>[];
   List<String> passionTopics = <String>[];
   List<String> interests = <String>[];
@@ -53,6 +54,8 @@ class ViewProfileController extends GetxController {
           profile.children == null ? '' : (profile.children! ? 'Yes' : 'No');
       religion = profile.religion ?? '';
       photoUrl = profile.photoUrl ?? '';
+      photos = profile.photos?.where((e) => e.isNotEmpty).toList() ??
+          (photoUrl.isNotEmpty ? [photoUrl] : []);
       languages = profile.languages ?? [];
       passionTopics = profile.passionTopics ?? [];
       interests = profile.interests ?? [];

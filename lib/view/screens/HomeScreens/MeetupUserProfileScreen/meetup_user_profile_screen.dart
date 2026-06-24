@@ -34,6 +34,14 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
   final MeetupUserProfileController _controller =
       Get.find<MeetupUserProfileController>();
   final Strings _strings = const Strings();
+  final PageController _photoPageController = PageController();
+  int _headerPage = 0;
+
+  @override
+  void dispose() {
+    _photoPageController.dispose();
+    super.dispose();
+  }
 
   static const Color _textPrimary = Color(0xFF222B45);
   static const Color _textSecondary = Color(0xFF3D4A63);
@@ -416,38 +424,80 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
   }
 
   Widget _buildHeaderImage(MeetupUserProfileController c, Meetup meetup) {
-    final url =
-        c.ownerPhotoUrl.isNotEmpty ? c.ownerPhotoUrl.trim() : meetup.image.trim();
-    if (url.startsWith('http')) {
-      return ClipRRect(
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(18.r),
-          bottomRight: Radius.circular(18.r),
-        ),
-        child: Image.network(
-          url,
-          width: double.infinity,
-          height: _headerHeight,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => Image.asset(
-            'assets/images/img9.jpg',
-            width: double.infinity,
-            height: _headerHeight,
-            fit: BoxFit.cover,
-          ),
-        ),
-      );
-    }
-    return ClipRRect(
+    final photos = c.ownerPhotos.isNotEmpty
+        ? c.ownerPhotos
+        : (c.ownerPhotoUrl.isNotEmpty
+            ? [c.ownerPhotoUrl]
+            : (meetup.image.startsWith('http') ? [meetup.image] : <String>[]));
+
+    final fallback = ClipRRect(
       borderRadius: BorderRadius.only(
         bottomLeft: Radius.circular(18.r),
         bottomRight: Radius.circular(18.r),
       ),
       child: Image.asset(
-        url.isNotEmpty ? url : 'assets/images/img9.jpg',
+        meetup.image.isNotEmpty ? meetup.image : 'assets/images/img9.jpg',
         width: double.infinity,
         height: _headerHeight,
         fit: BoxFit.cover,
+      ),
+    );
+
+    if (photos.isEmpty) return fallback;
+
+    return SizedBox(
+      width: double.infinity,
+      height: _headerHeight,
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.only(
+              bottomLeft: Radius.circular(18.r),
+              bottomRight: Radius.circular(18.r),
+            ),
+            child: PageView.builder(
+              controller: _photoPageController,
+              itemCount: photos.length,
+              onPageChanged: (i) => setState(() => _headerPage = i),
+              itemBuilder: (_, i) => Image.network(
+                photos[i],
+                width: double.infinity,
+                height: _headerHeight,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Image.asset(
+                  'assets/images/img9.jpg',
+                  width: double.infinity,
+                  height: _headerHeight,
+                  fit: BoxFit.cover,
+                ),
+              ),
+            ),
+          ),
+          if (photos.length > 1)
+            Positioned(
+              bottom: 14.h,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(photos.length, (i) {
+                  final active = i == _headerPage;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: EdgeInsets.symmetric(horizontal: 3.w),
+                    width: active ? 18.w : 7.w,
+                    height: 5.h,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(3.r),
+                    ),
+                  );
+                }),
+              ),
+            ),
+        ],
       ),
     );
   }

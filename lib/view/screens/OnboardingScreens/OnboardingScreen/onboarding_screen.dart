@@ -50,11 +50,9 @@ class OnboardingScreen extends StatelessWidget {
                     onDisabledTap: controller.enableErrors,
                   ),
                   PhotoPage(
-                    pickedImage: controller.pickedImage,
-                    onPick: (f) {
-                      controller.pickedImage = f;
-                      controller.update();
-                    },
+                    pickedImages: controller.pickedImages,
+                    existingPhotoUrls: controller.existingPhotoUrls,
+                    onAdd: controller.addImage,
                     onRemove: controller.removeImage,
                     onNext: controller.onNextPressed,
                     stepValid: controller.isValidForPage(1),

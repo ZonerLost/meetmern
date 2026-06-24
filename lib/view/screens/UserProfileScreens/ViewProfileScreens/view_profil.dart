@@ -230,23 +230,80 @@ class ViewProfileScreen extends StatelessWidget {
 
 // ── Sub-widgets ──────────────────────────────────────────────────────────────
 
-class _ProfileHeader extends StatelessWidget {
+class _ProfileHeader extends StatefulWidget {
   final ViewProfileController controller;
   const _ProfileHeader({required this.controller});
 
   @override
+  State<_ProfileHeader> createState() => _ProfileHeaderState();
+}
+
+class _ProfileHeaderState extends State<_ProfileHeader> {
+  final PageController _pc = PageController();
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _pc.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final photoUrl = controller.photoUrl;
+    final photos = widget.controller.photos;
+    final height = 355.h;
+
+    if (photos.isEmpty) {
+      return SizedBox(
+        width: double.infinity,
+        height: height,
+        child: _placeholder(),
+      );
+    }
+
     return SizedBox(
       width: double.infinity,
-      height: 355.h,
-      child: photoUrl.isNotEmpty
-          ? Image.network(
-              photoUrl,
+      height: height,
+      child: Stack(
+        children: [
+          PageView.builder(
+            controller: _pc,
+            itemCount: photos.length,
+            onPageChanged: (i) => setState(() => _page = i),
+            itemBuilder: (_, i) => Image.network(
+              photos[i],
+              width: double.infinity,
+              height: height,
               fit: BoxFit.cover,
               errorBuilder: (_, __, ___) => _placeholder(),
-            )
-          : _placeholder(),
+            ),
+          ),
+          if (photos.length > 1)
+            Positioned(
+              bottom: 14.h,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(photos.length, (i) {
+                  final active = i == _page;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: EdgeInsets.symmetric(horizontal: 3.w),
+                    width: active ? 18.w : 7.w,
+                    height: 5.h,
+                    decoration: BoxDecoration(
+                      color: active
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.5),
+                      borderRadius: BorderRadius.circular(3.r),
+                    ),
+                  );
+                }),
+              ),
+            ),
+        ],
+      ),
     );
   }
 

@@ -113,9 +113,9 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
                     width: double.infinity,
                     height: dimension.d300,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _fallbackImage(meetup.image),
+                    errorBuilder: (_, __, ___) => _initialsHeader(hostName),
                   )
-                : _fallbackImage(meetup.image);
+                : _initialsHeader(hostName);
 
         return Scaffold(
           extendBodyBehindAppBar: true,
@@ -401,27 +401,27 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
     }
   }
 
-  Widget _fallbackImage(String path) {
-    if (path.isNotEmpty && path.startsWith('http')) {
-      return Image.network(
-        path,
-        width: double.infinity,
-        height: dimension.d300,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Image.asset(
-          'assets/images/img9.jpg',
-          width: double.infinity,
-          height: dimension.d300,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    return Image.asset(
-      path.isNotEmpty ? path : 'assets/images/img9.jpg',
+  Widget _initialsHeader(String name) {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    final initials = parts.isEmpty || parts.first.isEmpty
+        ? '?'
+        : parts.length == 1
+            ? parts.first[0].toUpperCase()
+            : (parts.first[0] + parts.last[0]).toUpperCase();
+    return Container(
       width: double.infinity,
       height: dimension.d300,
-      fit: BoxFit.cover,
+      color: appTheme.neutral_200,
+      child: Center(
+        child: Text(
+          initials,
+          style: TextStyle(
+            fontSize: dimension.d80.sp,
+            fontWeight: FontWeight.bold,
+            color: appTheme.neutral_500,
+          ),
+        ),
+      ),
     );
   }
 }

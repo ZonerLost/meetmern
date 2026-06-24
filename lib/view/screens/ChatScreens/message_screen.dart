@@ -123,20 +123,9 @@ class _MessageScreenState extends State<MessageScreen> {
             backgroundImage: NetworkImage(displayChat.avatarUrl))
         : CircleAvatar(
             radius: dimension.d18,
-            backgroundColor: appTheme.neutral_400,
-            child: Text(
-              displayChat.name
-                  .split(' ')
-                  .where((s) => s.isNotEmpty)
-                  .map((s) => s[0])
-                  .take(2)
-                  .join()
-                  .toUpperCase(),
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: dimension.d12,
-                  color: appTheme.coreWhite),
-            ),
+            backgroundColor: appTheme.neutral_200,
+            child: Icon(Icons.person,
+                size: dimension.d20, color: appTheme.neutral_600),
           );
 
     return AppBar(
