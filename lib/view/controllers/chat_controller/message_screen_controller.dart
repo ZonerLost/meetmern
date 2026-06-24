@@ -6,6 +6,7 @@ import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
 import 'package:meetmern/main.dart';
+import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/view/controllers/chat_controller/chat_screen_controller.dart';
 
 class ChatMessageItem {
@@ -105,12 +106,11 @@ class MessageController extends GetxController {
     return _chatStatus == 'requested' || _chatStatus == 'pending';
   }
 
-  /// Messaging is allowed when accepted, continue_chat, or in continue-chat mode after completion.
+  /// Messaging is allowed when accepted, or in continue-chat mode after completion.
   bool get messagingAllowed {
     if (_isBlockedConversation) return false;
     final status = _chatStatus ?? 'requested';
     if (status == 'accepted') return true;
-    if (status == 'continue_chat') return true;
     if (_continueChatMode && status == 'completed') return true;
     return false;
   }
@@ -527,11 +527,16 @@ class MessageController extends GetxController {
     if (_chatId != null && uid != null) {
       try {
         print('💬 [MessageController] Sending message to backend');
+        // When _chatStatus is 'completed' but _continueChatMode is true, the DB
+        // status is actually 'continue_chat' — pass that to satisfy the backend guard.
+        final effectiveStatus = (_continueChatMode && _chatStatus == 'completed')
+            ? 'continue_chat'
+            : (_chatStatus ?? 'requested');
         await MeetupService.sendTextMessage(
           chatId: _chatId!,
           senderId: uid,
           text: text,
-          chatStatus: _chatStatus ?? 'requested',
+          chatStatus: effectiveStatus,
           userOne: chat?.userOne,
           userTwo: chat?.userTwo,
         );
@@ -540,6 +545,13 @@ class MessageController extends GetxController {
         await _loadFromSupabase(showLoader: false);
       } catch (e) {
         print('🔴 [MessageController] Error sending message: $e');
+        // Remove the optimistic message and restore the input text so the user
+        // knows the send failed (block, status change, network error, etc.)
+        messages.removeWhere((m) => m.id == tempId);
+        messageController.text = text;
+        canSend = text.isNotEmpty;
+        update();
+        AppSnackbar.error(e.toString().replaceAll('Exception: ', ''));
       }
     }
 

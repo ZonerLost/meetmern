@@ -27,6 +27,7 @@ class MeetupUserProfileController extends GetxController {
   List<String> ownerPassionTopics = [];
   List<String> ownerPhotos = [];
   bool isOwnerBlockedByMe = false;
+  bool isBlockedByOwner = false;
 
   String? get _currentUserId => AuthService.currentUser?.id;
 
@@ -149,10 +150,15 @@ class MeetupUserProfileController extends GetxController {
     }
 
     try {
-      final blockedIds = await MeetupService.fetchBlockedUserIds(currentUserId);
-      isOwnerBlockedByMe = blockedIds.contains(ownerId);
+      final results = await Future.wait([
+        MeetupService.fetchBlockedUserIds(currentUserId),
+        MeetupService.fetchBlockerIds(currentUserId),
+      ]);
+      isOwnerBlockedByMe = results[0].contains(ownerId);
+      isBlockedByOwner = results[1].contains(ownerId);
     } catch (_) {
       isOwnerBlockedByMe = false;
+      isBlockedByOwner = false;
     }
     update();
   }

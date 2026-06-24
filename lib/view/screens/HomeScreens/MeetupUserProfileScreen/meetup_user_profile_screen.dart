@@ -353,7 +353,10 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
                       ),
                     ),
                     // ── Pinned bottom button ────────────────────────────────
-                    if (widget.showRequestButton)
+                    // Hidden when either side has blocked the other.
+                    if (widget.showRequestButton &&
+                        !c.isBlockedByOwner &&
+                        !c.isOwnerBlockedByMe)
                       SafeArea(
                         top: false,
                         child: Padding(
@@ -363,19 +366,19 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
                             height: 52.h,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF6B35E7),
-                                    Color(0xFF7B3FF8),
-                                  ],
+                                gradient: LinearGradient(
+                                  colors: currentMeetup.joinRequested
+                                      ? [appTheme.neutral_400, appTheme.neutral_500]
+                                      : const [
+                                          Color(0xFF6B35E7),
+                                          Color(0xFF7B3FF8),
+                                        ],
                                 ),
                                 borderRadius: BorderRadius.circular(100.r),
                               ),
                               child: ElevatedButton(
                                 onPressed: currentMeetup.joinRequested
-                                    ? () => context.showCustomSnackBar(
-                                          'Request already sent',
-                                        )
+                                    ? () => Get.toNamed(Routes.chat)
                                     : () => context.navigateToScreen(
                                           ViewMeetupScreen(
                                               meetup: currentMeetup),
@@ -390,7 +393,7 @@ class _MeetupUserProfileScreenState extends State<MeetupUserProfileScreen> {
                                 ),
                                 child: Text(
                                   currentMeetup.joinRequested
-                                      ? _strings.requestedLabel
+                                      ? 'View in Chats'
                                       : 'Request Meetup',
                                   style: TextStyle(
                                     color: Colors.white,

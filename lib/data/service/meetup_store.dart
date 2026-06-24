@@ -40,18 +40,25 @@ class MeetupStore {
           MeetupService.fetchBlockedUserIds(uid)
         else
           Future.value(<String>{}),
+        if (uid != null)
+          MeetupService.fetchBlockerIds(uid)
+        else
+          Future.value(<String>{}),
       ]);
 
       final rows = results[0] as List<Map<String, dynamic>>;
       final hiddenIds = results[1] as Set<String>;
-      final blockedUserIds = results[2] as Set<String>;
+      final blockedByMe = results[2] as Set<String>;
+      final blockedMe = results[3] as Set<String>;
+      // Hide meetups from anyone in either direction of a block relationship.
+      final allBlockedUserIds = {...blockedByMe, ...blockedMe};
 
       _meetups
         ..clear()
         ..addAll(
           rows
               .map(Meetup.fromSupabase)
-              .where((m) => m.userId == null || !blockedUserIds.contains(m.userId)),
+              .where((m) => m.userId == null || !allBlockedUserIds.contains(m.userId)),
         );
 
       _hiddenMeetupIds

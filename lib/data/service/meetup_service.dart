@@ -550,6 +550,19 @@ class MeetupService {
         .toSet();
   }
 
+  /// Returns the IDs of users who have blocked [userId] (i.e. blockers of me).
+  static Future<Set<String>> fetchBlockerIds(String userId) async {
+    final rows = await supabase
+        .from('user_blocks')
+        .select('blocker_id')
+        .eq('blocked_id', userId);
+
+    return List<Map<String, dynamic>>.from(rows)
+        .map((r) => _text(r['blocker_id']))
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
   static Future<List<Map<String, dynamic>>> fetchBlockedUsers(
     String blockerId,
   ) async {
@@ -985,7 +998,7 @@ class MeetupService {
     String? userOne,
     String? userTwo,
   }) async {
-    if (chatStatus != 'accepted' && chatStatus != 'completed' && chatStatus != 'continue_chat') return;
+    if (chatStatus != 'accepted' && chatStatus != 'continue_chat') return;
 
     if (await isProfileDisabled(senderId)) {
       throw Exception('Your account is disabled.');

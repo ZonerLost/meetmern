@@ -27,7 +27,10 @@ class ChatListController extends GetxController {
       .toList(growable: false);
 
   List<Chat> get regularItems => items
-      .where((c) => c.status != RequestStatus.requested)
+      .where((c) =>
+          c.status != RequestStatus.requested &&
+          c.status != RequestStatus.rejected &&
+          c.status != RequestStatus.cancelled)
       .toList(growable: false);
 
   @override
