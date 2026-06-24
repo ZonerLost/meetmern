@@ -86,6 +86,14 @@ class AboutPage extends StatelessWidget {
               itemTextStyle: customButtonandTextStyles.userNameTextStyle,
               textStyle: customButtonandTextStyles.userNameTextStyle,
             ),
+            if (showErrors && selectedChildren == null) ...[
+              SizedBox(height: dimension.d4.h),
+              Text(
+                strings.pleaseSelectChildren,
+                style: TextStyle(
+                    color: appTheme.red, fontSize: dimension.d12.sp),
+              ),
+            ],
             SizedBox(height: dimension.d14.h),
 
             // Relationship status
@@ -101,6 +109,14 @@ class AboutPage extends StatelessWidget {
               itemTextStyle: customButtonandTextStyles.userNameTextStyle,
               textStyle: customButtonandTextStyles.userNameTextStyle,
             ),
+            if (showErrors && selectedRelationship == null) ...[
+              SizedBox(height: dimension.d4.h),
+              Text(
+                strings.pleaseSelectRelationshipStatus,
+                style: TextStyle(
+                    color: appTheme.red, fontSize: dimension.d12.sp),
+              ),
+            ],
             SizedBox(height: dimension.d14.h),
 
             // Dietary preferences

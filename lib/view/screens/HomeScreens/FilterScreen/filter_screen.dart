@@ -410,6 +410,11 @@ class _FilterModalState extends State<FilterScreen> {
                 child: Text(strings.applySearchFilters,
                     style: customButtonandTextStyles.emailLabelTextStyle)),
             TextButton(
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: dimension.d8),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
               onPressed: _resetFilters,
               child: Text(
                 'Clear',
@@ -420,6 +425,8 @@ class _FilterModalState extends State<FilterScreen> {
               ),
             ),
             IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
                 onPressed: () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.close))
           ]),
@@ -724,7 +731,7 @@ class _FilterModalState extends State<FilterScreen> {
                           ),
                         ),
                       ),
-                      SizedBox(height: dimension.d84),
+                      SizedBox(height: dimension.d16),
                     ]),
               ),
             ),

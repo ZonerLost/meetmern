@@ -24,7 +24,14 @@ class ProfileDetailsController extends GetxController {
 
   String? gender;
   String? ethnicity;
+  String? orientation;
+  String? children;
+  String? relationshipStatus;
+  List<String> dietaryPreferences = <String>[];
+  String? religion;
   List<String> languages = <String>[];
+  Set<String> interests = <String>{};
+  Set<String> passionTopics = <String>{};
 
   // Holds newly picked image bytes for preview
   Uint8List? imageBytes;
@@ -73,7 +80,16 @@ class ProfileDetailsController extends GetxController {
     ethnicity = profile.ethnicity?.isNotEmpty == true
         ? profile.ethnicity
         : OnboardingMockData.ethnicities.first;
+    orientation = profile.orientation?.isNotEmpty == true ? profile.orientation : null;
+    children = profile.children != null ? (profile.children! ? 'Yes' : 'No') : null;
+    relationshipStatus = profile.relationshipStatus?.isNotEmpty == true
+        ? profile.relationshipStatus
+        : null;
+    dietaryPreferences = profile.dietaryPreferences ?? [];
+    religion = profile.religion?.isNotEmpty == true ? profile.religion : null;
     languages = profile.languages ?? [];
+    interests = Set<String>.from(profile.interests ?? []);
+    passionTopics = Set<String>.from(profile.passionTopics ?? []);
     existingPhotoUrl = profile.photoUrl;
     update();
   }
@@ -98,8 +114,51 @@ class ProfileDetailsController extends GetxController {
     update();
   }
 
+  void setOrientation(String? value) {
+    orientation = value;
+    update();
+  }
+
+  void setChildren(String? value) {
+    children = value;
+    update();
+  }
+
+  void setRelationshipStatus(String? value) {
+    relationshipStatus = value;
+    update();
+  }
+
+  void setDietaryPreferences(List<String> values) {
+    dietaryPreferences = values;
+    update();
+  }
+
+  void setReligion(String? value) {
+    religion = value;
+    update();
+  }
+
   void setLanguages(List<String> values) {
     languages = values;
+    update();
+  }
+
+  void toggleInterest(String value, bool selected) {
+    if (selected) {
+      interests.add(value);
+    } else {
+      interests.remove(value);
+    }
+    update();
+  }
+
+  void togglePassionTopic(String value, bool selected) {
+    if (selected) {
+      passionTopics.add(value);
+    } else {
+      passionTopics.remove(value);
+    }
     update();
   }
 
@@ -130,7 +189,14 @@ class ProfileDetailsController extends GetxController {
         'dob': dobController.text.trim(),
         'gender': gender,
         'ethnicity': ethnicity,
+        'orientation': orientation,
+        if (children != null) 'children': children == 'Yes',
+        'relationship_status': relationshipStatus,
+        'dietary_preferences': dietaryPreferences,
+        'religion': religion,
         'languages': languages,
+        'interests': interests.toList(),
+        'passion_topics': passionTopics.toList(),
       };
 
       // Upload new image if one was picked

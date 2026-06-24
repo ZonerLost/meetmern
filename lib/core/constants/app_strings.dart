@@ -104,8 +104,14 @@ class Strings {
   final String getStartedText;
   final String selectAtLeastOneLanguage;
   final String selectAtLeastOneInterest;
+  final String selectAtLeastOnePassion;
   final String passwordNotMatch;
   final String selectDateOfBirth;
+  final String pleaseSelectGender;
+  final String pleaseSelectEthnicity;
+  final String pleaseSelectOrientation;
+  final String pleaseSelectChildren;
+  final String pleaseSelectRelationshipStatus;
   final String genderKey;
   final String orientationKey;
   final String ethnicityKey;
@@ -516,8 +522,14 @@ class Strings {
         getStartedText = 'Get Started',
         selectAtLeastOneLanguage = 'Select at least one language',
         selectAtLeastOneInterest = 'Select at least one interest',
+        selectAtLeastOnePassion = 'Select at least one passion topic',
         passwordNotMatch = 'Passwords do not match',
         selectDateOfBirth = 'Select date of birth',
+        pleaseSelectGender = 'Please select your gender',
+        pleaseSelectEthnicity = 'Please select your ethnicity',
+        pleaseSelectOrientation = 'Please select your orientation',
+        pleaseSelectChildren = 'Please select an option',
+        pleaseSelectRelationshipStatus = 'Please select your relationship status',
         genderKey = 'gender',
         orientationKey = 'orientation',
         submitLabel = 'Submit',

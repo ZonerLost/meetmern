@@ -189,7 +189,7 @@ class DiscoveryService {
     };
   }
 
-  static Future<List<Nearby>> fetchActiveUsers({int limit = 8}) async {
+  static Future<List<Nearby>> fetchActiveUsers({int limit = 8, String? excludeUserId}) async {
     try {
       final meetupRowsRaw = await supabase
           .from('meetups')
@@ -203,6 +203,7 @@ class DiscoveryService {
         final row = Map<String, dynamic>.from(raw);
         final userId = row['user_id']?.toString().trim() ?? '';
         if (userId.isEmpty) continue;
+        if (excludeUserId != null && userId == excludeUserId) continue;
         if (!_isAvailableStatus(row['status']?.toString() ?? '')) continue;
         latestByUser.putIfAbsent(userId, () => row);
       }

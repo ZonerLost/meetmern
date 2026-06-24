@@ -130,7 +130,7 @@ class OnboardingController extends GetxController {
     if (page == 2)
       return selectedRelationship != null && selectedChildren != null;
     if (page == 3)
-      return selectedInterests.isNotEmpty || selectedPassions.isNotEmpty;
+      return selectedInterests.isNotEmpty && selectedPassions.isNotEmpty;
     return true;
   }
 

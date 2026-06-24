@@ -103,9 +103,7 @@ class InterestsPage extends StatelessWidget {
               return buildChip(it, sel, (v) => onToggleInterest(it, v));
             }).toList(),
           ),
-          if (showErrors &&
-              selectedInterests.isEmpty &&
-              selectedPassions.isEmpty)
+          if (showErrors && selectedInterests.isEmpty)
             Padding(
               padding: EdgeInsets.only(top: dimension.d8.h),
               child: Text(
@@ -125,6 +123,15 @@ class InterestsPage extends StatelessWidget {
               return buildChip(pt, sel, (v) => onTogglePassion(pt, v));
             }).toList(),
           ),
+          if (showErrors && selectedPassions.isEmpty)
+            Padding(
+              padding: EdgeInsets.only(top: dimension.d8.h),
+              child: Text(
+                strings.selectAtLeastOnePassion,
+                style:
+                    TextStyle(color: appTheme.red, fontSize: dimension.d12.sp),
+              ),
+            ),
           SizedBox(height: dimension.d30.h),
           CustomElevatedButton(
             text: strings.nextButtonText,

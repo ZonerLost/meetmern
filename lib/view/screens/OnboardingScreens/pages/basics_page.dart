@@ -118,6 +118,7 @@ class BasicsPage extends StatelessWidget {
           ),
           SizedBox(height: dimension.d14.h),
           RequiredLabel(text: strings.genderLabel),
+          SizedBox(height: dimension.d8.h),
           CustomDropdownButton(
             decoration: customButtonandTextStyles.genderFInputDecoration,
             hint: strings.genderHint,
@@ -128,8 +129,17 @@ class BasicsPage extends StatelessWidget {
             itemTextStyle: customButtonandTextStyles.userNameTextStyle,
             textStyle: customButtonandTextStyles.userNameTextStyle,
           ),
+          if (showErrors && selectedGender == null) ...[
+            SizedBox(height: dimension.d4.h),
+            Text(
+              strings.pleaseSelectGender,
+              style: TextStyle(
+                  color: appTheme.red, fontSize: dimension.d12.sp),
+            ),
+          ],
           SizedBox(height: dimension.d14.h),
           RequiredLabel(text: strings.ethnicityLabel),
+          SizedBox(height: dimension.d8.h),
           CustomDropdownButton(
             decoration: customButtonandTextStyles.genderFInputDecoration,
             hint: strings.ethnicityHint,
@@ -140,8 +150,17 @@ class BasicsPage extends StatelessWidget {
             itemTextStyle: customButtonandTextStyles.userNameTextStyle,
             textStyle: customButtonandTextStyles.userNameTextStyle,
           ),
+          if (showErrors && selectedEthnicity == null) ...[
+            SizedBox(height: dimension.d4.h),
+            Text(
+              strings.pleaseSelectEthnicity,
+              style: TextStyle(
+                  color: appTheme.red, fontSize: dimension.d12.sp),
+            ),
+          ],
           SizedBox(height: dimension.d14.h),
           RequiredLabel(text: strings.orientationLabel),
+          SizedBox(height: dimension.d8.h),
           CustomDropdownButton(
             decoration: customButtonandTextStyles.genderFInputDecoration,
             hint: strings.orientationHint,
@@ -152,6 +171,14 @@ class BasicsPage extends StatelessWidget {
             itemTextStyle: customButtonandTextStyles.userNameTextStyle,
             textStyle: customButtonandTextStyles.userNameTextStyle,
           ),
+          if (showErrors && selectedOrientation == null) ...[
+            SizedBox(height: dimension.d4.h),
+            Text(
+              strings.pleaseSelectOrientation,
+              style: TextStyle(
+                  color: appTheme.red, fontSize: dimension.d12.sp),
+            ),
+          ],
           SizedBox(height: dimension.d14.h),
           Text('${strings.languagesLabel} (${strings.optionalLabel})',
               style: customButtonandTextStyles.emailLabelTextStyle),

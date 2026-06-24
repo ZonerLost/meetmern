@@ -180,6 +180,74 @@ class ProfileDetailsScreen extends StatelessWidget {
                     ),
                     SizedBox(height: dimension.d12.h),
 
+                    // ── Orientation ─────────────────────────────────────────
+                    Text(strings.orientationLabel, style: styles.emailLabelTextStyle),
+                    SizedBox(height: dimension.d10.h),
+                    CustomDropdownButton(
+                      decoration: styles.genderFInputDecoration,
+                      hint: strings.orientationHint,
+                      items: OnboardingMockData.orientations,
+                      value: controller.orientation,
+                      onChanged: controller.setOrientation,
+                      itemHeight: dimension.d48.h,
+                      menuMaxHeight: dimension.d200.h,
+                    ),
+                    SizedBox(height: dimension.d12.h),
+
+                    // ── Children ────────────────────────────────────────────
+                    Text(strings.childrenLabel, style: styles.emailLabelTextStyle),
+                    SizedBox(height: dimension.d10.h),
+                    CustomDropdownButton(
+                      decoration: styles.genderFInputDecoration,
+                      hint: strings.selectHint,
+                      items: OnboardingMockData.children,
+                      value: controller.children,
+                      onChanged: controller.setChildren,
+                      itemHeight: dimension.d48.h,
+                      menuMaxHeight: dimension.d200.h,
+                    ),
+                    SizedBox(height: dimension.d12.h),
+
+                    // ── Relationship Status ──────────────────────────────────
+                    Text(strings.relationshipStatusLabel, style: styles.emailLabelTextStyle),
+                    SizedBox(height: dimension.d10.h),
+                    CustomDropdownButton(
+                      decoration: styles.genderFInputDecoration,
+                      hint: strings.selectHint,
+                      items: OnboardingMockData.relationshipStatus,
+                      value: controller.relationshipStatus,
+                      onChanged: controller.setRelationshipStatus,
+                      itemHeight: dimension.d48.h,
+                      menuMaxHeight: dimension.d200.h,
+                    ),
+                    SizedBox(height: dimension.d12.h),
+
+                    // ── Dietary Preferences ──────────────────────────────────
+                    Text(strings.dietaryPreferencesLabel, style: styles.emailLabelTextStyle),
+                    SizedBox(height: dimension.d10.h),
+                    CustomMultiSelectButton(
+                      hint: strings.selectdietaryPreferencesText,
+                      items: OnboardingMockData.dietaryPreferences,
+                      selectedValues: controller.dietaryPreferences,
+                      decoration: styles.genderFInputDecoration,
+                      onSelectionChanged: controller.setDietaryPreferences,
+                    ),
+                    SizedBox(height: dimension.d12.h),
+
+                    // ── Religion ────────────────────────────────────────────
+                    Text(strings.religionLabel, style: styles.emailLabelTextStyle),
+                    SizedBox(height: dimension.d10.h),
+                    CustomDropdownButton(
+                      decoration: styles.genderFInputDecoration,
+                      hint: strings.selectOptional,
+                      items: OnboardingMockData.religion,
+                      value: controller.religion,
+                      onChanged: controller.setReligion,
+                      itemHeight: dimension.d48.h,
+                      menuMaxHeight: dimension.d200.h,
+                    ),
+                    SizedBox(height: dimension.d12.h),
+
                     // ── Languages ───────────────────────────────────────────
                     Text(strings.languagesSpoken, style: styles.emailLabelTextStyle),
                     SizedBox(height: dimension.d10.h),
@@ -189,6 +257,26 @@ class ProfileDetailsScreen extends StatelessWidget {
                       selectedValues: controller.languages,
                       decoration: styles.genderFInputDecoration,
                       onSelectionChanged: controller.setLanguages,
+                    ),
+                    SizedBox(height: dimension.d16.h),
+
+                    // ── Interests ───────────────────────────────────────────
+                    Text(strings.interestsLabel, style: styles.emailLabelTextStyle),
+                    SizedBox(height: dimension.d10.h),
+                    _ChipSelector(
+                      items: OnboardingMockData.interests,
+                      selected: controller.interests,
+                      onToggle: controller.toggleInterest,
+                    ),
+                    SizedBox(height: dimension.d16.h),
+
+                    // ── Passion Topics ───────────────────────────────────────
+                    Text(strings.passionTopicsLabel, style: styles.emailLabelTextStyle),
+                    SizedBox(height: dimension.d10.h),
+                    _ChipSelector(
+                      items: OnboardingMockData.passionTopics,
+                      selected: controller.passionTopics,
+                      onToggle: controller.togglePassionTopic,
                     ),
                     SizedBox(height: dimension.d24.h),
 
@@ -252,6 +340,65 @@ class ProfileDetailsScreen extends StatelessWidget {
           color: appTheme.black90001,
         ),
       ),
+    );
+  }
+}
+
+class _ChipSelector extends StatelessWidget {
+  final List<String> items;
+  final Set<String> selected;
+  final void Function(String, bool) onToggle;
+
+  const _ChipSelector({
+    required this.items,
+    required this.selected,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: dimension.d8.w,
+      runSpacing: dimension.d8.h,
+      children: items.map((item) {
+        final isSelected = selected.contains(item);
+        return ChoiceChip(
+          showCheckmark: false,
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          labelPadding: EdgeInsets.symmetric(
+            horizontal: dimension.d4.w,
+            vertical: dimension.d6.h,
+          ),
+          label: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (isSelected) ...[
+                Icon(Icons.close, size: dimension.d14.r, color: appTheme.b_600),
+                SizedBox(width: dimension.d4.w),
+              ],
+              Text(
+                item,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: dimension.d14.sp,
+                  color: isSelected ? appTheme.b_600 : appTheme.black900,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          selected: isSelected,
+          onSelected: (val) => onToggle(item, val),
+          selectedColor: appTheme.b_100,
+          backgroundColor: appTheme.infieldColor,
+          shape: StadiumBorder(
+            side: BorderSide(
+              color: isSelected ? appTheme.b_100 : appTheme.borderColor,
+              width: dimension.d1,
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

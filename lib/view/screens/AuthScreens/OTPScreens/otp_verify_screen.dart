@@ -43,8 +43,8 @@ class VerifyOtpScreen extends StatelessWidget {
                 right: dimension.d0,
                 bottom: dimension.d0,
                 child: Container(
-                  padding: EdgeInsets.fromLTRB(dimension.d32.w, dimension.d28.h,
-                      dimension.d32.w, dimension.d36.h),
+                  padding: EdgeInsets.fromLTRB(dimension.d32.w, dimension.d20.h,
+                      dimension.d32.w, dimension.d24.h),
                   decoration: BoxDecoration(
                     color: appTheme.coreWhite,
                     borderRadius: BorderRadius.only(
@@ -52,98 +52,113 @@ class VerifyOtpScreen extends StatelessWidget {
                       topRight: Radius.circular(dimension.d48.r),
                     ),
                   ),
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(height: dimension.d8.h),
-                        Text(strings.verifyTitle, style: styles.titleTextStyle),
-                        SizedBox(height: dimension.d8.h),
-                        Text(strings.verifySubtitle, style: styles.subtitleTextStyle),
-                        SizedBox(height: dimension.d24.h),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: List.generate(otpWidget.length, (index) {
-                            return CustomTextFormField(
-                              width: dimension.d60.w,
-                              height: dimension.d68.h,
-                              controller: otpWidget.otpControllers[index],
-                              focusNode: otpWidget.focusNodes[index],
-                              textInputType: TextInputType.number,
-                              textInputAction: index == otpWidget.length - 1
-                                  ? TextInputAction.done
-                                  : TextInputAction.next,
-                              maxLength: 1,
-                              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                              inputDecoration: InputDecoration(
-                                counterText: '',
-                                filled: true,
-                                fillColor: appTheme.coreWhite,
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(dimension.d12.r),
-                                  borderSide: BorderSide(
-                                    color: otpWidget.hasError
-                                        ? appTheme.red
-                                        : appTheme.borderColor,
-                                    width: dimension.d1.w,
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(dimension.d8.r),
-                                  borderSide: BorderSide(
-                                    color: otpWidget.hasError
-                                        ? appTheme.red
-                                        : appTheme.borderColor,
-                                    width: dimension.d1.w,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) => SingleChildScrollView(
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                        child: IntrinsicHeight(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              IconButton(
+                                icon: Icon(Icons.arrow_back_ios,
+                                    size: dimension.d20.sp,
+                                    color: appTheme.black90001),
+                                onPressed: () => Get.back(),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                              SizedBox(height: dimension.d8.h),
+                              Text(strings.verifyTitle, style: styles.titleTextStyle),
+                              SizedBox(height: dimension.d8.h),
+                              Text(strings.verifySubtitle, style: styles.subtitleTextStyle),
+                              SizedBox(height: dimension.d24.h),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: List.generate(otpWidget.length, (index) {
+                                  return CustomTextFormField(
+                                    width: dimension.d60.w,
+                                    height: dimension.d68.h,
+                                    controller: otpWidget.otpControllers[index],
+                                    focusNode: otpWidget.focusNodes[index],
+                                    textInputType: TextInputType.number,
+                                    textInputAction: index == otpWidget.length - 1
+                                        ? TextInputAction.done
+                                        : TextInputAction.next,
+                                    maxLength: 1,
+                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                    inputDecoration: InputDecoration(
+                                      counterText: '',
+                                      filled: true,
+                                      fillColor: appTheme.coreWhite,
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(dimension.d12.r),
+                                        borderSide: BorderSide(
+                                          color: otpWidget.hasError
+                                              ? appTheme.red
+                                              : appTheme.borderColor,
+                                          width: dimension.d1.w,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(dimension.d8.r),
+                                        borderSide: BorderSide(
+                                          color: otpWidget.hasError
+                                              ? appTheme.red
+                                              : appTheme.borderColor,
+                                          width: dimension.d1.w,
+                                        ),
+                                      ),
+                                    ),
+                                    contentPadding: EdgeInsets.zero,
+                                    textAlign: TextAlign.center,
+                                    textAlignVertical: TextAlignVertical.center,
+                                    onChanged: (value) =>
+                                        otpWidget.onOtpChanged(value, index, context),
+                                  );
+                                }),
+                              ),
+                              const Spacer(),
+                              CustomElevatedButton(
+                                height: dimension.d54.h,
+                                width: dimension.d366.w,
+                                onPressed: c.isVerifying ? null : () => c.verifyOtp(email),
+                                buttonStyle: styles.loginButtonStyle,
+                                text: c.isVerifying ? '' : strings.verifyButtonText,
+                                buttonTextStyle: styles.loginButtonTextStyle,
+                                child: c.isVerifying
+                                    ? SizedBox(
+                                        height: dimension.d20.h,
+                                        width: dimension.d20.h,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2, color: appTheme.coreWhite),
+                                      )
+                                    : null,
+                              ),
+                              SizedBox(height: dimension.d20.h),
+                              Center(
+                                child: GestureDetector(
+                                  onTap: c.canResend ? () => c.resendCode(email) : null,
+                                  child: RichText(
+                                    text: TextSpan(
+                                      style: styles.textSpanTextStyle,
+                                      children: [
+                                        TextSpan(
+                                          text: c.canResend ? '' : '${c.resendSeconds}s  ',
+                                          style: styles.donotHaveAccontTextStyle,
+                                        ),
+                                        TextSpan(
+                                            text: strings.resendCode,
+                                            style: styles.resendSpanTextStyle),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
-                              contentPadding: EdgeInsets.zero,
-                              textAlign: TextAlign.center,
-                              textAlignVertical: TextAlignVertical.center,
-                              onChanged: (value) =>
-                                  otpWidget.onOtpChanged(value, index, context),
-                            );
-                          }),
-                        ),
-                        SizedBox(height: dimension.d24.h),
-                        CustomElevatedButton(
-                          height: dimension.d54.h,
-                          width: dimension.d366.w,
-                          onPressed: c.isVerifying ? null : () => c.verifyOtp(email),
-                          buttonStyle: styles.loginButtonStyle,
-                          text: c.isVerifying ? '' : strings.verifyButtonText,
-                          buttonTextStyle: styles.loginButtonTextStyle,
-                          child: c.isVerifying
-                              ? SizedBox(
-                                  height: dimension.d20.h,
-                                  width: dimension.d20.h,
-                                  child: CircularProgressIndicator(
-                                      strokeWidth: 2, color: appTheme.coreWhite),
-                                )
-                              : null,
-                        ),
-                        SizedBox(height: dimension.d24.h),
-                        Center(
-                          child: GestureDetector(
-                            onTap: c.canResend ? () => c.resendCode(email) : null,
-                            child: RichText(
-                              text: TextSpan(
-                                style: styles.textSpanTextStyle,
-                                children: [
-                                  TextSpan(
-                                    text: c.canResend ? '' : '${c.resendSeconds}s  ',
-                                    style: styles.donotHaveAccontTextStyle,
-                                  ),
-                                  TextSpan(
-                                      text: strings.resendCode,
-                                      style: styles.resendSpanTextStyle),
-                                ],
-                              ),
-                            ),
+                            ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ),

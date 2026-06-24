@@ -78,7 +78,10 @@ class ExploreController extends GetxController {
         options.isNotEmpty ? options : OnboardingMockData.filterOptions,
       );
 
-    final activeUsers = await DiscoveryService.fetchActiveUsers(limit: 8);
+    final activeUsers = await DiscoveryService.fetchActiveUsers(
+      limit: 8,
+      excludeUserId: currentUserId,
+    );
     _activeUsers
       ..clear()
       ..addAll(activeUsers);
