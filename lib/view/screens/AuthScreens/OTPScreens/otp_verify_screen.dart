@@ -37,6 +37,19 @@ class VerifyOtpScreen extends StatelessWidget {
                   imagePath: strings.img4,
                   fit: BoxFit.contain,
                   verticalShift: -dimension.d160.h),
+              // Back button floats over the image
+              Positioned(
+                top: MediaQuery.of(context).padding.top + dimension.d8.h,
+                left: dimension.d8.w,
+                child: IconButton(
+                  icon: Icon(Icons.arrow_back_ios,
+                      size: dimension.d20.sp,
+                      color: appTheme.coreWhite),
+                  onPressed: () => Get.back(),
+                  padding: EdgeInsets.all(dimension.d8.r),
+                  constraints: const BoxConstraints(),
+                ),
+              ),
               Positioned(
                 top: dimension.d433.h,
                 left: dimension.d0,
@@ -60,14 +73,6 @@ class VerifyOtpScreen extends StatelessWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              IconButton(
-                                icon: Icon(Icons.arrow_back_ios,
-                                    size: dimension.d20.sp,
-                                    color: appTheme.black90001),
-                                onPressed: () => Get.back(),
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints(),
-                              ),
                               SizedBox(height: dimension.d8.h),
                               Text(strings.verifyTitle, style: styles.titleTextStyle),
                               SizedBox(height: dimension.d8.h),
@@ -76,45 +81,51 @@ class VerifyOtpScreen extends StatelessWidget {
                               Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: List.generate(otpWidget.length, (index) {
-                                  return CustomTextFormField(
-                                    width: dimension.d60.w,
-                                    height: dimension.d68.h,
-                                    controller: otpWidget.otpControllers[index],
-                                    focusNode: otpWidget.focusNodes[index],
-                                    textInputType: TextInputType.number,
-                                    textInputAction: index == otpWidget.length - 1
-                                        ? TextInputAction.done
-                                        : TextInputAction.next,
-                                    maxLength: 1,
-                                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                                    inputDecoration: InputDecoration(
-                                      counterText: '',
-                                      filled: true,
-                                      fillColor: appTheme.coreWhite,
-                                      enabledBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(dimension.d12.r),
-                                        borderSide: BorderSide(
-                                          color: otpWidget.hasError
-                                              ? appTheme.red
-                                              : appTheme.borderColor,
-                                          width: dimension.d1.w,
-                                        ),
-                                      ),
-                                      focusedBorder: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(dimension.d8.r),
-                                        borderSide: BorderSide(
-                                          color: otpWidget.hasError
-                                              ? appTheme.red
-                                              : appTheme.borderColor,
-                                          width: dimension.d1.w,
+                                  return Expanded(
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: dimension.d4.w),
+                                      child: AspectRatio(
+                                        aspectRatio: 0.85,
+                                        child: CustomTextFormField(
+                                          controller: otpWidget.otpControllers[index],
+                                          focusNode: otpWidget.focusNodes[index],
+                                          textInputType: TextInputType.number,
+                                          textInputAction: index == otpWidget.length - 1
+                                              ? TextInputAction.done
+                                              : TextInputAction.next,
+                                          maxLength: 1,
+                                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                                          inputDecoration: InputDecoration(
+                                            counterText: '',
+                                            filled: true,
+                                            fillColor: appTheme.coreWhite,
+                                            enabledBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(dimension.d12.r),
+                                              borderSide: BorderSide(
+                                                color: otpWidget.hasError
+                                                    ? appTheme.red
+                                                    : appTheme.borderColor,
+                                                width: dimension.d1.w,
+                                              ),
+                                            ),
+                                            focusedBorder: OutlineInputBorder(
+                                              borderRadius: BorderRadius.circular(dimension.d8.r),
+                                              borderSide: BorderSide(
+                                                color: otpWidget.hasError
+                                                    ? appTheme.red
+                                                    : appTheme.borderColor,
+                                                width: dimension.d1.w,
+                                              ),
+                                            ),
+                                          ),
+                                          contentPadding: EdgeInsets.zero,
+                                          textAlign: TextAlign.center,
+                                          textAlignVertical: TextAlignVertical.center,
+                                          onChanged: (value) =>
+                                              otpWidget.onOtpChanged(value, index, context),
                                         ),
                                       ),
                                     ),
-                                    contentPadding: EdgeInsets.zero,
-                                    textAlign: TextAlign.center,
-                                    textAlignVertical: TextAlignVertical.center,
-                                    onChanged: (value) =>
-                                        otpWidget.onOtpChanged(value, index, context),
                                   );
                                 }),
                               ),
@@ -137,23 +148,18 @@ class VerifyOtpScreen extends StatelessWidget {
                               ),
                               SizedBox(height: dimension.d20.h),
                               Center(
-                                child: GestureDetector(
-                                  onTap: c.canResend ? () => c.resendCode(email) : null,
-                                  child: RichText(
-                                    text: TextSpan(
-                                      style: styles.textSpanTextStyle,
-                                      children: [
-                                        TextSpan(
-                                          text: c.canResend ? '' : '${c.resendSeconds}s  ',
-                                          style: styles.donotHaveAccontTextStyle,
+                                child: c.canResend
+                                    ? GestureDetector(
+                                        onTap: () => c.resendCode(email),
+                                        child: Text(
+                                          strings.resendCode,
+                                          style: styles.resendSpanTextStyle,
                                         ),
-                                        TextSpan(
-                                            text: strings.resendCode,
-                                            style: styles.resendSpanTextStyle),
-                                      ],
-                                    ),
-                                  ),
-                                ),
+                                      )
+                                    : Text(
+                                        'Resend code in ${c.resendSeconds}s',
+                                        style: styles.donotHaveAccontTextStyle,
+                                      ),
                               ),
                             ],
                           ),

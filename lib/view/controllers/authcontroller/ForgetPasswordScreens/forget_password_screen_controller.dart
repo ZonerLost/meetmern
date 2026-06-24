@@ -4,6 +4,7 @@ import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/main.dart';
 import 'package:meetmern/core/routes/route_names.dart';
 
 class ForgotPasswordController extends GetxController {
@@ -25,10 +26,17 @@ class ForgotPasswordController extends GetxController {
     isLoading = true;
     update();
     try {
-      await AuthService.sendPasswordResetEmail(
-        email: emailController.text.trim(),
-      );
-      AppSnackbar.success('Reset link sent! Check your email.');
+      final email = emailController.text.trim();
+
+      // Verify the email belongs to a registered account before sending.
+      final exists = await _isEmailRegistered(email);
+      if (!exists) {
+        AppSnackbar.error('No account found with this email. Please sign up first.');
+        return;
+      }
+
+      await AuthService.sendPasswordResetEmail(email: email);
+      AppSnackbar.success('Reset code sent! Check your email.');
       Get.toNamed(Routes.otpVerify);
     } on Exception catch (e) {
       AppSnackbar.error(_parseError(e));
@@ -38,10 +46,24 @@ class ForgotPasswordController extends GetxController {
     }
   }
 
+  Future<bool> _isEmailRegistered(String email) async {
+    try {
+      final result = await supabase.rpc(
+        'is_email_registered',
+        params: {'p_email': email.trim().toLowerCase()},
+      );
+      return result == true;
+    } catch (_) {
+      // RPC unavailable — allow the flow to proceed rather than block users.
+      return true;
+    }
+  }
+
   String _parseError(Exception e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('user not found'))
+    if (msg.contains('user not found')) {
       return 'No account found with this email.';
+    }
     if (msg.contains('network')) return 'Network error. Check your connection.';
     return 'Failed to send reset link. Please try again.';
   }

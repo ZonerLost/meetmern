@@ -137,9 +137,9 @@ class AuthService {
   }
 
   static Future<void> sendPasswordResetEmail({required String email}) async {
-    await supabase.auth.resetPasswordForEmail(
-      email,
-      redirectTo: 'com.example.meetmern://reset-callback/',
+    await supabase.auth.signInWithOtp(
+      email: email,
+      shouldCreateUser: false,
     );
   }
 

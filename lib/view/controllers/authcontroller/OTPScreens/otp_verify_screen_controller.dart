@@ -9,7 +9,7 @@ class OtpVerifyController extends GetxController {
   late final OtpWidgetController otpWidgetController;
 
   Timer? _timer;
-  int resendSeconds = 30;
+  int resendSeconds = 60;
   bool isVerifying = false;
   bool get canResend => resendSeconds == 0;
   bool get canVerify => otpWidgetController.isComplete && !isVerifying;
@@ -23,10 +23,11 @@ class OtpVerifyController extends GetxController {
 
   void _startResendCountdown() {
     _timer?.cancel();
-    resendSeconds = 30;
+    resendSeconds = 60;
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (resendSeconds == 0) {
         timer.cancel();
+        update();
       } else {
         resendSeconds -= 1;
         update();
@@ -61,7 +62,7 @@ class OtpVerifyController extends GetxController {
       await AuthService.sendPasswordResetEmail(email: email);
       otpWidgetController.reset();
       _startResendCountdown();
-      AppSnackbar.info('A new code has been sent to your email.');
+      AppSnackbar.info('Code resent. Use the latest code from your email.');
     } on Exception catch (e) {
       AppSnackbar.error(_parseError(e));
     }
