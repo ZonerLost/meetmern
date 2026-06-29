@@ -15,6 +15,7 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_outlined_button.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ViewMeetupScreen extends StatefulWidget {
   final Meetup meetup;
@@ -32,6 +33,23 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
   final ViewMeetupController _controller = Get.find<ViewMeetupController>();
   final DimensionResource dimension = DimensionResource();
   final Strings strings = const Strings();
+
+  Future<void> _openInMaps(Meetup meetup) async {
+    final lat = meetup.latitude;
+    final lng = meetup.longitude;
+    final Uri uri;
+    if (lat != null && lng != null) {
+      uri = Uri.parse(
+          'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=walking');
+    } else if (meetup.location.isNotEmpty) {
+      final encoded = Uri.encodeComponent(meetup.location);
+      uri = Uri.parse(
+          'https://www.google.com/maps/dir/?api=1&destination=$encoded&travelmode=walking');
+    } else {
+      return;
+    }
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
 
   @override
   void initState() {
@@ -254,6 +272,14 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
                                   controller.visibleLocation,
                                   style:
                                       customButtonAndTextStyles.userNameTextStyle,
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => _openInMaps(widget.meetup),
+                                child: Icon(
+                                  Icons.map_outlined,
+                                  size: dimension.d20,
+                                  color: appTheme.black900,
                                 ),
                               ),
                             ],

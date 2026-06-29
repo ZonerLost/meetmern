@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:meetmern/main.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -170,6 +171,8 @@ class MeetupService {
     required String date,
     required String time,
     required bool repeat,
+    double? latitude,
+    double? longitude,
   }) async {
     String profilePicUrl = '';
 
@@ -181,6 +184,19 @@ class MeetupService {
       profilePicUrl = _text(profile?['photo_url']);
     } catch (_) {}
 
+    // Geocode the address if no coordinates were pinned on the map.
+    double? resolvedLat = latitude;
+    double? resolvedLng = longitude;
+    if ((resolvedLat == null || resolvedLng == null) && address.isNotEmpty) {
+      try {
+        final locations = await locationFromAddress(address);
+        if (locations.isNotEmpty) {
+          resolvedLat = locations.first.latitude;
+          resolvedLng = locations.first.longitude;
+        }
+      } catch (_) {}
+    }
+
     final payload = <String, dynamic>{
       'user_id': userId,
       'type': type,
@@ -190,6 +206,8 @@ class MeetupService {
       'repeat': repeat,
       'status': 'active',
       if (profilePicUrl.isNotEmpty) 'profile_pic_url': profilePicUrl,
+      if (resolvedLat != null) 'latitude': resolvedLat,
+      if (resolvedLng != null) 'longitude': resolvedLng,
     };
     Map<String, dynamic>? inserted;
 

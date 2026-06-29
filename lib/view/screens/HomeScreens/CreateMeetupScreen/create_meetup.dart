@@ -12,6 +12,7 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/map_picker_screen.dart';
 
 class CreateMeetupScreen extends StatefulWidget {
   final String? origin;
@@ -29,6 +30,9 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
 
   bool _repeat = false;
   String _repeatRule = 'Every Monday';
+
+  double? _pickedLat;
+  double? _pickedLng;
 
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
@@ -72,6 +76,29 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
         .showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _openMapPicker() async {
+    final result = await Navigator.of(context).push<MapPickerResult>(
+      MaterialPageRoute(
+        builder: (_) => MapPickerScreen(
+          initialLat: _pickedLat,
+          initialLng: _pickedLng,
+          initialAddress: addressController.text.isNotEmpty
+              ? addressController.text
+              : null,
+        ),
+      ),
+    );
+    if (result != null && mounted) {
+      setState(() {
+        _pickedLat = result.latitude;
+        _pickedLng = result.longitude;
+        if (result.address.isNotEmpty) {
+          addressController.text = result.address;
+        }
+      });
+    }
+  }
+
   void _goToReview() async {
     final MeetupType? type =
         (selectedTypeIndex >= 0 && selectedTypeIndex < MeetupType.values.length)
@@ -85,6 +112,8 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
       time: _selectedTime,
       repeat: _repeat,
       repeatRule: _repeat ? _repeatRule : 'Does not repeat',
+      latitude: _pickedLat,
+      longitude: _pickedLng,
     );
 
     FocusScope.of(context).unfocus();
@@ -201,8 +230,21 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                 SizedBox(height: dimension.d8.h),
                 CustomTextFormField(
                     controller: addressController,
-                    inputDecoration:
-                        customButtonandTextStyles.addresFInputDecoration),
+                    inputDecoration: customButtonandTextStyles
+                        .addresFInputDecoration
+                        .copyWith(
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _pickedLat != null
+                                  ? Icons.map
+                                  : Icons.map_outlined,
+                              color: _pickedLat != null
+                                  ? appTheme.b_Primary
+                                  : null,
+                            ),
+                            onPressed: _openMapPicker,
+                          ),
+                        )),
                 SizedBox(height: dimension.d14.h),
                 Text(strings.dateAndTimeLabel,
                     style: customButtonandTextStyles.dobLabelTextStyle),

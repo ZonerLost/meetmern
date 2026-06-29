@@ -136,6 +136,8 @@ class _ReviewMeetupScreenState extends State<ReviewMeetupScreen> {
         date: dateStr,
         time: timeStr,
         repeat: draft.repeat,
+        latitude: draft.latitude,
+        longitude: draft.longitude,
       );
 
       // Re-fetch with profile join so hostName and image are populated

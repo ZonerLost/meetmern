@@ -23,6 +23,8 @@ class Meetup {
   bool joinRequested;
   // Supabase user_id of the meetup owner (null for mock/local data)
   final String? userId;
+  final double? latitude;
+  final double? longitude;
 
   final List<Nearby>? nearby;
 
@@ -48,6 +50,8 @@ class Meetup {
     this.isFavorite = false,
     this.joinRequested = false,
     this.userId,
+    this.latitude,
+    this.longitude,
     this.nearby,
   });
 
@@ -77,6 +81,8 @@ class Meetup {
         isFavorite: j['isFavorite'] ?? false,
         joinRequested: j['joinRequested'] ?? false,
         userId: j['userId']?.toString() ?? j['user_id']?.toString(),
+        latitude: (j['latitude'] as num?)?.toDouble(),
+        longitude: (j['longitude'] as num?)?.toDouble(),
         nearby: j['nearby'] != null
             ? (j['nearby'] as List)
                 .map((e) => Nearby.fromMap(Map<String, dynamic>.from(e)))
@@ -129,6 +135,8 @@ class Meetup {
       ownerDob: owner['dob']?.toString(),
       isFavorite: false,
       joinRequested: false,
+      latitude: (row['latitude'] as num?)?.toDouble(),
+      longitude: (row['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -182,6 +190,8 @@ class Meetup {
         'isFavorite': isFavorite,
         'joinRequested': joinRequested,
         if (userId != null) 'userId': userId,
+        if (latitude != null) 'latitude': latitude,
+        if (longitude != null) 'longitude': longitude,
         if (nearby != null) 'nearby': nearby!.map((n) => n.toMap()).toList(),
       };
 }
@@ -211,6 +221,8 @@ class Nearby extends Meetup {
     super.ownerReligion,
     super.ownerRelationshipStatus,
     super.ownerDob,
+    super.latitude,
+    super.longitude,
     super.isFavorite,
     super.joinRequested,
     super.nearby,

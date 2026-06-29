@@ -9,6 +9,8 @@ class MeetupDraft {
   TimeOfDay? time;
   bool repeat;
   String repeatRule;
+  double? latitude;
+  double? longitude;
 
   MeetupDraft({
     this.type,
@@ -17,6 +19,8 @@ class MeetupDraft {
     this.time,
     this.repeat = false,
     this.repeatRule = '',
+    this.latitude,
+    this.longitude,
   });
 
   DateTime? get dateTime {

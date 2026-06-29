@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/chat_model.dart';
@@ -162,43 +163,61 @@ class ViewMeetupController extends GetxController {
   Future<void> _computeDistance() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        _setFallbackDistance();
-        update();
-        return;
-      }
+      if (!serviceEnabled) { _setFallbackDistance(); update(); return; }
 
       LocationPermission perm = await Geolocator.checkPermission();
       if (perm == LocationPermission.denied) {
         perm = await Geolocator.requestPermission();
       }
-
       if (perm == LocationPermission.denied ||
           perm == LocationPermission.deniedForever) {
-        _setFallbackDistance();
-        update();
-        return;
+        _setFallbackDistance(); update(); return;
       }
 
-      await Geolocator.getCurrentPosition(
-        locationSettings:
-            const LocationSettings(accuracy: LocationAccuracy.low),
-      ).timeout(
-        const Duration(seconds: 10),
-        onTimeout: () => throw Exception('timeout'),
-      );
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(accuracy: LocationAccuracy.low),
+      ).timeout(const Duration(seconds: 10), onTimeout: () => throw Exception('timeout'));
 
-      _setFallbackDistance();
+      // Resolve meetup coordinates — prefer stored lat/lng, fall back to geocoding
+      double? meetupLat = meetup?.latitude;
+      double? meetupLng = meetup?.longitude;
+
+      if ((meetupLat == null || meetupLng == null) &&
+          (meetup?.location.isNotEmpty ?? false)) {
+        try {
+          final locs = await locationFromAddress(meetup!.location)
+              .timeout(const Duration(seconds: 6));
+          if (locs.isNotEmpty) {
+            meetupLat = locs.first.latitude;
+            meetupLng = locs.first.longitude;
+          }
+        } catch (_) {}
+      }
+
+      if (meetupLat != null && meetupLng != null) {
+        final meters = Geolocator.distanceBetween(
+          pos.latitude, pos.longitude,
+          meetupLat, meetupLng,
+        );
+        distanceText = _formatDistance(meters);
+      } else {
+        _setFallbackDistance();
+      }
     } catch (_) {
       _setFallbackDistance();
     }
-
     update();
+  }
+
+  String _formatDistance(double meters) {
+    if (meters <= 2000) return 'Nearby';
+    final km = meters / 1000;
+    return '${km.toStringAsFixed(1)} km away';
   }
 
   void _setFallbackDistance() {
     final km = meetup?.distanceKm ?? 0.0;
-    distanceText = km > 0 ? '${km.toStringAsFixed(1)} km away' : 'Nearby';
+    distanceText = (km <= 0 || km <= 2.0) ? 'Nearby' : '${km.toStringAsFixed(1)} km away';
   }
 
   String _approximateLocation(String raw) {
@@ -270,23 +289,23 @@ class ViewMeetupController extends GetxController {
         '[ViewMeetup] requestToJoin — uid=$uid meetupId=${m?.id} ownerId=${m?.userId} isOwnMeetup=$isOwnMeetup isRequested=$isRequested');
 
     if (uid == null) {
-      print('[ViewMeetup] requestToJoin — aborted: not logged in');
+      debugPrint('[ViewMeetup] requestToJoin — aborted: not logged in');
       return null;
     }
     if (m == null) {
-      print('[ViewMeetup] requestToJoin — aborted: meetup is null');
+      debugPrint('[ViewMeetup] requestToJoin — aborted: meetup is null');
       return null;
     }
     if (isOwnMeetup) {
-      print('[ViewMeetup] requestToJoin — aborted: own meetup');
+      debugPrint('[ViewMeetup] requestToJoin — aborted: own meetup');
       return null;
     }
     if (isRequested) {
-      print('[ViewMeetup] requestToJoin — aborted: already requested');
+      debugPrint('[ViewMeetup] requestToJoin — aborted: already requested');
       return null;
     }
     if (m.userId == null || m.userId!.trim().isEmpty) {
-      print('[ViewMeetup] requestToJoin — aborted: meetup has no owner userId');
+      debugPrint('[ViewMeetup] requestToJoin — aborted: meetup has no owner userId');
       errorMessage = 'Cannot send request: meetup owner is unknown.';
       update();
       return null;
@@ -297,23 +316,23 @@ class ViewMeetupController extends GetxController {
     update();
 
     try {
-      print(
+      debugPrint(
           '[ViewMeetup] requestToJoin — checking profile disabled for uid=$uid');
       if (await MeetupService.isProfileDisabled(uid)) {
         errorMessage = 'Your account is disabled.';
-        print('[ViewMeetup] requestToJoin — aborted: requester disabled');
+        debugPrint('[ViewMeetup] requestToJoin — aborted: requester disabled');
         return null;
       }
 
-      print(
+      debugPrint(
           '[ViewMeetup] requestToJoin — checking profile disabled for ownerId=${m.userId}');
       if (await MeetupService.isProfileDisabled(m.userId!)) {
         errorMessage = 'This user account is disabled.';
-        print('[ViewMeetup] requestToJoin — aborted: owner disabled');
+        debugPrint('[ViewMeetup] requestToJoin — aborted: owner disabled');
         return null;
       }
 
-      print('[ViewMeetup] requestToJoin — checking block status');
+      debugPrint('[ViewMeetup] requestToJoin — checking block status');
       final blocked = await MeetupService.areUsersBlocked(
         userA: uid,
         userB: m.userId!,
@@ -321,11 +340,11 @@ class ViewMeetupController extends GetxController {
       if (blocked) {
         errorMessage =
             'Cannot request meetup because one of you has blocked the other.';
-        print('[ViewMeetup] requestToJoin — aborted: users blocked');
+        debugPrint('[ViewMeetup] requestToJoin — aborted: users blocked');
         return null;
       }
 
-      print(
+      debugPrint(
           '[ViewMeetup] requestToJoin — checking active request between users');
       final hasActive = await MeetupService.hasActiveMeetupRequestBetween(
         userA: uid,
@@ -334,17 +353,17 @@ class ViewMeetupController extends GetxController {
       if (hasActive) {
         errorMessage =
             'A meetup is already active between you. Wait for it to complete first.';
-        print('[ViewMeetup] requestToJoin — aborted: active request exists');
+        debugPrint('[ViewMeetup] requestToJoin — aborted: active request exists');
         return null;
       }
 
-      print('[ViewMeetup] requestToJoin — sending request...');
+      debugPrint('[ViewMeetup] requestToJoin — sending request...');
       final chatRow = await MeetupService.sendMeetupRequest(
         meetupId: m.id,
         meetupOwnerId: m.userId!,
         requesterId: uid,
       );
-      print(
+      debugPrint(
           '[ViewMeetup] requestToJoin — request sent, chatId=${chatRow['id']}');
 
       isRequested = true;
@@ -359,11 +378,10 @@ class ViewMeetupController extends GetxController {
       );
       chat.type = m.type;
       chat.time = formattedTime;
-      final normalizedLocation = _approximateLocation(m.location.trim());
       chat.subtitle = _buildSubtitle(m);
       return chat;
     } catch (e, st) {
-      print('[ViewMeetup] requestToJoin — ERROR: $e\n$st');
+      debugPrint('[ViewMeetup] requestToJoin — ERROR: $e\n$st');
       errorMessage = e.toString().replaceFirst('Exception: ', '');
       return null;
     } finally {
