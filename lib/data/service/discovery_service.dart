@@ -215,13 +215,21 @@ class DiscoveryService {
       try {
         profileRowsRaw = await supabase
             .from('profiles')
-            .select('id, name, photo_url, location, interests, languages')
+            .select(
+                'id, name, photo_url, location, interests, languages, gender, dob, orientation, religion, relationship_status')
             .inFilter('id', userIds);
       } catch (_) {
-        profileRowsRaw = await supabase
-            .from('profiles')
-            .select('id, name, photo_url, location')
-            .inFilter('id', userIds);
+        try {
+          profileRowsRaw = await supabase
+              .from('profiles')
+              .select('id, name, photo_url, location, interests, languages')
+              .inFilter('id', userIds);
+        } catch (_) {
+          profileRowsRaw = await supabase
+              .from('profiles')
+              .select('id, name, photo_url, location')
+              .inFilter('id', userIds);
+        }
       }
 
       final profileById = <String, Map<String, dynamic>>{};
@@ -268,6 +276,11 @@ class DiscoveryService {
             icon: _iconForType(type),
             languages: _asStringList(profile['languages']),
             interests: _asStringList(profile['interests']),
+            ownerGender: profile['gender']?.toString(),
+            ownerOrientation: profile['orientation']?.toString(),
+            ownerReligion: profile['religion']?.toString(),
+            ownerRelationshipStatus: profile['relationship_status']?.toString(),
+            ownerDob: profile['dob']?.toString(),
             name: name,
             locationShort: locationShort,
             favMeetupType: type,

@@ -245,14 +245,14 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
           buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
           text: strings.createMeetup,
         ),
-        if (controller.activeUsers.isNotEmpty) ...[
+        if (controller.filteredActiveUsers.isNotEmpty) ...[
           SizedBox(height: dimension.d24.h),
           Text(
             'Active users',
             style: customButtonandTextStyles.dobLabelTextStyle,
           ),
           SizedBox(height: dimension.d8.h),
-          ...controller.activeUsers.map(
+          ...controller.filteredActiveUsers.map(
             (user) => Card(
               color: appTheme.coreWhite,
               elevation: 0,

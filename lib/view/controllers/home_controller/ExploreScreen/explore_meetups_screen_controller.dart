@@ -45,6 +45,11 @@ class ExploreController extends GetxController {
   }
 
   List<Nearby> get activeUsers => List<Nearby>.unmodifiable(_activeUsers);
+
+  List<Nearby> get filteredActiveUsers {
+    if (_activeFilters.isEmpty) return List<Nearby>.unmodifiable(_activeUsers);
+    return _activeUsers.where(_matchesFilters).toList(growable: false);
+  }
   bool get hasActiveFilters => _activeFilters.isNotEmpty;
   int get activeFilterCount => _activeFilters.length;
   String? get currentUserId => AuthService.currentUser?.id;
@@ -98,6 +103,20 @@ class ExploreController extends GetxController {
     _activeFilters
       ..clear()
       ..addAll(normalized);
+    update();
+    if (meetups.isEmpty) {
+      _refreshActiveUsers();
+    }
+  }
+
+  Future<void> _refreshActiveUsers() async {
+    final users = await DiscoveryService.fetchActiveUsers(
+      limit: 20,
+      excludeUserId: currentUserId,
+    );
+    _activeUsers
+      ..clear()
+      ..addAll(users);
     update();
   }
 
@@ -313,24 +332,29 @@ class ExploreController extends GetxController {
     final maxAge = _asInt(_activeFilters['ageMax']);
     if (minAge != null || maxAge != null) {
       final age = _ageFromDob(meetup.ownerDob);
-      if (age == null) return false;
-      if (minAge != null && age < minAge) return false;
-      if (maxAge != null && age > maxAge) return false;
+      if (age != null) {
+        if (minAge != null && age < minAge) return false;
+        if (maxAge != null && age > maxAge) return false;
+      }
     }
 
     final gender = _asString(_activeFilters['gender']);
-    if (gender != null && !_equalsIgnoreCase(meetup.ownerGender, gender)) {
+    if (gender != null &&
+        meetup.ownerGender != null &&
+        !_equalsIgnoreCase(meetup.ownerGender, gender)) {
       return false;
     }
 
     final religions = _asString(_activeFilters['religion']);
     if (religions != null &&
+        meetup.ownerReligion != null &&
         !_equalsIgnoreCase(meetup.ownerReligion, religions)) {
       return false;
     }
 
     final relationship = _asString(_activeFilters['relationship']);
     if (relationship != null &&
+        meetup.ownerRelationshipStatus != null &&
         !_equalsIgnoreCase(meetup.ownerRelationshipStatus, relationship)) {
       return false;
     }
@@ -338,7 +362,7 @@ class ExploreController extends GetxController {
     final orientationFilters = _asStringList(_activeFilters['orientation']);
     if (orientationFilters.isNotEmpty) {
       final ownerOrientation = _asString(meetup.ownerOrientation);
-      if (ownerOrientation == null ||
+      if (ownerOrientation != null &&
           !orientationFilters
               .any((value) => _equalsIgnoreCase(value, ownerOrientation))) {
         return false;
@@ -417,6 +441,9 @@ class ExploreController extends GetxController {
     if (interests.isNotEmpty) {
       map['interests'] = interests;
     }
+
+    final hostRating = _normalizeAnyValue(raw['hostRating']);
+    putIfNotNull('hostRating', hostRating);
 
     final dateRange = raw['dateRange'];
     if (dateRange is Map) {
