@@ -476,7 +476,7 @@ class Strings {
         resetButtonText = 'Reset',
         showPasswordText = 'Show',
         verifyTitle = "Verify it's you",
-        verifySubtitle = 'Enter the 5-digit code we sent to your phone/ email.',
+        verifySubtitle = 'Enter the 8-digit code we sent to your email.',
         verifyButtonText = 'Verify & Continue',
         resendCodeText = 'Resend Code',
         timerPrefixText = '00:30 Sec - ',

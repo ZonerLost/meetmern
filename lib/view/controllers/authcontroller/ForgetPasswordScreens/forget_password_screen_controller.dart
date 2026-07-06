@@ -6,6 +6,7 @@ import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/main.dart';
 import 'package:meetmern/core/routes/route_names.dart';
+import 'package:meetmern/view/controllers/authcontroller/OTPScreens/otp_verify_screen_controller.dart';
 
 class ForgotPasswordController extends GetxController {
   static const _strings = Strings();
@@ -37,7 +38,10 @@ class ForgotPasswordController extends GetxController {
 
       await AuthService.sendPasswordResetEmail(email: email);
       AppSnackbar.success('Reset code sent! Check your email.');
-      Get.toNamed(Routes.otpVerify);
+      Get.toNamed(Routes.otpVerify, arguments: {
+        'email': email,
+        'flow': OtpFlow.passwordReset,
+      });
     } on Exception catch (e) {
       AppSnackbar.error(_parseError(e));
     } finally {

@@ -1,12 +1,18 @@
 import 'dart:async';
 import 'package:get/get.dart';
+import 'package:meetmern/core/services/notification_service.dart';
 import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/view/controllers/authcontroller/OTPScreens/verify_otp_controller_widget_controller.dart';
 import 'package:meetmern/core/routes/route_names.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+enum OtpFlow { signup, passwordReset }
 
 class OtpVerifyController extends GetxController {
   late final OtpWidgetController otpWidgetController;
+  String email = '';
+  OtpFlow flow = OtpFlow.passwordReset;
 
   Timer? _timer;
   int resendSeconds = 60;
@@ -18,6 +24,15 @@ class OtpVerifyController extends GetxController {
   void onInit() {
     super.onInit();
     otpWidgetController = Get.find<OtpWidgetController>();
+  }
+
+  /// Re-reads the email/flow for this screen visit. The controller is a
+  /// fenix singleton reused across app sessions, so onInit only fires once —
+  /// call this from the screen every time it's opened instead.
+  void configure(Map<String, dynamic> args) {
+    email = (args['email'] as String? ?? '').trim();
+    flow = args['flow'] as OtpFlow? ?? OtpFlow.passwordReset;
+    otpWidgetController.reset();
     _startResendCountdown();
   }
 
@@ -36,7 +51,7 @@ class OtpVerifyController extends GetxController {
     update();
   }
 
-  Future<void> verifyOtp(String email) async {
+  Future<void> verifyOtp() async {
     if (!canVerify) return;
     isVerifying = true;
     update();
@@ -44,10 +59,23 @@ class OtpVerifyController extends GetxController {
       await AuthService.verifyOtp(
         email: email,
         token: otpWidgetController.otp,
+        type: flow == OtpFlow.signup ? OtpType.signup : OtpType.email,
       );
       otpWidgetController.setError(false);
-      AppSnackbar.success('Verified! Set your new password.');
-      Get.toNamed(Routes.resetPassword);
+
+      if (flow == OtpFlow.signup) {
+        AppSnackbar.success('Account verified!');
+        await NotificationService.instance.syncTokenWithSupabase();
+        final profile = await AuthService.loadProfile();
+        if (profile == null || profile.showOnboarding) {
+          Get.offAllNamed(Routes.onboarding);
+        } else {
+          Get.offAllNamed(Routes.explore);
+        }
+      } else {
+        AppSnackbar.success('Verified! Set your new password.');
+        Get.toNamed(Routes.resetPassword);
+      }
     } on Exception catch (e) {
       otpWidgetController.setError(true);
       AppSnackbar.error(_parseError(e));
@@ -57,9 +85,13 @@ class OtpVerifyController extends GetxController {
     }
   }
 
-  Future<void> resendCode(String email) async {
+  Future<void> resendCode() async {
     try {
-      await AuthService.sendPasswordResetEmail(email: email);
+      if (flow == OtpFlow.signup) {
+        await AuthService.resendSignupOtp(email: email);
+      } else {
+        await AuthService.sendPasswordResetEmail(email: email);
+      }
       otpWidgetController.reset();
       _startResendCountdown();
       AppSnackbar.info('Code resent. Use the latest code from your email.');

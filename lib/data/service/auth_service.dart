@@ -132,8 +132,11 @@ class AuthService {
     return await supabase.auth.signUp(
       email: email,
       password: password,
-      emailRedirectTo: 'com.example.meetmern://login-callback/',
     );
+  }
+
+  static Future<void> resendSignupOtp({required String email}) async {
+    await supabase.auth.resend(type: OtpType.signup, email: email);
   }
 
   static Future<void> sendPasswordResetEmail({required String email}) async {
@@ -154,11 +157,12 @@ class AuthService {
   static Future<void> verifyOtp({
     required String email,
     required String token,
+    OtpType type = OtpType.email,
   }) async {
     await supabase.auth.verifyOTP(
       email: email,
       token: token,
-      type: OtpType.email,
+      type: type,
     );
   }
 

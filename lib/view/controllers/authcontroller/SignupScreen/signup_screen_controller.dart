@@ -5,6 +5,7 @@ import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/core/routes/route_names.dart';
+import 'package:meetmern/view/controllers/authcontroller/OTPScreens/otp_verify_screen_controller.dart';
 
 class SignupController extends GetxController {
   static const _strings = Strings();
@@ -56,14 +57,27 @@ class SignupController extends GetxController {
       AuthService.pendingName = nameController.text.trim();
       AuthService.pendingPhone = phoneController.text.trim();
 
-      await AuthService.signUp(
-        email: emailController.text.trim(),
+      final email = emailController.text.trim();
+      final response = await AuthService.signUp(
+        email: email,
         password: passwordController.text.trim(),
       );
 
-      AppSnackbar.success(
-          'Account created! Please check your email to confirm.');
-      Get.toNamed(Routes.login);
+      // Supabase returns a "success" response with an empty identities list
+      // (instead of throwing) when the email is already registered and
+      // confirmed — this is deliberate anti-enumeration behavior.
+      if (response.user != null && (response.user!.identities?.isEmpty ?? false)) {
+        AuthService.pendingName = null;
+        AuthService.pendingPhone = null;
+        AppSnackbar.error('This email is already registered.');
+        return;
+      }
+
+      AppSnackbar.success('Account created! Enter the code sent to your email.');
+      Get.toNamed(Routes.otpVerify, arguments: {
+        'email': email,
+        'flow': OtpFlow.signup,
+      });
     } on Exception catch (e) {
       AuthService.pendingName = null;
       AuthService.pendingPhone = null;
