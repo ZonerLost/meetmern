@@ -66,7 +66,8 @@ class NotificationService {
     setupNotificationTapListeners();
     await _captureInitialMessage();
 
-    WidgetsBinding.instance.addObserver(_AppResumeObserver(syncTokenWithSupabase));
+    WidgetsBinding.instance
+        .addObserver(_AppResumeObserver(syncTokenWithSupabase));
     _initialized = true;
   }
 
@@ -91,6 +92,14 @@ class NotificationService {
   Future<String?> getFcmToken() async {
     if (!_isFirebaseReady) return null;
     try {
+      if (!kIsWeb && Platform.isIOS) {
+        final apnsReady = await _waitForApnsToken();
+        if (!apnsReady) {
+          _debugLog('APNs token not ready yet; delaying FCM token sync.');
+          return null;
+        }
+      }
+
       final token = await _messaging.getToken();
       if (token == null || token.trim().isEmpty) {
         _debugLog('FCM token is null/empty.');
@@ -223,6 +232,21 @@ class NotificationService {
     }
   }
 
+  Future<void> handleBackgroundRemoteMessage(RemoteMessage message) async {
+    if (!_isFirebaseReady) return;
+
+    await _ensureBackgroundNotificationSetup();
+
+    // Let the OS render normal notification payloads in the background.
+    // We only bridge data-only messages into a visible local notification.
+    if (message.notification != null) return;
+
+    final data = Map<String, dynamic>.from(message.data);
+    if (data.isEmpty) return;
+
+    await showLocalNotification(message);
+  }
+
   void handleNotificationNavigation(Map<String, dynamic> data) {
     Future<void>(() async {
       final normalized = <String, dynamic>{};
@@ -345,8 +369,7 @@ class NotificationService {
       '@drawable/ic_stat_notification',
     );
     const iosInit = DarwinInitializationSettings();
-    const settings =
-        InitializationSettings(android: androidInit, iOS: iosInit);
+    const settings = InitializationSettings(android: androidInit, iOS: iosInit);
 
     await _localNotifications.initialize(
       settings,
@@ -376,10 +399,16 @@ class NotificationService {
     _localNotificationsInitialized = true;
   }
 
+  Future<void> _ensureBackgroundNotificationSetup() async {
+    await _initializeLocalNotifications();
+    await _createAndroidNotificationChannel();
+  }
+
   Future<void> _createAndroidNotificationChannel() async {
     if (!Platform.isAndroid) return;
-    final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin =
+        _localNotifications.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.createNotificationChannel(_highImportanceChannel);
   }
 
@@ -430,6 +459,18 @@ class NotificationService {
     } catch (e) {
       _debugLog('Token upsert failed: $e');
     }
+  }
+
+  Future<bool> _waitForApnsToken() async {
+    for (var attempt = 0; attempt < 8; attempt++) {
+      final apnsToken = await _messaging.getAPNSToken();
+      if (apnsToken != null && apnsToken.trim().isNotEmpty) {
+        _debugLog('APNs token ready.');
+        return true;
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+    return false;
   }
 
   Future<(String, String)> _readDeviceDetails() async {
@@ -519,10 +560,9 @@ class NotificationService {
             : 'Sent you a meetup request';
       }
 
-      final otherName =
-          (profileRow?['name'] ?? '').toString().trim().isNotEmpty
-              ? (profileRow?['name'] ?? '').toString().trim()
-              : 'User';
+      final otherName = (profileRow?['name'] ?? '').toString().trim().isNotEmpty
+          ? (profileRow?['name'] ?? '').toString().trim()
+          : 'User';
       final avatarUrl = (profileRow?['photo_url'] ?? '').toString();
 
       final chat = Chat.fromSupabase(
@@ -651,4 +691,5 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await NotificationService.instance.handleBackgroundRemoteMessage(message);
 }

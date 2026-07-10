@@ -47,6 +47,7 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
     final profile = await ProfileService.getLocationAndRadius(userId);
+    if (!mounted) return;
     if (profile?.location != null && profile!.location!.isNotEmpty) {
       setState(() => addressController.text = profile.location!);
     }
@@ -71,6 +72,14 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
         timeController.text.trim().isNotEmpty;
   }
 
+  void _onAddressChanged(String value) {
+    if (_pickedLat == null && _pickedLng == null) return;
+    setState(() {
+      _pickedLat = null;
+      _pickedLng = null;
+    });
+  }
+
   void _showSnack(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
@@ -82,9 +91,8 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
         builder: (_) => MapPickerScreen(
           initialLat: _pickedLat,
           initialLng: _pickedLng,
-          initialAddress: addressController.text.isNotEmpty
-              ? addressController.text
-              : null,
+          initialAddress:
+              addressController.text.isNotEmpty ? addressController.text : null,
         ),
       ),
     );
@@ -124,6 +132,7 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
               ReviewMeetupScreen(draft: draft, origin: widget.origin)),
     );
 
+    if (!mounted) return;
     if (created != null) {
       Navigator.of(context).pop(created);
     }
@@ -230,21 +239,19 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                 SizedBox(height: dimension.d8.h),
                 CustomTextFormField(
                     controller: addressController,
+                    textInputType: TextInputType.streetAddress,
+                    onChanged: _onAddressChanged,
                     inputDecoration: customButtonandTextStyles
                         .addresFInputDecoration
                         .copyWith(
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _pickedLat != null
-                                  ? Icons.map
-                                  : Icons.map_outlined,
-                              color: _pickedLat != null
-                                  ? appTheme.b_Primary
-                                  : null,
-                            ),
-                            onPressed: _openMapPicker,
-                          ),
-                        )),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _pickedLat != null ? Icons.map : Icons.map_outlined,
+                          color: _pickedLat != null ? appTheme.b_Primary : null,
+                        ),
+                        onPressed: _openMapPicker,
+                      ),
+                    )),
                 SizedBox(height: dimension.d14.h),
                 Text(strings.dateAndTimeLabel,
                     style: customButtonandTextStyles.dobLabelTextStyle),
@@ -267,9 +274,12 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                                     picked.month == now.month &&
                                     picked.day == now.day;
                                 if (isToday) {
-                                  final pickedDt = DateTime(picked.year,
-                                      picked.month, picked.day,
-                                      _selectedTime!.hour, _selectedTime!.minute);
+                                  final pickedDt = DateTime(
+                                      picked.year,
+                                      picked.month,
+                                      picked.day,
+                                      _selectedTime!.hour,
+                                      _selectedTime!.minute);
                                   if (!pickedDt.isAfter(now)) {
                                     _selectedTime = null;
                                     timeController.clear();
@@ -299,7 +309,9 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                           // For today, start the clock at the next minute.
                           final minTime = isToday
                               ? TimeOfDay(
-                                  hour: now.minute < 59 ? now.hour : (now.hour + 1) % 24,
+                                  hour: now.minute < 59
+                                      ? now.hour
+                                      : (now.hour + 1) % 24,
                                   minute: now.minute < 59 ? now.minute + 1 : 0,
                                 )
                               : const TimeOfDay(hour: 0, minute: 0);
@@ -309,7 +321,8 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                                     (!isToday ||
                                         _selectedTime!.hour > minTime.hour ||
                                         (_selectedTime!.hour == minTime.hour &&
-                                            _selectedTime!.minute >= minTime.minute)))
+                                            _selectedTime!.minute >=
+                                                minTime.minute)))
                                 ? _selectedTime
                                 : minTime,
                             onPicked: (t) {

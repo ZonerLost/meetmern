@@ -24,6 +24,7 @@ dependencies:
   crypto: ^3.0.7
   geolocator: ^14.0.2
   geocoding: ^3.0.0
+  http: ^1.2.2
   firebase_core: ^4.8.0
   firebase_messaging: ^16.0.3
   flutter_local_notifications: ^19.4.1
