@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
+import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/core/widgets/app_snackbar.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/core/routes/route_names.dart';
@@ -27,13 +28,15 @@ class ResetPasswordController extends GetxController {
   }
 
   String? validatePassword(String? value) {
-    if (value == null || value.isEmpty) return _strings.pleaseEnterPasswordText;
-    if (value.length < 6) return _strings.passwordMinLengthText;
-    return null;
+    return PasswordRules.validateNewPassword(value);
   }
 
   String? validateConfirmPassword(String? value) {
     if (value == null || value.isEmpty) return _strings.pleaseEnterPasswordText;
+    final passwordError = PasswordRules.validateNewPassword(
+      newPasswordController.text,
+    );
+    if (passwordError != null) return passwordError;
     if (value != newPasswordController.text) return _strings.passwordNotMatch;
     return null;
   }
@@ -44,7 +47,7 @@ class ResetPasswordController extends GetxController {
     update();
     try {
       await AuthService.updatePassword(
-        newPassword: newPasswordController.text.trim(),
+        newPassword: newPasswordController.text,
       );
       AppSnackbar.success('Password updated successfully!');
       Get.toNamed(Routes.login);
@@ -58,9 +61,11 @@ class ResetPasswordController extends GetxController {
 
   String _parseError(Exception e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('weak password')) return 'Password is too weak.';
+    if (msg.contains('weak password') || msg.contains('password')) {
+      return 'Password must be at least ${PasswordRules.minLength} characters and use only supported characters.';
+    }
     if (msg.contains('network')) return 'Network error. Check your connection.';
-    return 'Failed to update password. Please try again.';
+    return e.toString().replaceFirst('Exception: ', '');
   }
 
   @override

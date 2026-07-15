@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/view/controllers/authcontroller/ForgetPasswordScreens/setnew_password_screen_controller.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/auth_background_image.dart';
@@ -64,6 +65,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                           inputDecoration: styles.passwordInputDecoration(
                             isObscure: c.isObscure1,
                             onToggle: c.toggleNewPasswordVisibility,
+                          ),
+                        ),
+                        SizedBox(height: dimension.d8.h),
+                        Text(
+                          PasswordRules.helperText,
+                          style: styles.subtitleTextStyle.copyWith(
+                            fontSize: dimension.d12.sp,
+                            color: appTheme.neutral_600,
                           ),
                         ),
                         SizedBox(height: dimension.d16.h),

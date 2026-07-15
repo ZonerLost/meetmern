@@ -33,7 +33,6 @@ class LoginController extends GetxController {
 
   String? validatePassword(String? value) {
     if (value == null || value.isEmpty) return _strings.pleaseEnterPasswordText;
-    if (value.length < 6) return _strings.passwordMinLengthText;
     return null;
   }
 
@@ -44,7 +43,7 @@ class LoginController extends GetxController {
     try {
       await AuthService.signIn(
         email: emailController.text.trim(),
-        password: passwordController.text.trim(),
+        password: passwordController.text,
       );
       await NotificationService.instance.syncTokenWithSupabase();
 

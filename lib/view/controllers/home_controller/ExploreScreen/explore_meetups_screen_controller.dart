@@ -1,10 +1,11 @@
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/models/profile_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/discovery_service.dart';
 import 'package:meetmern/data/service/favorite_service.dart';
-import 'package:meetmern/data/service/meetup_service.dart';
 import 'package:meetmern/data/service/meetup_store.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/view/screens/onboardingscreens/dummy_data/onboarding_mock_data.dart';
@@ -16,6 +17,7 @@ class ExploreController extends GetxController {
   final List<Nearby> _activeUsers = <Nearby>[];
 
   ProfileModel? _viewerProfile;
+  _GeoPoint? _viewerCoordinates;
 
   bool loading = true;
   String? error;
@@ -25,9 +27,7 @@ class ExploreController extends GetxController {
         .where((m) => !isOwnMeetup(m))
         .where(_isAvailableMeetup)
         .toList(growable: false);
-    final filtered = _activeFilters.isEmpty
-        ? base
-        : base.where(_matchesFilters).toList(growable: false);
+    final filtered = base.where(_matchesFilters).toList(growable: false);
     final ranked = List<Meetup>.from(filtered);
     ranked.sort((a, b) {
       final scoreCompare = _rankingScore(b).compareTo(_rankingScore(a));
@@ -47,7 +47,6 @@ class ExploreController extends GetxController {
   List<Nearby> get activeUsers => List<Nearby>.unmodifiable(_activeUsers);
 
   List<Nearby> get filteredActiveUsers {
-    if (_activeFilters.isEmpty) return List<Nearby>.unmodifiable(_activeUsers);
     return _activeUsers.where(_matchesFilters).toList(growable: false);
   }
   bool get hasActiveFilters => _activeFilters.isNotEmpty;
@@ -96,6 +95,7 @@ class ExploreController extends GetxController {
       _viewerProfile = await ProfileService.getProfile(uid);
     }
     _viewerProfile ??= AuthService.currentProfile.value;
+    _viewerCoordinates = await _resolveCoordinatesFromText(_viewerLocation);
   }
 
   void applyFilters(Map<String, dynamic>? rawFilters) {
@@ -250,6 +250,19 @@ class ExploreController extends GetxController {
   double? _estimatedDistanceKm(Meetup meetup) {
     if (meetup.distanceKm > 0) return meetup.distanceKm;
 
+    final viewerCoordinates = _viewerCoordinates;
+    if (viewerCoordinates != null) {
+      final meetupCoordinates = _coordinatesForMeetup(meetup);
+      if (meetupCoordinates != null) {
+        return _distanceBetweenKm(
+          viewerCoordinates.latitude,
+          viewerCoordinates.longitude,
+          meetupCoordinates.latitude,
+          meetupCoordinates.longitude,
+        );
+      }
+    }
+
     final userLocation = _viewerLocation;
     if (userLocation == null || userLocation.isEmpty) return null;
 
@@ -299,6 +312,62 @@ class ExploreController extends GetxController {
     return 0.15;
   }
 
+  _GeoPoint? _coordinatesForMeetup(Meetup meetup) {
+    final lat = meetup.latitude;
+    final lng = meetup.longitude;
+    if (lat != null && lng != null) {
+      return _GeoPoint(latitude: lat, longitude: lng);
+    }
+    return _tryParseCoordinates(meetup.location);
+  }
+
+  Future<_GeoPoint?> _resolveCoordinatesFromText(String? raw) async {
+    final text = raw?.trim() ?? '';
+    if (text.isEmpty) return null;
+
+    final parsed = _tryParseCoordinates(text);
+    if (parsed != null) return parsed;
+
+    try {
+      final locations = await locationFromAddress(text);
+      if (locations.isEmpty) return null;
+      return _GeoPoint(
+        latitude: locations.first.latitude,
+        longitude: locations.first.longitude,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  _GeoPoint? _tryParseCoordinates(String raw) {
+    final match = RegExp(
+      r'^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$',
+    ).firstMatch(raw);
+    if (match == null) return null;
+
+    final latitude = double.tryParse(match.group(1)!);
+    final longitude = double.tryParse(match.group(2)!);
+    if (latitude == null || longitude == null) return null;
+
+    return _GeoPoint(latitude: latitude, longitude: longitude);
+  }
+
+  double _distanceBetweenKm(
+    double startLatitude,
+    double startLongitude,
+    double endLatitude,
+    double endLongitude,
+  ) {
+    final meters = Geolocator.distanceBetween(
+      startLatitude,
+      startLongitude,
+      endLatitude,
+      endLongitude,
+    );
+    return meters / 1000.0;
+  }
+
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
@@ -311,19 +380,17 @@ class ExploreController extends GetxController {
   bool _matchesFilters(Meetup meetup) {
     final maxDistance = _asDouble(_activeFilters['distanceKm']);
     final effectiveDistance = _estimatedDistanceKm(meetup);
-    if (maxDistance != null &&
-        maxDistance > 0 &&
-        effectiveDistance != null &&
-        effectiveDistance > maxDistance) {
-      return false;
-    }
 
-    if (maxDistance == null) {
+    final hasExplicitDistanceFilter = maxDistance != null && maxDistance > 0;
+    if (hasExplicitDistanceFilter) {
+      if (effectiveDistance == null || effectiveDistance > maxDistance) {
+        return false;
+      }
+    } else {
       final profileRadius = _viewerRadiusKm;
-      if (profileRadius != null &&
-          profileRadius > 0 &&
-          effectiveDistance != null &&
-          effectiveDistance > profileRadius) {
+      final hasProfileRadius = profileRadius != null && profileRadius > 0;
+      if (hasProfileRadius &&
+          (effectiveDistance == null || effectiveDistance > profileRadius)) {
         return false;
       }
     }
@@ -563,6 +630,16 @@ class ExploreController extends GetxController {
     }
     return const <String>[];
   }
+}
+
+class _GeoPoint {
+  final double latitude;
+  final double longitude;
+
+  const _GeoPoint({
+    required this.latitude,
+    required this.longitude,
+  });
 }
 
 class _LocationParts {

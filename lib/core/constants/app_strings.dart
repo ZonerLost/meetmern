@@ -445,7 +445,7 @@ class Strings {
         pleaseEnterYourEmailText = 'Please enter your email',
         enterValidEmailText = 'Enter a valid email',
         pleaseEnterPasswordText = 'Please enter a password',
-        passwordMinLengthText = 'Password must be at least 6 characters',
+        passwordMinLengthText = 'Password must be at least 8 characters',
         pleaseEnterYourNameText = 'Please enter your name',
         pleaseEnterYourPhoneText = 'Please enter your phone number',
         loginScreenTitle = 'Login To Continue',

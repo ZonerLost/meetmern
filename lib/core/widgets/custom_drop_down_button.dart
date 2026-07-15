@@ -63,7 +63,16 @@ class _CustomDropdownButtonState extends State<CustomDropdownButton> {
     if (widget.value != oldWidget.value &&
         widget.value != _controller.text &&
         !_focusNode.hasFocus) {
-      _controller.text = widget.value ?? '';
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _focusNode.hasFocus) return;
+        final nextText = widget.value ?? '';
+        if (_controller.text == nextText) return;
+        _controller.value = _controller.value.copyWith(
+          text: nextText,
+          selection: TextSelection.collapsed(offset: nextText.length),
+          composing: TextRange.empty,
+        );
+      });
     }
   }
 

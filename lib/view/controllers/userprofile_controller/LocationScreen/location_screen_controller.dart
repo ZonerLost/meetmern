@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/main.dart';
+import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
 
 class LocationScreenController extends GetxController {
   final TextEditingController locationController = TextEditingController();
@@ -231,6 +233,10 @@ class LocationScreenController extends GetxController {
         location,
         '${radiusController.text.trim()} km',
       );
+      await AuthService.loadProfile();
+      if (Get.isRegistered<ExploreController>()) {
+        await Get.find<ExploreController>().loadData();
+      }
       return true;
     } catch (e) {
       errorMessage = e.toString();

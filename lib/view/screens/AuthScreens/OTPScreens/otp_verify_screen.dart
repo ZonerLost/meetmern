@@ -95,62 +95,64 @@ class VerifyOtpScreen extends StatelessWidget {
                                       return Expanded(
                                         child: Padding(
                                           padding: EdgeInsets.symmetric(
-                                              horizontal: dimension.d4.w),
-                                          child: AspectRatio(
-                                            aspectRatio: 0.85,
-                                            child: CustomTextFormField(
-                                              controller: otpWidget
-                                                  .otpControllers[index],
-                                              focusNode:
-                                                  otpWidget.focusNodes[index],
-                                              textInputType:
-                                                  TextInputType.number,
-                                              textInputAction:
-                                                  index == otpWidget.length - 1
-                                                      ? TextInputAction.done
-                                                      : TextInputAction.next,
-                                              maxLength: 1,
-                                              inputFormatters: [
-                                                FilteringTextInputFormatter
-                                                    .digitsOnly
-                                              ],
-                                              inputDecoration: InputDecoration(
-                                                counterText: '',
-                                                filled: true,
-                                                fillColor: appTheme.coreWhite,
-                                                enabledBorder:
-                                                    OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          dimension.d12.r),
-                                                  borderSide: BorderSide(
-                                                    color: otpWidget.hasError
-                                                        ? appTheme.red
-                                                        : appTheme.borderColor,
-                                                    width: dimension.d1.w,
-                                                  ),
-                                                ),
-                                                focusedBorder:
-                                                    OutlineInputBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          dimension.d8.r),
-                                                  borderSide: BorderSide(
-                                                    color: otpWidget.hasError
-                                                        ? appTheme.red
-                                                        : appTheme.borderColor,
-                                                    width: dimension.d1.w,
-                                                  ),
+                                              horizontal: dimension.d2.w),
+                                        child: CustomTextFormField(
+                                            height: dimension.d62.h,
+                                            controller: otpWidget
+                                                .otpControllers[index],
+                                            focusNode:
+                                                otpWidget.focusNodes[index],
+                                            textStyle: TextStyle(
+                                              fontSize: dimension.d20.sp,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                            textInputType:
+                                                TextInputType.number,
+                                            textInputAction:
+                                                index == otpWidget.length - 1
+                                                    ? TextInputAction.done
+                                                    : TextInputAction.next,
+                                            maxLength: 1,
+                                            inputFormatters: [
+                                              FilteringTextInputFormatter
+                                                  .digitsOnly
+                                            ],
+                                            inputDecoration: InputDecoration(
+                                              counterText: '',
+                                              filled: true,
+                                              fillColor: appTheme.coreWhite,
+                                              enabledBorder:
+                                                  OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        dimension.d12.r),
+                                                borderSide: BorderSide(
+                                                  color: otpWidget.hasError
+                                                      ? appTheme.red
+                                                      : appTheme.borderColor,
+                                                  width: dimension.d1.w,
                                                 ),
                                               ),
-                                              contentPadding: EdgeInsets.zero,
-                                              textAlign: TextAlign.center,
-                                              textAlignVertical:
-                                                  TextAlignVertical.center,
-                                              onChanged: (value) =>
-                                                  otpWidget.onOtpChanged(
-                                                      value, index, context),
+                                              focusedBorder:
+                                                  OutlineInputBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                        dimension.d8.r),
+                                                borderSide: BorderSide(
+                                                  color: otpWidget.hasError
+                                                      ? appTheme.red
+                                                      : appTheme.borderColor,
+                                                  width: dimension.d1.w,
+                                                ),
+                                              ),
                                             ),
+                                            contentPadding: EdgeInsets.zero,
+                                            textAlign: TextAlign.center,
+                                            textAlignVertical:
+                                                TextAlignVertical.center,
+                                            onChanged: (value) =>
+                                                otpWidget.onOtpChanged(
+                                                    value, index, context),
                                           ),
                                         ),
                                       );

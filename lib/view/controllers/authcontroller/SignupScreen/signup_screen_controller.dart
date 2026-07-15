@@ -24,28 +24,29 @@ class SignupController extends GetxController {
   }
 
   String? validateName(String? value) {
-    if (value == null || value.trim().isEmpty)
+    if (value == null || value.trim().isEmpty) {
       return _strings.pleaseEnterYourNameText;
+    }
     return null;
   }
 
   String? validateEmail(String? value) {
-    if (value == null || value.trim().isEmpty)
+    if (value == null || value.trim().isEmpty) {
       return _strings.pleaseEnterYourEmailText;
+    }
     if (!value.isValidEmail) return _strings.enterValidEmailText;
     return null;
   }
 
   String? validatePhone(String? value) {
-    if (value == null || value.trim().isEmpty)
+    if (value == null || value.trim().isEmpty) {
       return _strings.pleaseEnterYourPhoneText;
+    }
     return null;
   }
 
   String? validatePassword(String? value) {
-    if (value == null || value.isEmpty) return _strings.pleaseEnterPasswordText;
-    if (value.length < 6) return _strings.passwordMinLengthText;
-    return null;
+    return PasswordRules.validateNewPassword(value);
   }
 
   Future<void> signUp(GlobalKey<FormState> formKey) async {
@@ -60,7 +61,7 @@ class SignupController extends GetxController {
       final email = emailController.text.trim();
       final response = await AuthService.signUp(
         email: email,
-        password: passwordController.text.trim(),
+        password: passwordController.text,
       );
 
       // Supabase returns a "success" response with an empty identities list
@@ -90,11 +91,14 @@ class SignupController extends GetxController {
 
   String _parseError(Exception e) {
     final msg = e.toString().toLowerCase();
-    if (msg.contains('already registered'))
+    if (msg.contains('already registered')) {
       return 'This email is already registered.';
-    if (msg.contains('weak password')) return 'Password is too weak.';
+    }
+    if (msg.contains('weak password') || msg.contains('password')) {
+      return 'Password must be at least ${PasswordRules.minLength} characters and use only supported characters.';
+    }
     if (msg.contains('network')) return 'Network error. Check your connection.';
-    return 'Sign up failed. Please try again.';
+    return e.toString().replaceFirst('Exception: ', '');
   }
 
   @override

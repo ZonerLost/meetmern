@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/view/controllers/authcontroller/SignupScreen/signup_screen_controller.dart';
 import 'package:meetmern/core/routes/route_names.dart';
 import 'package:meetmern/core/theme/theme.dart';
@@ -118,6 +119,14 @@ class _SignupScreenState extends State<SignupScreen> {
                           inputDecoration: styles.passwordInputDecoration(
                             isObscure: c.isObscure,
                             onToggle: c.togglePasswordVisibility,
+                          ),
+                        ),
+                        SizedBox(height: dimension.d8.h),
+                        Text(
+                          PasswordRules.helperText,
+                          style: styles.subtitleTextStyle.copyWith(
+                            fontSize: dimension.d12.sp,
+                            color: appTheme.neutral_600,
                           ),
                         ),
                         SizedBox(height: dimension.d20.h),

@@ -85,7 +85,11 @@ class ProfileModel {
           .where((e) => e.isNotEmpty)
           .toList(),
       location: json['location'] as String?,
-      discoveryRadius: json['discovery_radius'] as String?,
+      discoveryRadius: (json['discovery_radius'] ??
+              json['radius'] ??
+              json['radius_km'] ??
+              json['search_radius'])
+          as String?,
       showOnboarding: json['show_onboarding'] as bool? ?? true,
       reportCount: (json['report_count'] as num?)?.toInt() ?? 0,
       isDisabled: json['is_disabled'] as bool? ?? false,

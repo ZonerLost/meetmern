@@ -193,7 +193,9 @@ class DiscoveryService {
     try {
       final meetupRowsRaw = await supabase
           .from('meetups')
-          .select('id, user_id, type, address, status, created_at')
+          .select(
+            'id, user_id, type, address, status, created_at, latitude, longitude',
+          )
           .order('created_at', ascending: false)
           .limit(120);
 
@@ -281,6 +283,8 @@ class DiscoveryService {
             ownerReligion: profile['religion']?.toString(),
             ownerRelationshipStatus: profile['relationship_status']?.toString(),
             ownerDob: profile['dob']?.toString(),
+            latitude: (meetup['latitude'] as num?)?.toDouble(),
+            longitude: (meetup['longitude'] as num?)?.toDouble(),
             name: name,
             locationShort: locationShort,
             favMeetupType: type,

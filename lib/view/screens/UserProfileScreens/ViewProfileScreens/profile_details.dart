@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:meetmern/view/controllers/userprofile_controller/ViewProfileScreens/profile_details_controller.dart';
 import 'package:meetmern/core/extensions/date_picker_extension.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
+import 'package:meetmern/core/extensions/validation_extention.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_drop_down_button.dart';
@@ -366,16 +367,17 @@ class _PasswordDialogState extends State<_PasswordDialog> {
   }
 
   Future<void> _submit() async {
-    final current = _currentCtrl.text.trim();
-    final newPw = _newCtrl.text.trim();
-    final confirm = _confirmCtrl.text.trim();
+    final current = _currentCtrl.text;
+    final newPw = _newCtrl.text;
+    final confirm = _confirmCtrl.text;
 
     if (current.isEmpty || newPw.isEmpty || confirm.isEmpty) {
       setState(() => _error = 'Please fill in all fields.');
       return;
     }
-    if (newPw.length < 6) {
-      setState(() => _error = 'New password must be at least 6 characters.');
+    final passwordError = PasswordRules.validateNewPassword(newPw);
+    if (passwordError != null) {
+      setState(() => _error = passwordError);
       return;
     }
     if (newPw != confirm) {
@@ -408,19 +410,23 @@ class _PasswordDialogState extends State<_PasswordDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final maxDialogHeight = MediaQuery.of(context).size.height * 0.75;
+
     return Dialog(
       backgroundColor: appTheme.coreWhite,
       shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(dimension.d20.r)),
       insetPadding:
           EdgeInsets.symmetric(horizontal: dimension.d20.w, vertical: 40.h),
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-            dimension.d20.w, dimension.d20.h, dimension.d20.w, dimension.d24.h),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxDialogHeight),
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(dimension.d20.w, dimension.d20.h,
+              dimension.d20.w, dimension.d24.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // ── Header row ──────────────────────────────────────────────────
             Row(
               children: [
@@ -483,6 +489,15 @@ class _PasswordDialogState extends State<_PasswordDialog> {
               hint: 'Enter new password',
               obscure: !_showNew,
               onToggle: () => setState(() => _showNew = !_showNew),
+            ),
+            SizedBox(height: dimension.d8.h),
+            Text(
+              PasswordRules.helperText,
+              style: TextStyle(
+                fontSize: dimension.d12.sp,
+                color: appTheme.neutral_500,
+                height: 1.35,
+              ),
             ),
             SizedBox(height: dimension.d14.h),
 
@@ -547,7 +562,8 @@ class _PasswordDialogState extends State<_PasswordDialog> {
                 ),
               ),
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -605,4 +621,3 @@ class _PasswordField extends StatelessWidget {
     );
   }
 }
-
