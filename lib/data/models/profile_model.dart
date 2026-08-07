@@ -19,6 +19,35 @@ class ProfileModel {
   final List<String>? photos;
   final String? location;
   final String? discoveryRadius;
+
+  /// Sane product default used whenever no valid discovery radius has been
+  /// set yet — e.g. a fresh profile before the user ever visits Location
+  /// settings. Every screen/filter should read [discoveryRadiusKm] rather
+  /// than parsing [discoveryRadius] itself, so they all agree on this.
+  static const double defaultDiscoveryRadiusKm = 10.0;
+
+  /// Anything above this is treated as bogus/unset rather than trusted as a
+  /// real radius. Guards against a raw placeholder value from a fresh
+  /// profile row (observed as ~1,000,000 km) leaking straight into the UI
+  /// and into nearby/active-user filtering as an effectively unlimited
+  /// distance.
+  static const double _maxReasonableDiscoveryRadiusKm = 500.0;
+
+  /// [discoveryRadius] parsed to km, clamped to [defaultDiscoveryRadiusKm]
+  /// whenever it's missing, non-positive, unparsable, or absurdly large.
+  double get discoveryRadiusKm {
+    final raw = discoveryRadius?.trim() ?? '';
+    if (raw.isEmpty) return defaultDiscoveryRadiusKm;
+    final match = RegExp(r'\d+(\.\d+)?').firstMatch(raw);
+    final parsed = match != null ? double.tryParse(match.group(0)!) : null;
+    if (parsed == null ||
+        parsed <= 0 ||
+        parsed > _maxReasonableDiscoveryRadiusKm) {
+      return defaultDiscoveryRadiusKm;
+    }
+    return parsed;
+  }
+
   final bool showOnboarding;
   final int reportCount;
   final bool isDisabled;

@@ -224,25 +224,19 @@ class ExploreController extends GetxController {
     return null;
   }
 
-  double? get _viewerRadiusKm {
-    final raw = (_viewerProfile?.discoveryRadius ??
-            AuthService.currentProfile.value?.discoveryRadius ??
-            '')
-        .trim();
-    if (raw.isEmpty) return null;
-    final match = RegExp(r'\d+(\.\d+)?').firstMatch(raw);
-    if (match == null) return null;
-    return double.tryParse(match.group(0)!);
+  // Always a valid, sane radius — ProfileModel.discoveryRadiusKm falls back
+  // to its own default whenever the profile has no radius set yet, or an
+  // invalid/absurdly large value (e.g. a fresh-install placeholder), so the
+  // discovery radius filter is never effectively unlimited.
+  double get _viewerRadiusKm {
+    final profile = _viewerProfile ?? AuthService.currentProfile.value;
+    return profile?.discoveryRadiusKm ?? ProfileModel.defaultDiscoveryRadiusKm;
   }
 
   double get _distanceLimitKmForRanking {
     final filterDistance = _asDouble(_activeFilters['distanceKm']);
     if (filterDistance != null && filterDistance > 0) return filterDistance;
-
-    final profileRadius = _viewerRadiusKm;
-    if (profileRadius != null && profileRadius > 0) return profileRadius;
-
-    return 50.0;
+    return _viewerRadiusKm;
   }
 
   double? _estimatedDistanceKm(Meetup meetup) {
@@ -386,9 +380,7 @@ class ExploreController extends GetxController {
       }
     } else {
       final profileRadius = _viewerRadiusKm;
-      final hasProfileRadius = profileRadius != null && profileRadius > 0;
-      if (hasProfileRadius &&
-          (effectiveDistance == null || effectiveDistance > profileRadius)) {
+      if (effectiveDistance == null || effectiveDistance > profileRadius) {
         return false;
       }
     }

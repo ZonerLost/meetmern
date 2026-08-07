@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
+import 'package:meetmern/data/models/profile_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/main.dart';
@@ -19,7 +20,8 @@ class LocationScreenController extends GetxController {
   bool isLocating = false;
   String? errorMessage;
 
-  static const String _defaultRadiusKm = '10';
+  static final String _defaultRadiusKm =
+      ProfileModel.defaultDiscoveryRadiusKm.toStringAsFixed(0);
 
   bool get hasValidLocation => locationController.text.trim().isNotEmpty;
   bool get hasValidRadius {
@@ -53,10 +55,12 @@ class LocationScreenController extends GetxController {
           locationController.text = profile.location!;
         }
 
-        final savedRadius = _extractRadiusKm(profile.discoveryRadius);
-        if (savedRadius != null) {
-          radiusController.text = savedRadius;
-        }
+        // Always a valid, sane value — clamps/falls back to the product
+        // default whenever the stored radius is missing, invalid, or an
+        // absurdly large placeholder (e.g. from a fresh profile row), so
+        // this field never displays something like "1000000".
+        radiusController.text =
+            profile.discoveryRadiusKm.toStringAsFixed(0);
       }
 
       // Auto-fill location from phone if profile has no location yet.
@@ -69,12 +73,6 @@ class LocationScreenController extends GetxController {
       isLoading = false;
       update();
     }
-  }
-
-  static String? _extractRadiusKm(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final match = RegExp(r'\d+').firstMatch(value);
-    return match?.group(0);
   }
 
   String? _formatCityCountry(Placemark placemark) {
