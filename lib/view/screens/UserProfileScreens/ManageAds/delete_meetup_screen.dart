@@ -10,6 +10,8 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_dialog_widget.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
+import 'package:meetmern/core/widgets/custom_outlined_button.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
 
 class ViewMeetupDeleteScreen extends StatefulWidget {
   final Meetup meetup;
@@ -29,6 +31,27 @@ class _ViewMeetupDeleteScreenState extends State<ViewMeetupDeleteScreen> {
     super.initState();
     _controller = Get.find<DeleteMeetupController>();
     _controller.init(widget.meetup);
+  }
+
+  Future<void> _openEdit() async {
+    if (widget.meetup.isExpired) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Expired meetups can’t be edited.')),
+      );
+      return;
+    }
+    final updated = await Navigator.of(context).push<dynamic>(
+      MaterialPageRoute(
+        builder: (_) => CreateMeetupScreen(
+          origin: 'manage_ads_edit',
+          existingMeetup: widget.meetup,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (updated != null) {
+      Navigator.of(context).pop({'action': 'update', 'meetup': updated});
+    }
   }
 
   void _confirmDelete() {
@@ -179,6 +202,22 @@ class _ViewMeetupDeleteScreenState extends State<ViewMeetupDeleteScreen> {
                         style: styles.userNameTextStyle,
                       ),
                       SizedBox(height: dimension.d24.h),
+                      CustomOutlinedButton(
+                        buttonStyle: styles.googleButtonStyle,
+                        buttonTextStyle: widget.meetup.isExpired
+                            ? styles.googleButtonTextStyle
+                                .copyWith(color: appTheme.neutral_500)
+                            : styles.googleButtonTextStyle,
+                        // Expired meetups are read-only — editing is only
+                        // offered for upcoming/active ones.
+                        onPressed: (c.isDeleting || widget.meetup.isExpired)
+                            ? null
+                            : _openEdit,
+                        text: widget.meetup.isExpired
+                            ? 'Edit unavailable (expired)'
+                            : 'Edit Meetup',
+                      ),
+                      SizedBox(height: dimension.d12.h),
                       CustomElevatedButton(
                         buttonStyle: styles.deleteButtonStyle,
                         buttonTextStyle: styles.loginButtonTextStyle,

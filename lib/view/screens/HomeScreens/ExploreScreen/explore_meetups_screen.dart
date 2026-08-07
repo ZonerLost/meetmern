@@ -183,23 +183,11 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
                   Expanded(
                     child: RefreshIndicator(
                       onRefresh: () async => _controller.loadData(),
-                      child: controller.meetups.isNotEmpty
-                          ? ListView.separated(
-                              padding: EdgeInsets.zero,
-                              itemCount: controller.meetups.length,
-                              separatorBuilder: (_, __) =>
-                                  SizedBox(height: dimension.d12.h),
-                              itemBuilder: (context, index) {
-                                final m = controller.meetups[index];
-                                return MeetupCard(
-                                  meetup: m,
-                                  locationLabel:
-                                      controller.approximateLocationForFeed(m),
-                                  onFavorite: () =>
-                                      controller.toggleFavorite(m.id),
-                                  onTap: () => _openMeetup(m),
-                                );
-                              },
+                      child: controller.meetups.isNotEmpty ||
+                              controller.filteredActiveUsers.isNotEmpty
+                          ? _buildDiscoveryList(
+                              controller,
+                              customButtonandTextStyles,
                             )
                           : _buildEmptyState(
                               controller,
@@ -245,55 +233,101 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
           buttonTextStyle: customButtonandTextStyles.loginButtonTextStyle,
           text: strings.createMeetup,
         ),
-        if (controller.filteredActiveUsers.isNotEmpty) ...[
-          SizedBox(height: dimension.d24.h),
+      ],
+    );
+  }
+
+  // Builds the combined discovery list: meetup posts followed by the
+  // "Active users" section. Active users are always shown when they match
+  // the current discovery radius/filters, regardless of whether there are
+  // meetup posts to display alongside them.
+  Widget _buildDiscoveryList(
+    ExploreController controller,
+    CustomButtonStyles customButtonandTextStyles,
+  ) {
+    final meetups = controller.meetups;
+    final activeUsers = controller.filteredActiveUsers;
+
+    return ListView(
+      padding: EdgeInsets.zero,
+      children: [
+        if (meetups.isNotEmpty)
+          ...List.generate(meetups.length, (index) {
+            final m = meetups[index];
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: dimension.d12.h,
+              ),
+              child: MeetupCard(
+                meetup: m,
+                locationLabel: controller.approximateLocationForFeed(m),
+                onFavorite: () => controller.toggleFavorite(m.id),
+                onTap: () => _openMeetup(m),
+              ),
+            );
+          })
+        else ...[
+          Center(
+            child: Text('No meetup posts available right now.',
+                style: customButtonandTextStyles.dobLabelTextStyle),
+          ),
+          SizedBox(height: dimension.d12.h),
+        ],
+        if (activeUsers.isNotEmpty) ...[
+          SizedBox(height: dimension.d12.h),
           Text(
             'Active users',
             style: customButtonandTextStyles.dobLabelTextStyle,
           ),
           SizedBox(height: dimension.d8.h),
-          ...controller.filteredActiveUsers.map(
-            (user) => Card(
-              color: appTheme.coreWhite,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(dimension.d12.r),
-                side: BorderSide(color: appTheme.borderColor, width: 1),
-              ),
-              margin: EdgeInsets.only(bottom: dimension.d10.h),
-              child: ListTile(
-                onTap: () => context.navigateToScreen(
-                  MeetupUserProfileScreen(
-                    meetup: user,
-                    showRequestButton: true,
-                  ),
-                ),
-                leading: CircleAvatar(
-                  backgroundColor: appTheme.neutral_200,
-                  backgroundImage: user.image.startsWith('http')
-                      ? NetworkImage(user.image) as ImageProvider
-                      : null,
-                  onBackgroundImageError: user.image.startsWith('http')
-                      ? (_, __) {}
-                      : null,
-                  child: !user.image.startsWith('http')
-                      ? Icon(Icons.person,
-                          size: dimension.d22.sp, color: appTheme.neutral_600)
-                      : null,
-                ),
-                title: Text(
-                  user.name,
-                  style: customButtonandTextStyles.dobLabelTextStyle,
-                ),
-                subtitle: Text(
-                  '${user.locationShort ?? user.location} - ${user.favMeetupType ?? user.type}',
-                  style: customButtonandTextStyles.locationTextStyle,
-                ),
-              ),
-            ),
+          ...activeUsers.map(
+            (user) => _buildActiveUserCard(user, customButtonandTextStyles),
           ),
         ],
       ],
+    );
+  }
+
+  Widget _buildActiveUserCard(
+    Nearby user,
+    CustomButtonStyles customButtonandTextStyles,
+  ) {
+    return Card(
+      color: appTheme.coreWhite,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(dimension.d12.r),
+        side: BorderSide(color: appTheme.borderColor, width: 1),
+      ),
+      margin: EdgeInsets.only(bottom: dimension.d10.h),
+      child: ListTile(
+        onTap: () => context.navigateToScreen(
+          MeetupUserProfileScreen(
+            meetup: user,
+            showRequestButton: true,
+          ),
+        ),
+        leading: CircleAvatar(
+          backgroundColor: appTheme.neutral_200,
+          backgroundImage: user.image.startsWith('http')
+              ? NetworkImage(user.image) as ImageProvider
+              : null,
+          onBackgroundImageError:
+              user.image.startsWith('http') ? (_, __) {} : null,
+          child: !user.image.startsWith('http')
+              ? Icon(Icons.person,
+                  size: dimension.d22.sp, color: appTheme.neutral_600)
+              : null,
+        ),
+        title: Text(
+          user.name,
+          style: customButtonandTextStyles.dobLabelTextStyle,
+        ),
+        subtitle: Text(
+          '${user.locationShort ?? user.location} - ${user.favMeetupType ?? user.type}',
+          style: customButtonandTextStyles.locationTextStyle,
+        ),
+      ),
     );
   }
 }

@@ -16,7 +16,11 @@ import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/map_picker_
 
 class CreateMeetupScreen extends StatefulWidget {
   final String? origin;
-  const CreateMeetupScreen({super.key, this.origin});
+  // When provided, the screen opens in edit mode, prefilled with the
+  // existing meetup's details; saving updates it instead of creating a new
+  // meetup.
+  final Meetup? existingMeetup;
+  const CreateMeetupScreen({super.key, this.origin, this.existingMeetup});
   @override
   State<CreateMeetupScreen> createState() => _CreateMeetupScreenState();
 }
@@ -37,10 +41,62 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
+  bool get _isEditing => widget.existingMeetup != null;
+
   @override
   void initState() {
     super.initState();
-    _prefillAddress();
+    final existing = widget.existingMeetup;
+    if (existing != null) {
+      // Defense in depth: expired meetups are read-only even if this
+      // screen is ever reached directly with one (the normal entry point
+      // already hides/disables the Edit action for expired meetups).
+      if (existing.isExpired) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Expired meetups can’t be edited.')),
+          );
+          Navigator.of(context).maybePop();
+        });
+        return;
+      }
+      _prefillFromExisting(existing);
+    } else {
+      _prefillAddress();
+    }
+  }
+
+  void _prefillFromExisting(Meetup meetup) {
+    selectedTypeIndex = MeetupType.values.indexWhere(
+      (t) => _typeToLabel(t).toLowerCase() == meetup.type.trim().toLowerCase(),
+    );
+    addressController.text = meetup.location;
+    _pickedLat = meetup.latitude;
+    _pickedLng = meetup.longitude;
+    _selectedDate = meetup.time;
+    _selectedTime = TimeOfDay.fromDateTime(meetup.time);
+    dateController.text = formatDate(meetup.time);
+    timeController.text = _formatTimeOfDay(_selectedTime!);
+  }
+
+  String _formatTimeOfDay(TimeOfDay t) {
+    final hour = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+    final minute = t.minute.toString().padLeft(2, '0');
+    final period = t.period == DayPeriod.am ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  String _typeToLabel(MeetupType t) {
+    const strings = Strings();
+    switch (t) {
+      case MeetupType.coffee:
+        return strings.typeCoffee;
+      case MeetupType.drink:
+        return strings.typeDrink;
+      case MeetupType.meal:
+        return strings.typeMeal;
+    }
   }
 
   Future<void> _prefillAddress() async {
@@ -122,6 +178,7 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
       repeatRule: _repeat ? _repeatRule : 'Does not repeat',
       latitude: _pickedLat,
       longitude: _pickedLng,
+      existingMeetupId: widget.existingMeetup?.id,
     );
 
     FocusScope.of(context).unfocus();
@@ -182,7 +239,7 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(strings.createMeetupText,
+                Text(_isEditing ? 'Edit Meetup' : strings.createMeetupText,
                     style: customButtonandTextStyles.titleTextStyle),
                 SizedBox(height: dimension.d6.h),
                 Text(strings.requestMeetupSubtitle,

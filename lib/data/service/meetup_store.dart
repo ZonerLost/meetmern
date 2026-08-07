@@ -102,4 +102,11 @@ class MeetupStore {
       if (m.userId == blockedUserId) m.isFavorite = false;
     }
   }
+
+  /// Drops a meetup from the local cache immediately after it's deleted, so
+  /// screens reading from this store (e.g. Explore) don't keep showing it
+  /// until the next forced reload.
+  void removeById(String id) {
+    _meetups.removeWhere((m) => m.id == id);
+  }
 }

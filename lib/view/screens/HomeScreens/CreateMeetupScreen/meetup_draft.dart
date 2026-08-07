@@ -12,6 +12,10 @@ class MeetupDraft {
   double? latitude;
   double? longitude;
 
+  /// Set when this draft edits an existing meetup rather than creating a
+  /// new one; carries the id so the review screen can update in place.
+  final String? existingMeetupId;
+
   MeetupDraft({
     this.type,
     this.address = '',
@@ -21,6 +25,7 @@ class MeetupDraft {
     this.repeatRule = '',
     this.latitude,
     this.longitude,
+    this.existingMeetupId,
   });
 
   DateTime? get dateTime {

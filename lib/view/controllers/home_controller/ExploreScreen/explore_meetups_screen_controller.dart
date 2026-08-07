@@ -104,9 +104,7 @@ class ExploreController extends GetxController {
       ..clear()
       ..addAll(normalized);
     update();
-    if (meetups.isEmpty) {
-      _refreshActiveUsers();
-    }
+    _refreshActiveUsers();
   }
 
   Future<void> _refreshActiveUsers() async {

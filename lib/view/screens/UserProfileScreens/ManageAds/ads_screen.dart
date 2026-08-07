@@ -31,7 +31,15 @@ class _ManageAdsState extends State<ManageAds> {
   void initState() {
     super.initState();
     _controller = Get.find<AdsScreenController>();
-    _controller.loadMeetups(initialMeetup: widget.initialMeetup);
+    // Defer to after the current frame: loadMeetups() calls update()
+    // synchronously before its first await, and calling that directly from
+    // initState() can hit a GetBuilder<AdsScreenController> while the
+    // framework is still mid-build (route transitions keep the previous
+    // route's widgets mounted), triggering "setState() or markNeedsBuild()
+    // called during build".
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _controller.loadMeetups(initialMeetup: widget.initialMeetup);
+    });
   }
 
   Future<void> _openCreateMeetup() async {
@@ -60,6 +68,11 @@ class _ManageAdsState extends State<ManageAds> {
         res['id'] != null) {
       _controller.removeById(res['id'].toString());
       context.showCustomSnackBar(strings.adDeletedSnackText);
+    } else if (res is Map<String, dynamic> &&
+        res['action'] == 'update' &&
+        res['meetup'] is Meetup) {
+      _controller.addNewMeetup(res['meetup'] as Meetup);
+      context.showCustomSnackBar('Meetup updated');
     }
   }
 

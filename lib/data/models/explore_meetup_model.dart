@@ -28,6 +28,11 @@ class Meetup {
 
   final List<Nearby>? nearby;
 
+  /// True once the meetup's scheduled date/time is in the past.
+  /// Expired meetups remain visible (e.g. under a user's profile) but are
+  /// no longer treated as active/actionable.
+  bool get isExpired => time.isBefore(DateTime.now());
+
   Meetup({
     required this.id,
     required this.title,

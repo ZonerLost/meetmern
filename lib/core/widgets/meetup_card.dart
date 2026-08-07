@@ -49,6 +49,16 @@ class MeetupCard extends StatelessWidget {
       theme: customThemeData,
     );
 
+    final bool isExpired = meetup.isExpired;
+    final titleStyle = isExpired
+        ? customButtonandTextStyles.dobLabelTextStyle
+            .copyWith(color: appTheme.neutral_500)
+        : customButtonandTextStyles.dobLabelTextStyle;
+    final detailStyle = isExpired
+        ? customButtonandTextStyles.locationTextStyle
+            .copyWith(color: appTheme.neutral_500)
+        : customButtonandTextStyles.locationTextStyle;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final bool isWide = constraints.maxWidth > 600;
@@ -56,14 +66,19 @@ class MeetupCard extends StatelessWidget {
             math.min(constraints.maxWidth * (isWide ? 0.34 : 0.36), 180.w);
 
         return Card(
-          color: appTheme.coreWhite,
+          color: isExpired ? appTheme.neutral_100 : appTheme.coreWhite,
           elevation: 0,
           margin: EdgeInsets.symmetric(vertical: 6.h),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16.r),
-            side: BorderSide(width: 1.w, color: appTheme.borderColor),
+            side: BorderSide(
+              width: 1.w,
+              color: isExpired ? appTheme.neutral_300 : appTheme.borderColor,
+            ),
           ),
           child: InkWell(
+            // Expired meetups are still viewable (e.g. so an owner can
+            // delete/edit them) but no longer read as active/actionable.
             onTap: onTap,
             borderRadius: BorderRadius.circular(16.r),
             child: IntrinsicHeight(
@@ -84,10 +99,13 @@ class MeetupCard extends StatelessWidget {
                                   meetup.title,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
-                                  style: customButtonandTextStyles
-                                      .dobLabelTextStyle,
+                                  style: titleStyle,
                                 ),
                               ),
+                              if (isExpired) ...[
+                                SizedBox(width: 8.w),
+                                const _ExpiredBadge(),
+                              ],
                               SizedBox(width: 12.w),
                               SizedBox(
                                 width: 36.w,
@@ -127,14 +145,18 @@ class MeetupCard extends StatelessWidget {
                                 width: 26.w,
                                 height: 26.w,
                                 decoration: BoxDecoration(
-                                  color: appTheme.b_100,
+                                  color: isExpired
+                                      ? appTheme.neutral_200
+                                      : appTheme.b_100,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(
                                   child: Icon(
                                     Icons.calendar_today_outlined,
                                     size: 12.sp,
-                                    color: appTheme.b_600,
+                                    color: isExpired
+                                        ? appTheme.neutral_500
+                                        : appTheme.b_600,
                                   ),
                                 ),
                               ),
@@ -144,8 +166,7 @@ class MeetupCard extends StatelessWidget {
                                   _formatMeetupTime(meetup.time),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: customButtonandTextStyles
-                                      .locationTextStyle,
+                                  style: detailStyle,
                                 ),
                               ),
                             ],
@@ -157,14 +178,18 @@ class MeetupCard extends StatelessWidget {
                                 width: 26.w,
                                 height: 26.w,
                                 decoration: BoxDecoration(
-                                  color: appTheme.b_50,
+                                  color: isExpired
+                                      ? appTheme.neutral_200
+                                      : appTheme.b_50,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Center(
                                   child: Icon(
                                     Icons.my_location_outlined,
                                     size: 12.sp,
-                                    color: appTheme.b_600,
+                                    color: isExpired
+                                        ? appTheme.neutral_500
+                                        : appTheme.b_600,
                                   ),
                                 ),
                               ),
@@ -174,8 +199,7 @@ class MeetupCard extends StatelessWidget {
                                   locationLabel ?? meetup.location,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: customButtonandTextStyles
-                                      .locationTextStyle,
+                                  style: detailStyle,
                                 ),
                               ),
                             ],
@@ -190,35 +214,47 @@ class MeetupCard extends StatelessWidget {
                     child: SizedBox(
                       width: imageWidth,
                       height: imageWidth * 1.1,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          _isNetwork(meetup.image)
-                              ? Image.network(
-                                  meetup.image,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (c, e, st) =>
-                                      _InitialsBox(name: meetup.hostName),
-                                )
-                              : _InitialsBox(name: meetup.hostName),
-                          if (showFavorite)
-                            Positioned(
-                              bottom: 8.h,
-                              right: 8.w,
-                              child: GestureDetector(
-                                onTap: onFavorite,
-                                child: Icon(
-                                  meetup.isFavorite
-                                      ? Icons.star
-                                      : Icons.star_border,
-                                  color: meetup.isFavorite
-                                      ? appTheme.blue
-                                      : appTheme.coreWhite,
-                                  size: 24.sp,
+                      child: ColorFiltered(
+                        colorFilter: isExpired
+                            ? const ColorFilter.matrix(<double>[
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0.2126, 0.7152, 0.0722, 0, 0,
+                                0, 0, 0, 1, 0,
+                              ])
+                            : const ColorFilter.mode(
+                                Colors.transparent, BlendMode.dst),
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            _isNetwork(meetup.image)
+                                ? Image.network(
+                                    meetup.image,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (c, e, st) =>
+                                        _InitialsBox(name: meetup.hostName),
+                                  )
+                                : _InitialsBox(name: meetup.hostName),
+                            // Expired meetups are no longer favorite-able.
+                            if (showFavorite && !isExpired)
+                              Positioned(
+                                bottom: 8.h,
+                                right: 8.w,
+                                child: GestureDetector(
+                                  onTap: onFavorite,
+                                  child: Icon(
+                                    meetup.isFavorite
+                                        ? Icons.star
+                                        : Icons.star_border,
+                                    color: meetup.isFavorite
+                                        ? appTheme.blue
+                                        : appTheme.coreWhite,
+                                    size: 24.sp,
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -228,6 +264,30 @@ class MeetupCard extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ExpiredBadge extends StatelessWidget {
+  const _ExpiredBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 3.h),
+      decoration: BoxDecoration(
+        color: appTheme.neutral_200,
+        borderRadius: BorderRadius.circular(20.r),
+        border: Border.all(color: appTheme.neutral_400, width: 1),
+      ),
+      child: Text(
+        'Expired',
+        style: TextStyle(
+          fontSize: 11.sp,
+          fontWeight: FontWeight.w600,
+          color: appTheme.neutral_600,
+        ),
+      ),
     );
   }
 }

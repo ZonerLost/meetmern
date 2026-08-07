@@ -76,7 +76,9 @@ class ViewProfileController extends GetxController {
       }
       // Only load meetups the current user has posted (their own ads).
       final rows = await MeetupService.fetchMeetupsForUser(uid);
-      allMeetups = rows.map(Meetup.fromSupabase).toList(growable: false);
+      // Must stay growable: removeMeetupById() below removes from this list
+      // in place, which throws on a fixed-length list.
+      allMeetups = rows.map(Meetup.fromSupabase).toList();
     } catch (_) {
       allMeetups = <Meetup>[];
     } finally {

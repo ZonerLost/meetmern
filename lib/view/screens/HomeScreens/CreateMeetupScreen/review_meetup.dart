@@ -27,6 +27,8 @@ class _ReviewMeetupScreenState extends State<ReviewMeetupScreen> {
 
   static const Strings strings = Strings();
 
+  bool get _isEditing => widget.draft.existingMeetupId != null;
+
   String get _ownerName {
     final fromProfile = AuthService.currentProfile.value?.name?.trim() ?? '';
     if (fromProfile.isNotEmpty) return fromProfile;
@@ -128,28 +130,45 @@ class _ReviewMeetupScreenState extends State<ReviewMeetupScreen> {
           ? '${draft.time!.hour.toString().padLeft(2, '0')}:${draft.time!.minute.toString().padLeft(2, '0')}'
           : '00:00';
 
-      final row = await MeetupService.createMeetup(
-        userId: uid,
-        type: typeLabel,
-        address:
-            draft.address.isNotEmpty ? draft.address : strings.notProvidedLabel,
-        date: dateStr,
-        time: timeStr,
-        repeat: draft.repeat,
-        latitude: draft.latitude,
-        longitude: draft.longitude,
-      );
+      final existingId = draft.existingMeetupId;
+      final row = existingId != null
+          ? await MeetupService.updateMeetup(
+              meetupId: existingId,
+              type: typeLabel,
+              address: draft.address.isNotEmpty
+                  ? draft.address
+                  : strings.notProvidedLabel,
+              date: dateStr,
+              time: timeStr,
+              repeat: draft.repeat,
+              latitude: draft.latitude,
+              longitude: draft.longitude,
+            )
+          : await MeetupService.createMeetup(
+              userId: uid,
+              type: typeLabel,
+              address: draft.address.isNotEmpty
+                  ? draft.address
+                  : strings.notProvidedLabel,
+              date: dateStr,
+              time: timeStr,
+              repeat: draft.repeat,
+              latitude: draft.latitude,
+              longitude: draft.longitude,
+            );
 
       // Re-fetch with profile join so hostName and image are populated
       final enrichedRow =
           await MeetupService.fetchMeetupById(row['id'] as String);
-      final created = Meetup.fromSupabase(enrichedRow ?? row);
-      if (context.mounted) Navigator.of(context).pop(created);
+      final saved = Meetup.fromSupabase(enrichedRow ?? row);
+      if (context.mounted) Navigator.of(context).pop(saved);
     } catch (e) {
       debugPrint('[ReviewMeetup] _postMeetup error: $e');
       if (context.mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to post meetup: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(_isEditing
+                ? 'Failed to update meetup: $e'
+                : 'Failed to post meetup: $e')));
       }
     } finally {
       if (mounted) setState(() => _isPosting = false);
@@ -249,16 +268,19 @@ class _ReviewMeetupScreenState extends State<ReviewMeetupScreen> {
                 ),
               ]),
               SizedBox(height: dimension.d12.h),
-              SizedBox(
-                child: CustomOutlinedButton(
-                    onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(strings.savedAsDraftSnack))),
-                    buttonStyle: customButtonandTextStyles.googleButtonStyle,
-                    text: strings.saveAsDraftText,
-                    buttonTextStyle:
-                        customButtonandTextStyles.googleButtonTextStyle),
-              ),
-              SizedBox(height: dimension.d12.h),
+              if (!_isEditing) ...[
+                SizedBox(
+                  child: CustomOutlinedButton(
+                      onPressed: () => ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(
+                              content: Text(strings.savedAsDraftSnack))),
+                      buttonStyle: customButtonandTextStyles.googleButtonStyle,
+                      text: strings.saveAsDraftText,
+                      buttonTextStyle:
+                          customButtonandTextStyles.googleButtonTextStyle),
+                ),
+                SizedBox(height: dimension.d12.h),
+              ],
               SizedBox(
                 width: double.infinity,
                 child: CustomElevatedButton(
@@ -266,7 +288,11 @@ class _ReviewMeetupScreenState extends State<ReviewMeetupScreen> {
                       ? null
                       : () => _postMeetup(context, customButtonandTextStyles),
                   buttonStyle: customButtonandTextStyles.loginButtonStyle,
-                  text: _isPosting ? 'Posting...' : strings.postMeetupText,
+                  text: _isPosting
+                      ? (_isEditing ? 'Saving...' : 'Posting...')
+                      : (_isEditing
+                          ? 'Save Changes'
+                          : strings.postMeetupText),
                   buttonTextStyle:
                       customButtonandTextStyles.loginButtonTextStyle,
                 ),

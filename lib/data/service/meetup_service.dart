@@ -231,6 +231,57 @@ class MeetupService {
     return enriched ?? <String, dynamic>{...payload, 'id': meetupId};
   }
 
+  /// Updates an existing meetup in place (used by the Edit Meetup flow).
+  /// Mirrors [createMeetup]'s fields but never touches ownership/status.
+  static Future<Map<String, dynamic>> updateMeetup({
+    required String meetupId,
+    required String type,
+    required String address,
+    required String date,
+    required String time,
+    required bool repeat,
+    double? latitude,
+    double? longitude,
+  }) async {
+    // Re-geocode only if no coordinates were pinned on the map.
+    double? resolvedLat = latitude;
+    double? resolvedLng = longitude;
+    if ((resolvedLat == null || resolvedLng == null) && address.isNotEmpty) {
+      try {
+        final locations = await locationFromAddress(address);
+        if (locations.isNotEmpty) {
+          resolvedLat = locations.first.latitude;
+          resolvedLng = locations.first.longitude;
+        }
+      } catch (_) {}
+    }
+
+    final payload = <String, dynamic>{
+      'type': type,
+      'address': address,
+      'date': date,
+      'time': time,
+      'repeat': repeat,
+      if (resolvedLat != null) 'latitude': resolvedLat,
+      if (resolvedLng != null) 'longitude': resolvedLng,
+    };
+
+    try {
+      debugPrint(
+        '[MeetupService] updateMeetup - updating meetupId=$meetupId payload=$payload',
+      );
+      await supabase.from('meetups').update(payload).eq('id', meetupId);
+    } catch (e, st) {
+      debugPrint(
+        '[MeetupService] updateMeetup - update failed: $e\n$st',
+      );
+      rethrow;
+    }
+
+    final enriched = await fetchMeetupById(meetupId);
+    return enriched ?? <String, dynamic>{...payload, 'id': meetupId};
+  }
+
   static Future<List<Map<String, dynamic>>> fetchMeetups() async {
     final rows = await supabase
         .from('meetups')
