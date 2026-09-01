@@ -10,6 +10,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:http/http.dart' as http;
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/theme/theme.dart';
+import 'package:meetmern/core/utils/marker_helper.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
@@ -24,6 +25,45 @@ class MapPickerResult {
     required this.longitude,
     required this.address,
   });
+}
+
+/// A cafe / restaurant / bar / pub returned by Overpass (OpenStreetMap).
+class _Venue {
+  final String id;
+  final String name;
+  final String amenity; // cafe | restaurant | bar | pub
+  final double latitude;
+  final double longitude;
+  final String address; // best-effort street address from OSM addr:* tags
+
+  const _Venue({
+    required this.id,
+    required this.name,
+    required this.amenity,
+    required this.latitude,
+    required this.longitude,
+    required this.address,
+  });
+
+  String get displayLabel {
+    final type = _Venue.labelForAmenity(amenity);
+    return type.isEmpty ? name : '$name · $type';
+  }
+
+  static String labelForAmenity(String amenity) {
+    switch (amenity) {
+      case 'cafe':
+        return 'Cafe';
+      case 'restaurant':
+        return 'Restaurant';
+      case 'bar':
+        return 'Bar';
+      case 'pub':
+        return 'Pub';
+      default:
+        return '';
+    }
+  }
 }
 
 class _PlaceSuggestion {
@@ -71,18 +111,47 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       gmaps.LatLng(51.5074, -0.1278); // London fallback
   static const String _searchBaseUrl =
       'https://nominatim.openstreetmap.org/search';
+  static const List<String> _overpassEndpoints = <String>[
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter',
+  ];
+
+  /// Only these OSM amenity values may be picked as a meetup location.
+  static const Set<String> _allowedAmenities = <String>{
+    'cafe',
+    'restaurant',
+    'bar',
+    'pub',
+  };
+
   static const Duration _searchDebounceDuration = Duration(milliseconds: 350);
   static const Duration _minimumSearchRequestGap = Duration(seconds: 1);
+  static const Duration _venueFetchDebounce = Duration(milliseconds: 700);
   static const int _minimumQueryLength = 2;
+
+  /// Radius (metres) to search for venues around the map centre.
+  static const double _venueSearchRadiusMeters = 1600;
+
+  /// Skip a venue refetch unless the centre moved at least this far.
+  static const double _venueRefetchThresholdMeters = 350;
 
   gmaps.GoogleMapController? _mapController;
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   gmaps.LatLng _center = _defaultCenter;
   final List<_PlaceSuggestion> _suggestions = <_PlaceSuggestion>[];
-  String _address = '';
-  bool _dragging = false;
-  bool _loadingAddress = false;
+
+  final List<_Venue> _venues = <_Venue>[];
+  _Venue? _selectedVenue;
+  // Cached custom marker icons, keyed by "<amenity>" and "<amenity>:selected".
+  final Map<String, gmaps.BitmapDescriptor> _venueIcons =
+      <String, gmaps.BitmapDescriptor>{};
+  bool _loadingVenues = false;
+  bool _venuesLoadedOnce = false;
+  Timer? _venueFetchDebounceTimer;
+  int _venueRequestId = 0;
+  gmaps.LatLng? _lastVenueFetchCenter;
+
   bool _loadingLocation = true;
   bool _searching = false;
   bool _loadingSuggestions = false;
@@ -94,11 +163,14 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   void initState() {
     super.initState();
     _searchFocusNode.addListener(_handleSearchFocusChange);
+    _buildVenueIcons();
     if (widget.initialLat != null && widget.initialLng != null) {
       _center = gmaps.LatLng(widget.initialLat!, widget.initialLng!);
-      _address = widget.initialAddress ?? '';
-      _searchController.text = _address;
+      if ((widget.initialAddress ?? '').isNotEmpty) {
+        _searchController.text = widget.initialAddress!;
+      }
       _loadingLocation = false;
+      _scheduleVenueFetch(immediate: true);
     } else {
       _fetchCurrentLocation();
     }
@@ -126,6 +198,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       }
       if (permission == LocationPermission.deniedForever) {
         setState(() => _loadingLocation = false);
+        _scheduleVenueFetch(immediate: true);
         return;
       }
       final pos = await Geolocator.getCurrentPosition(
@@ -138,35 +211,261 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
         _loadingLocation = false;
       });
       _mapController?.animateCamera(gmaps.CameraUpdate.newLatLng(_center));
-      await _reverseGeocode(_center);
+      _scheduleVenueFetch(immediate: true);
     } catch (_) {
-      if (mounted) setState(() => _loadingLocation = false);
+      if (mounted) {
+        setState(() => _loadingLocation = false);
+        _scheduleVenueFetch(immediate: true);
+      }
     }
   }
 
-  Future<void> _reverseGeocode(gmaps.LatLng pos) async {
+  // ── Venue loading (Overpass / OpenStreetMap) ───────────────────────────────
+
+  Future<void> _buildVenueIcons() async {
+    for (final amenity in _allowedAmenities) {
+      for (final selected in const <bool>[false, true]) {
+        try {
+          final icon = await MarkerHelper.buildVenueMarker(
+            amenity: amenity,
+            selected: selected,
+          );
+          _venueIcons['$amenity${selected ? ':selected' : ''}'] = icon;
+        } catch (_) {
+          // Fall back to a default marker for this one (see _rebuildMarkers).
+        }
+      }
+    }
+    _rebuildMarkers();
+  }
+
+  void _scheduleVenueFetch({bool immediate = false}) {
+    _venueFetchDebounceTimer?.cancel();
+    if (immediate) {
+      unawaited(_fetchNearbyVenues());
+      return;
+    }
+    _venueFetchDebounceTimer =
+        Timer(_venueFetchDebounce, () => unawaited(_fetchNearbyVenues()));
+  }
+
+  bool _shouldRefetchVenues() {
+    final last = _lastVenueFetchCenter;
+    if (last == null) return true;
+    final moved = Geolocator.distanceBetween(
+      last.latitude,
+      last.longitude,
+      _center.latitude,
+      _center.longitude,
+    );
+    return moved >= _venueRefetchThresholdMeters;
+  }
+
+  Future<void> _fetchNearbyVenues({bool force = false}) async {
     if (!mounted) return;
-    setState(() => _loadingAddress = true);
+    if (!force && !_shouldRefetchVenues()) return;
+
+    final requestId = ++_venueRequestId;
+    final target = _center;
+    _lastVenueFetchCenter = target;
+
+    setState(() => _loadingVenues = true);
+
+    final query = '''
+[out:json][timeout:20];
+(
+  nwr["amenity"~"^(cafe|restaurant|bar|pub)\$"]["name"](around:${_venueSearchRadiusMeters.toInt()},${target.latitude},${target.longitude});
+);
+out center 80;
+''';
+
+    List<_Venue> parsed = <_Venue>[];
+    var succeeded = false;
+    for (final endpoint in _overpassEndpoints) {
+      try {
+        final response = await http
+            .post(
+              Uri.parse(endpoint),
+              headers: <String, String>{
+                'User-Agent': 'meetmern-mobile-app/1.0',
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: <String, String>{'data': query},
+            )
+            .timeout(const Duration(seconds: 25));
+
+        if (response.statusCode != 200) continue;
+
+        final payload = jsonDecode(response.body);
+        final elements =
+            (payload is Map && payload['elements'] is List)
+                ? payload['elements'] as List
+                : const <dynamic>[];
+        parsed = _venuesFromOverpass(elements, target);
+        succeeded = true;
+        break;
+      } catch (_) {
+        // Try the next endpoint.
+      }
+    }
+
+    if (!mounted || requestId != _venueRequestId) return;
+
+    setState(() {
+      _loadingVenues = false;
+      if (!succeeded) {
+        // Network/endpoint failure — keep whatever we already have rather than
+        // wiping the map (and the user's selection) on a transient error.
+        return;
+      }
+      _venues
+        ..clear()
+        ..addAll(parsed);
+      _venuesLoadedOnce = true;
+      // Drop the current selection if it is no longer in range.
+      if (_selectedVenue != null &&
+          !_venues.any((v) => v.id == _selectedVenue!.id)) {
+        _selectedVenue = null;
+      }
+    });
+    _rebuildMarkers();
+  }
+
+  List<_Venue> _venuesFromOverpass(List<dynamic> elements, gmaps.LatLng origin) {
+    final seen = <String>{};
+    final venues = <_Venue>[];
+
+    for (final raw in elements) {
+      if (raw is! Map) continue;
+      final tags = (raw['tags'] is Map)
+          ? Map<String, dynamic>.from(raw['tags'] as Map)
+          : <String, dynamic>{};
+
+      final amenity = (tags['amenity'] ?? '').toString().trim().toLowerCase();
+      if (!_allowedAmenities.contains(amenity)) continue;
+
+      final name = (tags['name'] ?? '').toString().trim();
+      if (name.isEmpty) continue;
+
+      double? lat = (raw['lat'] as num?)?.toDouble();
+      double? lon = (raw['lon'] as num?)?.toDouble();
+      if ((lat == null || lon == null) && raw['center'] is Map) {
+        final center = raw['center'] as Map;
+        lat = (center['lat'] as num?)?.toDouble();
+        lon = (center['lon'] as num?)?.toDouble();
+      }
+      if (lat == null || lon == null) continue;
+
+      final id = '${raw['type'] ?? 'node'}/${raw['id'] ?? '$lat,$lon'}';
+      if (!seen.add(id)) continue;
+
+      venues.add(_Venue(
+        id: id,
+        name: name,
+        amenity: amenity,
+        latitude: lat,
+        longitude: lon,
+        address: _composeOsmAddress(tags),
+      ));
+    }
+
+    venues.sort((a, b) {
+      final da = Geolocator.distanceBetween(
+          origin.latitude, origin.longitude, a.latitude, a.longitude);
+      final db = Geolocator.distanceBetween(
+          origin.latitude, origin.longitude, b.latitude, b.longitude);
+      return da.compareTo(db);
+    });
+
+    return venues;
+  }
+
+  String _composeOsmAddress(Map<String, dynamic> tags) {
+    final parts = <String>[
+      [
+        (tags['addr:housenumber'] ?? '').toString().trim(),
+        (tags['addr:street'] ?? '').toString().trim(),
+      ].where((s) => s.isNotEmpty).join(' '),
+      (tags['addr:suburb'] ?? '').toString().trim(),
+      (tags['addr:city'] ?? tags['addr:town'] ?? '').toString().trim(),
+      (tags['addr:postcode'] ?? '').toString().trim(),
+    ].where((s) => s.isNotEmpty).toList();
+    return parts.join(', ');
+  }
+
+  /// Rebuilt only when venues / selection / icons change — not on every
+  /// setState (search typing, loading pill, etc.).
+  Set<gmaps.Marker> _markerCache = <gmaps.Marker>{};
+
+  void _rebuildMarkers() {
+    final markers = <gmaps.Marker>{};
+    for (final venue in _venues) {
+      final isSelected = _selectedVenue?.id == venue.id;
+      final iconKey = '${venue.amenity}${isSelected ? ':selected' : ''}';
+      final icon = _venueIcons[iconKey] ??
+          gmaps.BitmapDescriptor.defaultMarkerWithHue(
+            isSelected
+                ? gmaps.BitmapDescriptor.hueAzure
+                : gmaps.BitmapDescriptor.hueOrange,
+          );
+      markers.add(
+        gmaps.Marker(
+          markerId: gmaps.MarkerId(venue.id),
+          position: gmaps.LatLng(venue.latitude, venue.longitude),
+          icon: icon,
+          anchor: isSelected
+              ? const Offset(0.5, 1.0) // pin tip
+              : const Offset(0.5, 0.5), // chip centre
+          zIndexInt: isSelected ? 2 : 1,
+          infoWindow: gmaps.InfoWindow(
+            title: venue.name,
+            snippet: _Venue.labelForAmenity(venue.amenity),
+          ),
+          onTap: () => _selectVenue(venue),
+        ),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _markerCache = markers);
+  }
+
+  Future<void> _selectVenue(_Venue venue) async {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _selectedVenue = venue;
+      _center = gmaps.LatLng(venue.latitude, venue.longitude);
+    });
+    _rebuildMarkers();
+    await _mapController?.animateCamera(
+      gmaps.CameraUpdate.newLatLng(
+        gmaps.LatLng(venue.latitude, venue.longitude),
+      ),
+    );
+  }
+
+  /// Builds the address string returned to the caller for the picked venue.
+  Future<String> _resolveVenueAddress(_Venue venue) async {
+    if (venue.address.isNotEmpty) {
+      return '${venue.name}, ${venue.address}';
+    }
     try {
-      final marks = await placemarkFromCoordinates(pos.latitude, pos.longitude);
-      if (!mounted) return;
+      final marks =
+          await placemarkFromCoordinates(venue.latitude, venue.longitude)
+              .timeout(const Duration(seconds: 8));
       if (marks.isNotEmpty) {
         final p = marks.first;
-        final nextAddress = [p.street, p.subLocality, p.locality, p.country]
-            .where((s) => s != null && s.isNotEmpty)
+        final street = [p.street, p.subLocality, p.locality, p.country]
+            .where((s) => s != null && s.trim().isNotEmpty)
             .join(', ');
-        setState(() {
-          _address = nextAddress;
-          if (!_searchFocusNode.hasFocus && nextAddress.isNotEmpty) {
-            _searchController.text = nextAddress;
-          }
-        });
+        if (street.isNotEmpty) return '${venue.name}, $street';
       }
     } catch (_) {
-    } finally {
-      if (mounted) setState(() => _loadingAddress = false);
+      // Fall through to the bare name.
     }
+    return venue.name;
   }
+
+  // ── Search (Nominatim) — navigation only, not selection ────────────────────
 
   Future<void> _searchLocation() async {
     final query = _searchController.text.trim();
@@ -379,7 +678,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
       await _moveToSuggestionLocation(
         latitude: suggestion.latitude!,
         longitude: suggestion.longitude!,
-        formattedAddress: suggestion.fullText,
       );
       if (mounted) {
         setState(() => _searching = false);
@@ -441,7 +739,6 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     await _moveToSuggestionLocation(
       latitude: resolvedMatch.latitude!,
       longitude: resolvedMatch.longitude!,
-      formattedAddress: resolvedMatch.fullText,
     );
     return true;
   }
@@ -621,31 +918,33 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   Future<void> _moveToSuggestionLocation({
     required double latitude,
     required double longitude,
-    required String formattedAddress,
   }) async {
     final target = gmaps.LatLng(latitude, longitude);
     if (!mounted) return;
 
-    setState(() {
-      _center = target;
-      _address = formattedAddress;
-      _searchController.text = formattedAddress;
-    });
+    setState(() => _center = target);
 
     await _mapController?.animateCamera(
       gmaps.CameraUpdate.newCameraPosition(
         gmaps.CameraPosition(target: target, zoom: 16),
       ),
     );
-    await _reverseGeocode(target);
+    await _fetchNearbyVenues(force: true);
   }
 
-  void _confirm() {
+  Future<void> _confirm() async {
+    final venue = _selectedVenue;
+    if (venue == null) return;
+
+    setState(() => _searching = true);
+    final address = await _resolveVenueAddress(venue);
+    if (!mounted) return;
+
     Navigator.of(context).pop(
       MapPickerResult(
-        latitude: _center.latitude,
-        longitude: _center.longitude,
-        address: _address,
+        latitude: venue.latitude,
+        longitude: venue.longitude,
+        address: address,
       ),
     );
   }
@@ -653,6 +952,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   @override
   void dispose() {
     _searchDebounce?.cancel();
+    _venueFetchDebounceTimer?.cancel();
     _searchFocusNode.removeListener(_handleSearchFocusChange);
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -681,50 +981,13 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                 ctrl.animateCamera(gmaps.CameraUpdate.newLatLng(_center));
               }
             },
-            onCameraMove: (pos) {
-              _center = pos.target;
-              if (!_dragging) setState(() => _dragging = true);
-            },
-            onCameraIdle: () async {
-              setState(() => _dragging = false);
-              await _reverseGeocode(_center);
-            },
-            myLocationEnabled: false,
-            myLocationButtonEnabled: false,
+            onCameraMove: (pos) => _center = pos.target,
+            onCameraIdle: () => _scheduleVenueFetch(),
+            markers: _markerCache,
+            myLocationEnabled: true,
+            myLocationButtonEnabled: true,
             zoomControlsEnabled: false,
             mapToolbarEnabled: false,
-          ),
-
-          // ── Center pin (fixed overlay) ───────────────────────────────────
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                AnimatedSlide(
-                  offset: _dragging ? const Offset(0, -0.15) : Offset.zero,
-                  duration: const Duration(milliseconds: 150),
-                  curve: Curves.easeOut,
-                  child: Icon(
-                    Icons.location_pin,
-                    size: 48.sp,
-                    color: appTheme.b_Primary,
-                  ),
-                ),
-                // Shadow dot under pin
-                AnimatedOpacity(
-                  opacity: _dragging ? 0.4 : 0.0,
-                  duration: const Duration(milliseconds: 150),
-                  child: Container(
-                    width: 10.w,
-                    height: 4.h,
-                    decoration: BoxDecoration(
-                      color: Colors.black38,
-                      borderRadius: BorderRadius.circular(4.r),
-                    ),
-                  ),
-                ),
-              ],
-            ),
           ),
 
           // ── Top bar ──────────────────────────────────────────────────────
@@ -780,7 +1043,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                             onChanged: _onSearchChanged,
                             onFieldSubmitted: (_) => _searchLocation(),
                             inputDecoration: InputDecoration(
-                              hintText: 'Search places',
+                              hintText: 'Search area, then tap a venue',
                               border: InputBorder.none,
                               enabledBorder: InputBorder.none,
                               focusedBorder: InputBorder.none,
@@ -920,7 +1183,48 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
             ),
           ),
 
-          // ── Bottom address + confirm ─────────────────────────────────────
+          // ── Venue loading pill ───────────────────────────────────────────
+          if (_loadingVenues)
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 120.h,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Container(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 14.w, vertical: 8.h),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.12),
+                        blurRadius: 6,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(
+                        width: 14.w,
+                        height: 14.w,
+                        child:
+                            const CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      SizedBox(width: 8.w),
+                      Text(
+                        'Finding cafes, restaurants, bars & pubs…',
+                        style: TextStyle(
+                            fontSize: 12.sp, color: appTheme.neutral_700),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Bottom selection + confirm ───────────────────────────────────
           Positioned(
             bottom: 0,
             left: 0,
@@ -947,32 +1251,56 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined,
-                            size: 18.sp, color: appTheme.b_Primary),
+                        Icon(
+                          _selectedVenue == null
+                              ? Icons.storefront_outlined
+                              : Icons.check_circle,
+                          size: 18.sp,
+                          color: _selectedVenue == null
+                              ? appTheme.neutral_500
+                              : appTheme.b_Primary,
+                        ),
                         SizedBox(width: 8.w),
                         Expanded(
-                          child: _loadingAddress
-                              ? Text('Finding address…',
-                                  style: styles.locationTextStyle)
-                              : Text(
-                                  _address.isNotEmpty
-                                      ? _address
-                                      : 'Move the map to select a location',
-                                  style: styles.dobLabelTextStyle,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
+                          child: Text(
+                            _selectedVenue != null
+                                ? _selectedVenue!.displayLabel
+                                : _venuesLoadedOnce && _venues.isEmpty
+                                    ? 'No cafes, restaurants, bars or pubs here — move the map or search another area.'
+                                    : 'Tap a cafe, restaurant, bar or pub marker to pick it.',
+                            style: styles.dobLabelTextStyle,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
+                    if (_selectedVenue != null &&
+                        _selectedVenue!.address.isNotEmpty) ...[
+                      SizedBox(height: 4.h),
+                      Padding(
+                        padding: EdgeInsets.only(left: 26.w),
+                        child: Text(
+                          _selectedVenue!.address,
+                          style: styles.locationTextStyle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
                     SizedBox(height: 14.h),
                     SizedBox(
                       width: double.infinity,
                       child: CustomElevatedButton(
-                        text: 'Confirm Location',
+                        text: 'Confirm Venue',
                         buttonStyle: styles.loginButtonStyle,
                         buttonTextStyle: styles.loginButtonTextStyle,
-                        onPressed: (_loadingLocation || _loadingAddress)
+                        isDisabled: _selectedVenue == null ||
+                            _loadingLocation ||
+                            _searching,
+                        onPressed: (_selectedVenue == null ||
+                                _loadingLocation ||
+                                _searching)
                             ? null
                             : _confirm,
                       ),

@@ -99,13 +99,17 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
     }
   }
 
+  // The user's saved area — used only to centre the map picker's search, not
+  // as the meetup address (which must be a venue picked from the map).
+  String? _areaHint;
+
   Future<void> _prefillAddress() async {
     final userId = supabase.auth.currentUser?.id;
     if (userId == null) return;
     final profile = await ProfileService.getLocationAndRadius(userId);
     if (!mounted) return;
     if (profile?.location != null && profile!.location!.isNotEmpty) {
-      setState(() => addressController.text = profile.location!);
+      setState(() => _areaHint = profile.location);
     }
   }
 
@@ -124,16 +128,12 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
   bool get isStepValid {
     return selectedTypeIndex != -1 &&
         addressController.text.trim().isNotEmpty &&
+        // The location must be a venue picked from the map (cafe / restaurant /
+        // bar / pub), which is the only path that sets coordinates.
+        _pickedLat != null &&
+        _pickedLng != null &&
         dateController.text.trim().isNotEmpty &&
         timeController.text.trim().isNotEmpty;
-  }
-
-  void _onAddressChanged(String value) {
-    if (_pickedLat == null && _pickedLng == null) return;
-    setState(() {
-      _pickedLat = null;
-      _pickedLng = null;
-    });
   }
 
   void _showSnack(String message) {
@@ -147,8 +147,9 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
         builder: (_) => MapPickerScreen(
           initialLat: _pickedLat,
           initialLng: _pickedLng,
-          initialAddress:
-              addressController.text.isNotEmpty ? addressController.text : null,
+          initialAddress: addressController.text.isNotEmpty
+              ? addressController.text
+              : _areaHint,
         ),
       ),
     );
@@ -296,11 +297,14 @@ class _CreateMeetupScreenState extends State<CreateMeetupScreen> {
                 SizedBox(height: dimension.d8.h),
                 CustomTextFormField(
                     controller: addressController,
+                    readOnly: true,
+                    onTap: _openMapPicker,
                     textInputType: TextInputType.streetAddress,
-                    onChanged: _onAddressChanged,
+                    hintText: 'Tap to pick a cafe, restaurant, bar or pub',
                     inputDecoration: customButtonandTextStyles
                         .addresFInputDecoration
                         .copyWith(
+                      hintText: 'Tap to pick a cafe, restaurant, bar or pub',
                       suffixIcon: IconButton(
                         icon: Icon(
                           _pickedLat != null ? Icons.map : Icons.map_outlined,

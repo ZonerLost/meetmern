@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/data/models/chat_model.dart';
@@ -8,7 +9,7 @@ import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
 import 'package:meetmern/main.dart';
 
-class ChatListController extends GetxController {
+class ChatListController extends GetxController with WidgetsBindingObserver {
   final Strings _strings = const Strings();
 
   List<Chat> items = <Chat>[];
@@ -21,6 +22,7 @@ class ChatListController extends GetxController {
   bool _hasPendingLoad = false;
   bool _pendingLoadWantsLoader = false;
   Timer? _realtimeReloadDebounce;
+  Timer? _realtimeReconnectTimer;
 
   List<Chat> get pendingRequestItems => items
       .where((c) => c.status == RequestStatus.requested)
@@ -36,21 +38,36 @@ class ChatListController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    WidgetsBinding.instance.addObserver(this);
     loadChats();
   }
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
     _realtimeReloadDebounce?.cancel();
+    _realtimeReconnectTimer?.cancel();
     super.onClose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // The realtime websocket is torn down while the app is backgrounded and
+    // does not always resubscribe on its own. Re-establish it and pull a fresh
+    // snapshot whenever we come back to the foreground.
+    if (state == AppLifecycleState.resumed) {
+      _startRealtimeListeners();
+      unawaited(loadChats(showLoader: false));
+    }
   }
 
   void _startRealtimeListeners() {
     final uid = AuthService.currentUser?.id;
     if (uid == null) return;
 
+    _realtimeReconnectTimer?.cancel();
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
 
@@ -59,28 +76,63 @@ class ChatListController extends GetxController {
     bool chatFirstEmit = true;
     bool messageFirstEmit = true;
 
-    // Listen to chat changes - but we can't filter by user in stream, so we reload on any change
-    _chatSubscription =
-        supabase.from('chats').stream(primaryKey: ['id']).listen((data) {
-      if (chatFirstEmit) {
-        chatFirstEmit = false;
-        return;
-      }
-      print('🔔 [ChatListController] Chat realtime update received');
-      _queueRealtimeReload();
-    });
+    // RLS scopes these streams to the current user's rows. We reload on any
+    // change rather than diffing, so the exact payload doesn't matter.
+    _chatSubscription = supabase
+        .from('chats')
+        .stream(primaryKey: ['id'])
+        .listen(
+          (data) {
+            if (chatFirstEmit) {
+              chatFirstEmit = false;
+              return;
+            }
+            print('🔔 [ChatListController] Chat realtime update received');
+            _queueRealtimeReload();
+          },
+          onError: (Object e) {
+            print('🔴 [ChatListController] Chat stream error: $e');
+            _scheduleRealtimeReconnect();
+          },
+          onDone: _scheduleRealtimeReconnect,
+          cancelOnError: true,
+        );
 
-    _messageSubscription =
-        supabase.from('messages').stream(primaryKey: ['id']).listen((data) {
-      if (messageFirstEmit) {
-        messageFirstEmit = false;
-        return;
-      }
-      print('🔔 [ChatListController] Message realtime update received');
-      _queueRealtimeReload();
-    });
+    _messageSubscription = supabase
+        .from('messages')
+        .stream(primaryKey: ['id'])
+        .listen(
+          (data) {
+            if (messageFirstEmit) {
+              messageFirstEmit = false;
+              return;
+            }
+            print('🔔 [ChatListController] Message realtime update received');
+            _queueRealtimeReload();
+          },
+          onError: (Object e) {
+            print('🔴 [ChatListController] Message stream error: $e');
+            _scheduleRealtimeReconnect();
+          },
+          onDone: _scheduleRealtimeReconnect,
+          cancelOnError: true,
+        );
 
     print('🔵 [ChatListController] Realtime listeners active');
+  }
+
+  /// Re-subscribes after a dropped/closed websocket, and pulls a fresh snapshot
+  /// so nothing that changed while we were disconnected is missed.
+  void _scheduleRealtimeReconnect() {
+    if (isClosed) return;
+    _realtimeReconnectTimer?.cancel();
+    _realtimeReconnectTimer = Timer(const Duration(seconds: 3), () {
+      if (isClosed) return;
+      if (AuthService.currentUser?.id == null) return;
+      print('🔁 [ChatListController] Reconnecting realtime listeners');
+      _startRealtimeListeners();
+      unawaited(loadChats(showLoader: false));
+    });
   }
 
   void _queueRealtimeReload() {

@@ -15,9 +15,12 @@ import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/service/meetup_service.dart';
 import 'package:meetmern/firebase_options.dart';
+import 'package:meetmern/view/controllers/chat_controller/chat_screen_controller.dart';
+import 'package:meetmern/view/controllers/chat_controller/message_screen_controller.dart';
 import 'package:meetmern/view/screens/chatscreens/message_screen.dart';
 import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_screen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class NotificationService {
@@ -43,7 +46,7 @@ class NotificationService {
 
   bool _initialized = false;
   bool _localNotificationsInitialized = false;
-  bool _permissionRequested = false;
+  bool _permissionPromptInFlight = false;
   bool _pendingInitialNavigationHandled = false;
   Map<String, dynamic>? _pendingInitialNavigationData;
 
@@ -57,7 +60,6 @@ class NotificationService {
     }
 
     await _initializeLocalNotifications();
-    await requestPermission();
     await _createAndroidNotificationChannel();
     await _setIosForegroundOptions();
     await syncTokenWithSupabase();
@@ -71,21 +73,64 @@ class NotificationService {
     _initialized = true;
   }
 
-  Future<void> requestPermission() async {
-    if (!_isFirebaseReady) return;
-    if (_permissionRequested) return;
+  /// Requests the OS notification permission when it hasn't been decided yet.
+  ///
+  /// Must be called once the app has a resumed Activity/UI (e.g. from a
+  /// post-first-frame callback) — requesting during `main()` before `runApp()`
+  /// silently no-ops on Android 13+ because there is no Activity to host the
+  /// system dialog.
+  ///
+  /// Returns `true` when notifications are authorised afterwards.
+  Future<bool> ensureNotificationPermission() async {
+    if (_permissionPromptInFlight) return false;
+    _permissionPromptInFlight = true;
     try {
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-      _permissionRequested = true;
-      _debugLog(
-        'Notification permission status: ${settings.authorizationStatus.name}',
-      );
+      if (Platform.isIOS) {
+        if (!_isFirebaseReady) return false;
+        final settings = await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        final status = settings.authorizationStatus;
+        _debugLog('iOS notification permission: ${status.name}');
+        return status == AuthorizationStatus.authorized ||
+            status == AuthorizationStatus.provisional;
+      }
+
+      // Android (and other platforms): use the runtime permission API. On
+      // Android < 13 this resolves immediately without a dialog.
+      var status = await Permission.notification.status;
+      _debugLog('Android notification permission (before): $status');
+
+      if (status.isGranted) return true;
+      // Respect a hard "don't ask again" — the caller can route the user to
+      // system settings instead of us hammering a dialog that never shows.
+      if (status.isPermanentlyDenied) return false;
+
+      status = await Permission.notification.request();
+      _debugLog('Android notification permission (after): $status');
+      return status.isGranted;
     } catch (e) {
-      _debugLog('requestPermission failed: $e');
+      _debugLog('ensureNotificationPermission failed: $e');
+      return false;
+    } finally {
+      _permissionPromptInFlight = false;
+    }
+  }
+
+  /// Whether the OS currently allows this app to post notifications.
+  Future<bool> hasNotificationPermission() async {
+    try {
+      if (Platform.isIOS) {
+        if (!_isFirebaseReady) return false;
+        final settings = await _messaging.getNotificationSettings();
+        return settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional;
+      }
+      return await Permission.notification.isGranted;
+    } catch (_) {
+      return false;
     }
   }
 
@@ -172,15 +217,52 @@ class NotificationService {
       final data = Map<String, dynamic>.from(message.data);
       final type = (data['type'] ?? '').toString();
       final chatId = (data['chat_id'] ?? '').toString();
-      if (type == NotificationTypes.chatMessage &&
+
+      final isActiveChat = type == NotificationTypes.chatMessage &&
           chatId.isNotEmpty &&
-          ActiveChatTracker.activeChatId == chatId) {
-        return;
+          ActiveChatTracker.activeChatId == chatId;
+
+      // Skip the visible banner only when the user is already looking at that
+      // chat — but still refresh the UI below.
+      if (!isActiveChat) {
+        await showLocalNotification(message);
       }
 
-      await showLocalNotification(message);
+      _refreshChatUiForMessage(type, chatId);
       await syncTokenWithSupabase();
     });
+  }
+
+  /// Pokes the chat controllers so a foreground push updates the list / open
+  /// thread immediately, without relying solely on Supabase realtime (which can
+  /// silently drop after the socket is closed in the background).
+  void _refreshChatUiForMessage(String type, String chatId) {
+    const chatRelated = <String>{
+      NotificationTypes.chatMessage,
+      NotificationTypes.meetupRequest,
+      NotificationTypes.meetupRequestAccepted,
+      NotificationTypes.meetupRequestDeclined,
+      NotificationTypes.meetupUpdated,
+    };
+    if (!chatRelated.contains(type)) return;
+
+    try {
+      if (Get.isRegistered<ChatListController>()) {
+        Get.find<ChatListController>().loadChats(showLoader: false);
+      }
+    } catch (e) {
+      _debugLog('Failed to refresh chat list from push: $e');
+    }
+
+    try {
+      if (chatId.isNotEmpty &&
+          ActiveChatTracker.activeChatId == chatId &&
+          Get.isRegistered<MessageController>()) {
+        Get.find<MessageController>().reloadMessages();
+      }
+    } catch (e) {
+      _debugLog('Failed to refresh open chat from push: $e');
+    }
   }
 
   void setupNotificationTapListeners() {

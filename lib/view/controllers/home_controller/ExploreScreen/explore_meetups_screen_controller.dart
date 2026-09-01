@@ -23,8 +23,9 @@ class ExploreController extends GetxController {
   String? error;
 
   List<Meetup> get meetups {
+    // The author's own ads stay visible in the feed — only the
+    // "Request to Meetup" action is disabled for them (see ViewMeetupScreen).
     final base = _store.meetups
-        .where((m) => !isOwnMeetup(m))
         .where(_isAvailableMeetup)
         .toList(growable: false);
     final filtered = base.where(_matchesFilters).toList(growable: false);

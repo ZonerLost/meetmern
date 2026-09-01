@@ -8,6 +8,7 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/map_picker_screen.dart';
 import 'package:meetmern/view/controllers/userprofile_controller/LocationScreen/location_screen_controller.dart';
 
 class LocationScreen extends StatelessWidget {
@@ -139,6 +140,48 @@ class LocationScreen extends StatelessWidget {
                                   textInputType: TextInputType.streetAddress,
                                   hintText: strings.currentLocationHintText,
                                   textAlignVertical: TextAlignVertical.top,
+                                  contentPadding: EdgeInsets.symmetric(
+                                    horizontal: dimension.d14,
+                                    vertical: dimension.d14,
+                                  ),
+                                  inputDecoration: customButtonandTextStyles
+                                      .feedbackfInputDecoration
+                                      .copyWith(
+                                    floatingLabelStyle:
+                                        TextStyle(color: appTheme.black90001),
+                                    hintStyle: customButtonandTextStyles
+                                        .dateFieldTextStyle
+                                        .copyWith(
+                                      color: appTheme.neutral_400,
+                                      fontSize: dimension.d14,
+                                    ),
+                                  ),
+                                ),
+                                SizedBox(height: dimension.d10.h),
+                                CustomTextFormField(
+                                  readOnly: true,
+                                  hintText: 'Tap to select location on map',
+                                  textInputType: TextInputType.streetAddress,
+                                  textAlign: TextAlign.center,
+                                  onTap: () async {
+                                    FocusScope.of(context).unfocus();
+                                    final current =
+                                        controller.locationController.text.trim();
+                                    final result = await Navigator.of(context)
+                                        .push<MapPickerResult>(
+                                      MaterialPageRoute(
+                                        builder: (_) => MapPickerScreen(
+                                          initialAddress:
+                                              current.isEmpty ? null : current,
+                                        ),
+                                      ),
+                                    );
+                                    if (result != null &&
+                                        result.address.trim().isNotEmpty) {
+                                      controller.locationController.text =
+                                          result.address.trim();
+                                    }
+                                  },
                                   contentPadding: EdgeInsets.symmetric(
                                     horizontal: dimension.d14,
                                     vertical: dimension.d14,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -13,6 +14,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
 
   await Supabase.initialize(
     url: 'https://hczijzxdgmqkcektnvxm.supabase.co',
@@ -52,6 +58,10 @@ class _MyAppState extends State<MyApp> {
       _didScheduleInitialNavigation = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         NotificationService.instance.processPendingInitialNavigation();
+        // Ask for the OS notification permission now that a resumed Activity
+        // exists to host the system dialog (requesting inside main() before
+        // runApp() silently no-ops on Android 13+).
+        NotificationService.instance.ensureNotificationPermission();
       });
     }
 

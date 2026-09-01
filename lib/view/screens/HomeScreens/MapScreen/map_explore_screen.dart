@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:geocoding/geocoding.dart';
@@ -28,11 +30,16 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
   bool _loading = true;
   String _searchQuery = '';
   String? _typeFilter;
+  Timer? _searchDebounce;
 
   List<Meetup> _allMeetups = [];
   final Map<String, LatLng> _coords = {};
   final Map<String, BitmapDescriptor> _bitmaps = {};
   BitmapDescriptor? _userBitmap;
+
+  // Markers are rebuilt only when their inputs change (data ready, search text,
+  // type filter, current position) — never on every setState/keystroke.
+  Set<Marker> _markerCache = <Marker>{};
 
   @override
   void initState() {
@@ -53,6 +60,7 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
     await _buildAllBitmaps();
 
     if (mounted) {
+      _rebuildMarkers();
       setState(() => _loading = false);
       _jumpToInitialCamera();
     }
@@ -68,23 +76,41 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
       );
-      if (mounted) setState(() => _currentPos = LatLng(pos.latitude, pos.longitude));
+      if (mounted) {
+        setState(() => _currentPos = LatLng(pos.latitude, pos.longitude));
+        _rebuildMarkers();
+      }
     } catch (_) {}
   }
 
   Future<void> _resolveAllCoords() async {
-    await Future.wait(_allMeetups.map((m) async {
+    // Coordinates that are already stored need no work.
+    for (final m in _allMeetups) {
       if (m.latitude != null && m.longitude != null) {
         _coords[m.id] = LatLng(m.latitude!, m.longitude!);
-      } else if (m.location.isNotEmpty) {
+      }
+    }
+
+    // Geocode the rest with limited concurrency — firing 20+ parallel
+    // native-geocoder calls stalls the platform thread (ANR-like freezes).
+    final pending = _allMeetups
+        .where((m) =>
+            !_coords.containsKey(m.id) && m.location.trim().isNotEmpty)
+        .toList();
+
+    const batchSize = 4;
+    for (var i = 0; i < pending.length; i += batchSize) {
+      final batch = pending.skip(i).take(batchSize);
+      await Future.wait(batch.map((m) async {
         try {
-          final locs = await locationFromAddress(m.location);
+          final locs = await locationFromAddress(m.location)
+              .timeout(const Duration(seconds: 6));
           if (locs.isNotEmpty) {
             _coords[m.id] = LatLng(locs.first.latitude, locs.first.longitude);
           }
         } catch (_) {}
-      }
-    }));
+      }));
+    }
   }
 
   Future<void> _buildAllBitmaps() async {
@@ -92,6 +118,13 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
       if (!_coords.containsKey(m.id)) return;
       _bitmaps[m.id] = await MarkerHelper.buildMeetupMarker(m);
     }));
+  }
+
+  void _onSearchChanged(String value) {
+    _searchQuery = value;
+    _searchDebounce?.cancel();
+    _searchDebounce =
+        Timer(const Duration(milliseconds: 300), _rebuildMarkers);
   }
 
   void _jumpToInitialCamera() {
@@ -102,15 +135,15 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
     }
   }
 
-  List<Meetup> get _filtered {
+  List<Meetup> _computeFiltered() {
+    final typeFilter = _typeFilter?.toLowerCase();
+    final q = _searchQuery.trim().toLowerCase();
     return _allMeetups.where((m) {
       if (!_coords.containsKey(m.id)) return false;
-      if (_typeFilter != null &&
-          !m.type.toLowerCase().contains(_typeFilter!.toLowerCase())) {
+      if (typeFilter != null && !m.type.toLowerCase().contains(typeFilter)) {
         return false;
       }
-      if (_searchQuery.isNotEmpty) {
-        final q = _searchQuery.toLowerCase();
+      if (q.isNotEmpty) {
         if (!m.title.toLowerCase().contains(q) &&
             !m.hostName.toLowerCase().contains(q) &&
             !m.location.toLowerCase().contains(q) &&
@@ -122,7 +155,9 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
     }).toList();
   }
 
-  Set<Marker> get _markers {
+  /// Recomputes the marker set and stores it. Call this only when marker inputs
+  /// change — NOT for bottom-sheet selection or other cosmetic setState.
+  void _rebuildMarkers() {
     final out = <Marker>{};
     if (_currentPos != null && _userBitmap != null) {
       out.add(Marker(
@@ -133,7 +168,7 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
         zIndexInt: 10,
       ));
     }
-    for (final m in _filtered) {
+    for (final m in _computeFiltered()) {
       final pos = _coords[m.id];
       if (pos == null) continue;
       out.add(Marker(
@@ -145,7 +180,8 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
         onTap: () => setState(() => _selectedMeetup = m),
       ));
     }
-    return out;
+    if (!mounted) return;
+    setState(() => _markerCache = out);
   }
 
   Set<Circle> get _circles {
@@ -164,6 +200,7 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchCtrl.dispose();
     _mapCtrl?.dispose();
     super.dispose();
@@ -184,7 +221,7 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
               _mapCtrl = c;
               _jumpToInitialCamera();
             },
-            markers: _markers,
+            markers: _markerCache,
             circles: _circles,
             myLocationEnabled: false,
             myLocationButtonEnabled: false,
@@ -202,12 +239,16 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
                 _SearchBar(
                   controller: _searchCtrl,
                   onBack: () => Navigator.of(context).pop(),
-                  onChanged: (v) => setState(() => _searchQuery = v),
+                  onChanged: _onSearchChanged,
                 ),
                 SizedBox(height: 8.h),
                 _FilterChips(
                   selected: _typeFilter,
-                  onSelect: (t) => setState(() => _typeFilter = _typeFilter == t ? null : t),
+                  onSelect: (t) {
+                    setState(() =>
+                        _typeFilter = _typeFilter == t ? null : t);
+                    _rebuildMarkers();
+                  },
                 ),
               ],
             ),

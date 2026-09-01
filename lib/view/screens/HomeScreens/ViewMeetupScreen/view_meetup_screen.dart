@@ -385,8 +385,18 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
                         onPressed: _viewProfile,
                         text: strings.viewProfileBtn,
                       ),
-                      if (!controller.isOwnMeetup) ...[
-                        SizedBox(height: 10.h),
+                      SizedBox(height: 10.h),
+                      if (controller.isOwnMeetup)
+                        // Author's own ad: keep it visible but disable the
+                        // request action.
+                        CustomElevatedButton(
+                          buttonStyle: customButtonAndTextStyles.loginButtonStyle,
+                          buttonTextStyle: customButtonAndTextStyles.loginButtonTextStyle,
+                          isDisabled: true,
+                          onPressed: null,
+                          text: 'This is your meetup',
+                        )
+                      else
                         controller.isLoading
                             ? const CircularProgressIndicator()
                             : CustomElevatedButton(
@@ -397,7 +407,6 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
                                     ? strings.requestedLabel
                                     : strings.requestToJoinBtn,
                               ),
-                      ],
                     ],
                   ),
                 ),

@@ -29,7 +29,7 @@ class ChatMessageItem {
   });
 }
 
-class MessageController extends GetxController {
+class MessageController extends GetxController with WidgetsBindingObserver {
   final TextEditingController messageController = TextEditingController();
   final ScrollController scrollController = ScrollController();
   final FocusNode focusNode = FocusNode();
@@ -59,6 +59,7 @@ class MessageController extends GetxController {
   bool _hasPendingLoad = false;
   bool _pendingLoadWantsLoader = false;
   Timer? _realtimeReloadDebounce;
+  Timer? _realtimeReconnectTimer;
 
   String? get currentUserId => AuthService.currentUser?.id;
   String? get latestRequestId => _latestRequestId;
@@ -165,6 +166,22 @@ class MessageController extends GetxController {
     }
   }
 
+  @override
+  void onInit() {
+    super.onInit();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Re-establish the realtime socket (dropped while backgrounded) and refetch
+    // so messages that arrived while away show without a manual refresh.
+    if (state == AppLifecycleState.resumed && _chatId != null) {
+      _startRealtimeListeners();
+      unawaited(_loadFromSupabase(showLoader: false));
+    }
+  }
+
   Future<void> init(Chat initialChat,
       {String? incoming, String? outgoing}) async {
     print('🔵 [MessageController] init called for chat: ${initialChat.id}');
@@ -189,6 +206,8 @@ class MessageController extends GetxController {
     _meetupSubtitle = '';
     _realtimeReloadDebounce?.cancel();
     _realtimeReloadDebounce = null;
+    _realtimeReconnectTimer?.cancel();
+    _realtimeReconnectTimer = null;
     isLoading = true;
 
     chat = initialChat;
@@ -241,22 +260,48 @@ class MessageController extends GetxController {
   void _startRealtimeListeners() {
     if (_chatId == null) return;
 
+    _realtimeReconnectTimer?.cancel();
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
 
-    // Use channel-based realtime so we get INSERT/UPDATE/DELETE events
-    // without the "skip first emit" problem of .stream().
     _chatSubscription = supabase
         .from('chats')
         .stream(primaryKey: ['id'])
         .eq('id', _chatId!)
-        .listen((_) => _queueRealtimeReload());
+        .listen(
+          (_) => _queueRealtimeReload(),
+          onError: (Object e) {
+            print('🔴 [MessageController] Chat stream error: $e');
+            _scheduleRealtimeReconnect();
+          },
+          onDone: _scheduleRealtimeReconnect,
+          cancelOnError: true,
+        );
 
     _messageSubscription = supabase
         .from('messages')
         .stream(primaryKey: ['id'])
         .eq('chat_id', _chatId!)
-        .listen((_) => _queueRealtimeReload());
+        .listen(
+          (_) => _queueRealtimeReload(),
+          onError: (Object e) {
+            print('🔴 [MessageController] Message stream error: $e');
+            _scheduleRealtimeReconnect();
+          },
+          onDone: _scheduleRealtimeReconnect,
+          cancelOnError: true,
+        );
+  }
+
+  void _scheduleRealtimeReconnect() {
+    if (isClosed || _chatId == null) return;
+    _realtimeReconnectTimer?.cancel();
+    _realtimeReconnectTimer = Timer(const Duration(seconds: 3), () {
+      if (isClosed || _chatId == null) return;
+      print('🔁 [MessageController] Reconnecting realtime listeners');
+      _startRealtimeListeners();
+      unawaited(_loadFromSupabase(showLoader: false));
+    });
   }
 
   void _queueRealtimeReload() {
@@ -758,9 +803,11 @@ class MessageController extends GetxController {
 
   @override
   void onClose() {
+    WidgetsBinding.instance.removeObserver(this);
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
     _realtimeReloadDebounce?.cancel();
+    _realtimeReconnectTimer?.cancel();
     messageController.removeListener(_onTextChanged);
     focusNode.removeListener(_onFocusChanged);
     messageController.dispose();
