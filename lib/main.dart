@@ -20,9 +20,17 @@ Future<void> main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  const supabaseUrl = String.fromEnvironment('SUPABASE_URL');
+  const supabaseAnonKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+  assert(
+    supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty,
+    'Missing SUPABASE_* keys. Run with --dart-define-from-file=env.json '
+    '(copy env.example.json to env.json first).',
+  );
+
   await Supabase.initialize(
-    url: 'https://hczijzxdgmqkcektnvxm.supabase.co',
-    anonKey: 'sb_publishable_PMYj-KdaUddRFMdQCBtMqg_dHQ-gmXa',
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
   );
 
   try {

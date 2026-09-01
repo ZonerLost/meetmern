@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:meetmern/core/utils/marker_helper.dart';
+import 'package:meetmern/data/service/places_service.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
@@ -91,8 +91,8 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
       }
     }
 
-    // Geocode the rest with limited concurrency — firing 20+ parallel
-    // native-geocoder calls stalls the platform thread (ANR-like freezes).
+    // Geocode the rest with limited concurrency (Places API) so a screen full
+    // of legacy meetups doesn't fire 20+ requests at once.
     final pending = _allMeetups
         .where((m) =>
             !_coords.containsKey(m.id) && m.location.trim().isNotEmpty)
@@ -103,10 +103,10 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
       final batch = pending.skip(i).take(batchSize);
       await Future.wait(batch.map((m) async {
         try {
-          final locs = await locationFromAddress(m.location)
-              .timeout(const Duration(seconds: 6));
-          if (locs.isNotEmpty) {
-            _coords[m.id] = LatLng(locs.first.latitude, locs.first.longitude);
+          final point = await PlacesService.geocode(m.location)
+              .timeout(const Duration(seconds: 8));
+          if (point != null) {
+            _coords[m.id] = LatLng(point.latitude, point.longitude);
           }
         } catch (_) {}
       }));

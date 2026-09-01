@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:meetmern/data/service/places_service.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/chat_model.dart';
@@ -185,11 +185,11 @@ class ViewMeetupController extends GetxController {
       if ((meetupLat == null || meetupLng == null) &&
           (meetup?.location.isNotEmpty ?? false)) {
         try {
-          final locs = await locationFromAddress(meetup!.location)
-              .timeout(const Duration(seconds: 6));
-          if (locs.isNotEmpty) {
-            meetupLat = locs.first.latitude;
-            meetupLng = locs.first.longitude;
+          final point = await PlacesService.geocode(meetup!.location)
+              .timeout(const Duration(seconds: 8));
+          if (point != null) {
+            meetupLat = point.latitude;
+            meetupLng = point.longitude;
           }
         } catch (_) {}
       }

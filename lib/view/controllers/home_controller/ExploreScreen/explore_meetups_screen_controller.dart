@@ -1,10 +1,10 @@
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/data/models/profile_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
 import 'package:meetmern/data/service/discovery_service.dart';
+import 'package:meetmern/data/service/places_service.dart';
 import 'package:meetmern/data/service/favorite_service.dart';
 import 'package:meetmern/data/service/meetup_store.dart';
 import 'package:meetmern/data/service/profile_service.dart';
@@ -322,11 +322,11 @@ class ExploreController extends GetxController {
     if (parsed != null) return parsed;
 
     try {
-      final locations = await locationFromAddress(text);
-      if (locations.isEmpty) return null;
+      final point = await PlacesService.geocode(text);
+      if (point == null) return null;
       return _GeoPoint(
-        latitude: locations.first.latitude,
-        longitude: locations.first.longitude,
+        latitude: point.latitude,
+        longitude: point.longitude,
       );
     } catch (_) {
       return null;

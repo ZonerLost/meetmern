@@ -8,7 +8,9 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
-import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/map_picker_screen.dart';
+import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/map_picker_screen.dart'
+    show MapPickerResult;
+import 'package:meetmern/view/screens/userprofilescreens/LocationScreen/location_pin_screen.dart';
 import 'package:meetmern/view/controllers/userprofile_controller/LocationScreen/location_screen_controller.dart';
 
 class LocationScreen extends StatelessWidget {
@@ -160,7 +162,7 @@ class LocationScreen extends StatelessWidget {
                                 SizedBox(height: dimension.d10.h),
                                 CustomTextFormField(
                                   readOnly: true,
-                                  hintText: 'Tap to select location on map',
+                                  hintText: 'Tap to pin your location on map',
                                   textInputType: TextInputType.streetAddress,
                                   textAlign: TextAlign.center,
                                   onTap: () async {
@@ -170,7 +172,7 @@ class LocationScreen extends StatelessWidget {
                                     final result = await Navigator.of(context)
                                         .push<MapPickerResult>(
                                       MaterialPageRoute(
-                                        builder: (_) => MapPickerScreen(
+                                        builder: (_) => LocationPinScreen(
                                           initialAddress:
                                               current.isEmpty ? null : current,
                                         ),

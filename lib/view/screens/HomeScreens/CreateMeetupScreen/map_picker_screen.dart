@@ -1,19 +1,16 @@
 import 'dart:async';
-import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
-import 'package:http/http.dart' as http;
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/utils/marker_helper.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_text_form_field.dart';
+import 'package:meetmern/data/service/places_service.dart';
 
 class MapPickerResult {
   final double latitude;
@@ -24,69 +21,6 @@ class MapPickerResult {
     required this.latitude,
     required this.longitude,
     required this.address,
-  });
-}
-
-/// A cafe / restaurant / bar / pub returned by Overpass (OpenStreetMap).
-class _Venue {
-  final String id;
-  final String name;
-  final String amenity; // cafe | restaurant | bar | pub
-  final double latitude;
-  final double longitude;
-  final String address; // best-effort street address from OSM addr:* tags
-
-  const _Venue({
-    required this.id,
-    required this.name,
-    required this.amenity,
-    required this.latitude,
-    required this.longitude,
-    required this.address,
-  });
-
-  String get displayLabel {
-    final type = _Venue.labelForAmenity(amenity);
-    return type.isEmpty ? name : '$name · $type';
-  }
-
-  static String labelForAmenity(String amenity) {
-    switch (amenity) {
-      case 'cafe':
-        return 'Cafe';
-      case 'restaurant':
-        return 'Restaurant';
-      case 'bar':
-        return 'Bar';
-      case 'pub':
-        return 'Pub';
-      default:
-        return '';
-    }
-  }
-}
-
-class _PlaceSuggestion {
-  final String title;
-  final String subtitle;
-  final String fullText;
-  final double? latitude;
-  final double? longitude;
-  final double importance;
-  final String type;
-  final String category;
-  final int placeRank;
-
-  const _PlaceSuggestion({
-    required this.title,
-    required this.subtitle,
-    required this.fullText,
-    this.latitude,
-    this.longitude,
-    this.importance = 0,
-    this.type = '',
-    this.category = '',
-    this.placeRank = 999,
   });
 }
 
@@ -109,14 +43,8 @@ class MapPickerScreen extends StatefulWidget {
 class _MapPickerScreenState extends State<MapPickerScreen> {
   static const gmaps.LatLng _defaultCenter =
       gmaps.LatLng(51.5074, -0.1278); // London fallback
-  static const String _searchBaseUrl =
-      'https://nominatim.openstreetmap.org/search';
-  static const List<String> _overpassEndpoints = <String>[
-    'https://overpass-api.de/api/interpreter',
-    'https://overpass.kumi.systems/api/interpreter',
-  ];
 
-  /// Only these OSM amenity values may be picked as a meetup location.
+  /// Only these venue categories may be picked as a meetup location.
   static const Set<String> _allowedAmenities = <String>{
     'cafe',
     'restaurant',
@@ -124,8 +52,7 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     'pub',
   };
 
-  static const Duration _searchDebounceDuration = Duration(milliseconds: 350);
-  static const Duration _minimumSearchRequestGap = Duration(seconds: 1);
+  static const Duration _searchDebounce = Duration(milliseconds: 350);
   static const Duration _venueFetchDebounce = Duration(milliseconds: 700);
   static const int _minimumQueryLength = 2;
 
@@ -139,25 +66,26 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   gmaps.LatLng _center = _defaultCenter;
-  final List<_PlaceSuggestion> _suggestions = <_PlaceSuggestion>[];
 
-  final List<_Venue> _venues = <_Venue>[];
-  _Venue? _selectedVenue;
-  // Cached custom marker icons, keyed by "<amenity>" and "<amenity>:selected".
+  final List<PlaceVenue> _searchResults = <PlaceVenue>[];
+  Timer? _searchDebounceTimer;
+  int _searchRequestId = 0;
+  bool _loadingSearch = false;
+
+  final List<PlaceVenue> _venues = <PlaceVenue>[];
+  PlaceVenue? _selectedVenue;
   final Map<String, gmaps.BitmapDescriptor> _venueIcons =
       <String, gmaps.BitmapDescriptor>{};
+  Set<gmaps.Marker> _markerCache = <gmaps.Marker>{};
   bool _loadingVenues = false;
   bool _venuesLoadedOnce = false;
   Timer? _venueFetchDebounceTimer;
   int _venueRequestId = 0;
   gmaps.LatLng? _lastVenueFetchCenter;
+  String? _venueError;
 
   bool _loadingLocation = true;
-  bool _searching = false;
-  bool _loadingSuggestions = false;
-  Timer? _searchDebounce;
-  int _suggestionsRequestId = 0;
-  DateTime? _lastSearchRequestAt;
+  bool _confirming = false;
 
   @override
   void initState() {
@@ -176,17 +104,23 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     }
   }
 
+  @override
+  void dispose() {
+    _searchDebounceTimer?.cancel();
+    _venueFetchDebounceTimer?.cancel();
+    _searchFocusNode.removeListener(_handleSearchFocusChange);
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _mapController?.dispose();
+    super.dispose();
+  }
+
   void _handleSearchFocusChange() {
     if (!_searchFocusNode.hasFocus && mounted) {
       setState(() {
-        _loadingSuggestions = false;
-        _suggestions.clear();
+        _loadingSearch = false;
+        _searchResults.clear();
       });
-    } else if (_searchFocusNode.hasFocus) {
-      final query = _searchController.text.trim();
-      if (query.length >= _minimumQueryLength) {
-        unawaited(_fetchSuggestions(query));
-      }
     }
   }
 
@@ -220,17 +154,17 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     }
   }
 
-  // ── Venue loading (Overpass / OpenStreetMap) ───────────────────────────────
+  // ── Venue markers ─────────────────────────────────────────────────────────
 
   Future<void> _buildVenueIcons() async {
     for (final amenity in _allowedAmenities) {
       for (final selected in const <bool>[false, true]) {
         try {
-          final icon = await MarkerHelper.buildVenueMarker(
+          _venueIcons['$amenity${selected ? ':selected' : ''}'] =
+              await MarkerHelper.buildVenueMarker(
             amenity: amenity,
             selected: selected,
           );
-          _venueIcons['$amenity${selected ? ':selected' : ''}'] = icon;
         } catch (_) {
           // Fall back to a default marker for this one (see _rebuildMarkers).
         }
@@ -238,6 +172,54 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     }
     _rebuildMarkers();
   }
+
+  void _rebuildMarkers() {
+    final markers = <gmaps.Marker>{};
+    for (final venue in _venues) {
+      final isSelected = _selectedVenue?.id == venue.id;
+      final iconKey = '${venue.amenity}${isSelected ? ':selected' : ''}';
+      final icon = _venueIcons[iconKey] ??
+          gmaps.BitmapDescriptor.defaultMarkerWithHue(
+            isSelected
+                ? gmaps.BitmapDescriptor.hueAzure
+                : gmaps.BitmapDescriptor.hueOrange,
+          );
+      markers.add(
+        gmaps.Marker(
+          markerId: gmaps.MarkerId(venue.id),
+          position: gmaps.LatLng(venue.latitude, venue.longitude),
+          icon: icon,
+          anchor: isSelected
+              ? const Offset(0.5, 1.0)
+              : const Offset(0.5, 0.5),
+          zIndexInt: isSelected ? 2 : 1,
+          infoWindow: gmaps.InfoWindow(
+            title: venue.name,
+            snippet: _amenityLabel(venue.amenity),
+          ),
+          onTap: () => _selectVenue(venue),
+        ),
+      );
+    }
+    if (!mounted) return;
+    setState(() => _markerCache = markers);
+  }
+
+  void _selectVenue(PlaceVenue venue) {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _selectedVenue = venue;
+      _center = gmaps.LatLng(venue.latitude, venue.longitude);
+    });
+    _rebuildMarkers();
+    _mapController?.animateCamera(
+      gmaps.CameraUpdate.newLatLng(
+        gmaps.LatLng(venue.latitude, venue.longitude),
+      ),
+    );
+  }
+
+  // ── Venue loading (Google Places) ─────────────────────────────────────────
 
   void _scheduleVenueFetch({bool immediate = false}) {
     _venueFetchDebounceTimer?.cancel();
@@ -269,60 +251,37 @@ class _MapPickerScreenState extends State<MapPickerScreen> {
     final target = _center;
     _lastVenueFetchCenter = target;
 
-    setState(() => _loadingVenues = true);
+    setState(() {
+      _loadingVenues = true;
+      _venueError = null;
+    });
 
-    final query = '''
-[out:json][timeout:20];
-(
-  nwr["amenity"~"^(cafe|restaurant|bar|pub)\$"]["name"](around:${_venueSearchRadiusMeters.toInt()},${target.latitude},${target.longitude});
-);
-out center 80;
-''';
-
-    List<_Venue> parsed = <_Venue>[];
-    var succeeded = false;
-    for (final endpoint in _overpassEndpoints) {
-      try {
-        final response = await http
-            .post(
-              Uri.parse(endpoint),
-              headers: <String, String>{
-                'User-Agent': 'meetmern-mobile-app/1.0',
-                'Content-Type': 'application/x-www-form-urlencoded',
-              },
-              body: <String, String>{'data': query},
-            )
-            .timeout(const Duration(seconds: 25));
-
-        if (response.statusCode != 200) continue;
-
-        final payload = jsonDecode(response.body);
-        final elements =
-            (payload is Map && payload['elements'] is List)
-                ? payload['elements'] as List
-                : const <dynamic>[];
-        parsed = _venuesFromOverpass(elements, target);
-        succeeded = true;
-        break;
-      } catch (_) {
-        // Try the next endpoint.
-      }
+    List<PlaceVenue> venues = <PlaceVenue>[];
+    String? error;
+    try {
+      venues = await PlacesService.searchNearbyVenues(
+        latitude: target.latitude,
+        longitude: target.longitude,
+        radiusMeters: _venueSearchRadiusMeters,
+      );
+      debugPrint('[MapPicker] Places returned ${venues.length} venues');
+    } catch (e) {
+      error = e.toString();
+      debugPrint('[MapPicker] Places venue search failed: $e');
     }
 
     if (!mounted || requestId != _venueRequestId) return;
 
     setState(() {
       _loadingVenues = false;
-      if (!succeeded) {
-        // Network/endpoint failure — keep whatever we already have rather than
-        // wiping the map (and the user's selection) on a transient error.
+      if (error != null) {
+        _venueError = 'Could not load venues. Check your connection.';
         return;
       }
       _venues
         ..clear()
-        ..addAll(parsed);
+        ..addAll(venues);
       _venuesLoadedOnce = true;
-      // Drop the current selection if it is no longer in range.
       if (_selectedVenue != null &&
           !_venues.any((v) => v.id == _selectedVenue!.id)) {
         _selectedVenue = null;
@@ -331,614 +290,85 @@ out center 80;
     _rebuildMarkers();
   }
 
-  List<_Venue> _venuesFromOverpass(List<dynamic> elements, gmaps.LatLng origin) {
-    final seen = <String>{};
-    final venues = <_Venue>[];
-
-    for (final raw in elements) {
-      if (raw is! Map) continue;
-      final tags = (raw['tags'] is Map)
-          ? Map<String, dynamic>.from(raw['tags'] as Map)
-          : <String, dynamic>{};
-
-      final amenity = (tags['amenity'] ?? '').toString().trim().toLowerCase();
-      if (!_allowedAmenities.contains(amenity)) continue;
-
-      final name = (tags['name'] ?? '').toString().trim();
-      if (name.isEmpty) continue;
-
-      double? lat = (raw['lat'] as num?)?.toDouble();
-      double? lon = (raw['lon'] as num?)?.toDouble();
-      if ((lat == null || lon == null) && raw['center'] is Map) {
-        final center = raw['center'] as Map;
-        lat = (center['lat'] as num?)?.toDouble();
-        lon = (center['lon'] as num?)?.toDouble();
-      }
-      if (lat == null || lon == null) continue;
-
-      final id = '${raw['type'] ?? 'node'}/${raw['id'] ?? '$lat,$lon'}';
-      if (!seen.add(id)) continue;
-
-      venues.add(_Venue(
-        id: id,
-        name: name,
-        amenity: amenity,
-        latitude: lat,
-        longitude: lon,
-        address: _composeOsmAddress(tags),
-      ));
-    }
-
-    venues.sort((a, b) {
-      final da = Geolocator.distanceBetween(
-          origin.latitude, origin.longitude, a.latitude, a.longitude);
-      final db = Geolocator.distanceBetween(
-          origin.latitude, origin.longitude, b.latitude, b.longitude);
-      return da.compareTo(db);
-    });
-
-    return venues;
-  }
-
-  String _composeOsmAddress(Map<String, dynamic> tags) {
-    final parts = <String>[
-      [
-        (tags['addr:housenumber'] ?? '').toString().trim(),
-        (tags['addr:street'] ?? '').toString().trim(),
-      ].where((s) => s.isNotEmpty).join(' '),
-      (tags['addr:suburb'] ?? '').toString().trim(),
-      (tags['addr:city'] ?? tags['addr:town'] ?? '').toString().trim(),
-      (tags['addr:postcode'] ?? '').toString().trim(),
-    ].where((s) => s.isNotEmpty).toList();
-    return parts.join(', ');
-  }
-
-  /// Rebuilt only when venues / selection / icons change — not on every
-  /// setState (search typing, loading pill, etc.).
-  Set<gmaps.Marker> _markerCache = <gmaps.Marker>{};
-
-  void _rebuildMarkers() {
-    final markers = <gmaps.Marker>{};
-    for (final venue in _venues) {
-      final isSelected = _selectedVenue?.id == venue.id;
-      final iconKey = '${venue.amenity}${isSelected ? ':selected' : ''}';
-      final icon = _venueIcons[iconKey] ??
-          gmaps.BitmapDescriptor.defaultMarkerWithHue(
-            isSelected
-                ? gmaps.BitmapDescriptor.hueAzure
-                : gmaps.BitmapDescriptor.hueOrange,
-          );
-      markers.add(
-        gmaps.Marker(
-          markerId: gmaps.MarkerId(venue.id),
-          position: gmaps.LatLng(venue.latitude, venue.longitude),
-          icon: icon,
-          anchor: isSelected
-              ? const Offset(0.5, 1.0) // pin tip
-              : const Offset(0.5, 0.5), // chip centre
-          zIndexInt: isSelected ? 2 : 1,
-          infoWindow: gmaps.InfoWindow(
-            title: venue.name,
-            snippet: _Venue.labelForAmenity(venue.amenity),
-          ),
-          onTap: () => _selectVenue(venue),
-        ),
-      );
-    }
-    if (!mounted) return;
-    setState(() => _markerCache = markers);
-  }
-
-  Future<void> _selectVenue(_Venue venue) async {
-    FocusScope.of(context).unfocus();
-    setState(() {
-      _selectedVenue = venue;
-      _center = gmaps.LatLng(venue.latitude, venue.longitude);
-    });
-    _rebuildMarkers();
-    await _mapController?.animateCamera(
-      gmaps.CameraUpdate.newLatLng(
-        gmaps.LatLng(venue.latitude, venue.longitude),
-      ),
-    );
-  }
-
-  /// Builds the address string returned to the caller for the picked venue.
-  Future<String> _resolveVenueAddress(_Venue venue) async {
-    if (venue.address.isNotEmpty) {
-      return '${venue.name}, ${venue.address}';
-    }
-    try {
-      final marks =
-          await placemarkFromCoordinates(venue.latitude, venue.longitude)
-              .timeout(const Duration(seconds: 8));
-      if (marks.isNotEmpty) {
-        final p = marks.first;
-        final street = [p.street, p.subLocality, p.locality, p.country]
-            .where((s) => s != null && s.trim().isNotEmpty)
-            .join(', ');
-        if (street.isNotEmpty) return '${venue.name}, $street';
-      }
-    } catch (_) {
-      // Fall through to the bare name.
-    }
-    return venue.name;
-  }
-
-  // ── Search (Nominatim) — navigation only, not selection ────────────────────
-
-  Future<void> _searchLocation() async {
-    final query = _searchController.text.trim();
-    if (query.isEmpty || _searching) return;
-
-    FocusScope.of(context).unfocus();
-    setState(() => _searching = true);
-
-    try {
-      if (_suggestions.isNotEmpty) {
-        await _selectSuggestion(_suggestions.first);
-        return;
-      }
-
-      final found = await _moveToQueryLocation(query);
-      if (!found && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No location found for that search.')),
-        );
-      }
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to search that location.')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _searching = false);
-      }
-    }
-  }
+  // ── Search box (Google Places text search) ────────────────────────────────
 
   void _onSearchChanged(String value) {
-    _searchDebounce?.cancel();
+    _searchDebounceTimer?.cancel();
     final query = value.trim();
     if (query.length < _minimumQueryLength) {
-      if (mounted) {
-        setState(() {
-          _loadingSuggestions = false;
-          _suggestions.clear();
-        });
-      }
+      setState(() {
+        _loadingSearch = false;
+        _searchResults.clear();
+      });
       return;
     }
-
-    _searchDebounce = Timer(
-      _searchDebounceDuration,
-      () => unawaited(_fetchSuggestions(query)),
-    );
+    _searchDebounceTimer =
+        Timer(_searchDebounce, () => unawaited(_runSearch(query)));
   }
 
-  Future<void> _fetchSuggestions(String query) async {
-    if (query.length < _minimumQueryLength) return;
-    final requestId = ++_suggestionsRequestId;
+  Future<void> _runSearch(String query) async {
+    final requestId = ++_searchRequestId;
+    setState(() => _loadingSearch = true);
 
-    if (mounted) {
-      setState(() => _loadingSuggestions = true);
-    }
-
+    List<PlaceVenue> results = <PlaceVenue>[];
     try {
-      final suggestions = await _fetchSuggestionsFromNominatim(query);
-      if (!mounted || requestId != _suggestionsRequestId) return;
-
-      setState(() {
-        _loadingSuggestions = false;
-        _suggestions
-          ..clear()
-          ..addAll(suggestions);
-      });
-    } catch (_) {
-      await _fetchSuggestionsWithGeocoder(query, requestId);
+      results = await PlacesService.searchText(
+        query,
+        latitude: _center.latitude,
+        longitude: _center.longitude,
+      );
+    } catch (e) {
+      debugPrint('[MapPicker] search failed: $e');
     }
+
+    if (!mounted || requestId != _searchRequestId) return;
+    setState(() {
+      _loadingSearch = false;
+      _searchResults
+        ..clear()
+        ..addAll(results);
+    });
   }
 
-  Future<void> _fetchSuggestionsWithGeocoder(
-    String query,
-    int requestId,
-  ) async {
-    try {
-      final results = await locationFromAddress(query);
-      if (!mounted || requestId != _suggestionsRequestId) return;
-
-      final seen = <String>{};
-      final built = <_PlaceSuggestion>[];
-
-      for (final result in results.take(6)) {
-        final fallbackTitle =
-            '${result.latitude.toStringAsFixed(5)}, ${result.longitude.toStringAsFixed(5)}';
-        String fullText = fallbackTitle;
-
-        try {
-          final marks = await placemarkFromCoordinates(
-            result.latitude,
-            result.longitude,
-          );
-          if (marks.isNotEmpty) {
-            final p = marks.first;
-            fullText = [
-              p.name,
-              p.street,
-              p.subLocality,
-              p.locality,
-              p.administrativeArea,
-              p.country,
-            ].where((s) => s != null && s.trim().isNotEmpty).join(', ');
-          }
-        } catch (_) {
-          // Keep coordinate fallback if reverse lookup fails.
-        }
-
-        final normalized =
-            fullText.trim().isNotEmpty ? fullText.trim() : fallbackTitle;
-        if (!seen.add(normalized.toLowerCase())) continue;
-
-        final parts = normalized.split(',');
-        final title = parts.isNotEmpty ? parts.first.trim() : normalized;
-        final subtitle = parts.length > 1
-            ? parts.skip(1).map((part) => part.trim()).join(', ')
-            : '';
-
-        built.add(
-          _PlaceSuggestion(
-            title: title,
-            subtitle: subtitle,
-            fullText: normalized,
-            latitude: result.latitude,
-            longitude: result.longitude,
-          ),
-        );
-      }
-
-      if (!mounted || requestId != _suggestionsRequestId) return;
-      setState(() {
-        _loadingSuggestions = false;
-        _suggestions
-          ..clear()
-          ..addAll(built);
-      });
-    } catch (_) {
-      if (!mounted || requestId != _suggestionsRequestId) return;
-      setState(() {
-        _loadingSuggestions = false;
-        _suggestions.clear();
-      });
-    }
-  }
-
-  Future<List<_PlaceSuggestion>> _fetchSuggestionsFromNominatim(
-    String query,
-  ) async {
-    await _respectSearchRateLimit();
-    final uri = Uri.parse(_searchBaseUrl).replace(
-      queryParameters: <String, String>{
-        'q': query,
-        'format': 'jsonv2',
-        'addressdetails': '1',
-        'limit': '10',
-        'dedupe': '1',
-        'viewbox': _buildViewBox(),
-      },
-    );
-
-    final response = await http.get(
-      uri,
-      headers: <String, String>{
-        'User-Agent': 'meetmern-mobile-app/1.0',
-        'Accept-Language': _languageTag,
-      },
-    );
-
-    if (response.statusCode != 200) {
-      throw Exception('Search request failed');
-    }
-
-    final payload = jsonDecode(response.body);
-    if (payload is! List) {
-      throw const FormatException('Unexpected search response');
-    }
-
-    final normalizedQuery = _normalizeQuery(query);
-    final suggestions = payload
-        .whereType<Map<String, dynamic>>()
-        .map(_suggestionFromNominatim)
-        .where((suggestion) => suggestion.fullText.isNotEmpty)
-        .toList();
-
-    suggestions.sort(
-      (a, b) => _compareSuggestions(
-        a,
-        b,
-        normalizedQuery,
-      ),
-    );
-
-    return suggestions;
-  }
-
-  Future<void> _selectSuggestion(_PlaceSuggestion suggestion) async {
+  Future<void> _pickSearchResult(PlaceVenue result) async {
     FocusScope.of(context).unfocus();
-    if (mounted) {
-      setState(() {
-        _searching = true;
-        _searchController.text = suggestion.fullText;
-        _suggestions.clear();
-        _loadingSuggestions = false;
-      });
-    }
-
-    if (suggestion.latitude != null && suggestion.longitude != null) {
-      await _moveToSuggestionLocation(
-        latitude: suggestion.latitude!,
-        longitude: suggestion.longitude!,
-      );
-      if (mounted) {
-        setState(() => _searching = false);
-      }
-      return;
-    }
-
-    try {
-      final query = suggestion.fullText.trim();
-      if (query.isEmpty) {
-        throw const FormatException('No place details found.');
-      }
-      await _moveToQueryLocation(query);
-    } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to load that place.')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _searching = false);
-      }
-    }
-  }
-
-  Future<bool> _moveToQueryLocation(String query) async {
-    _PlaceSuggestion? match;
-    try {
-      final suggestions = await _fetchSuggestionsFromNominatim(query);
-      if (suggestions.isNotEmpty) {
-        match = suggestions.first;
-      }
-    } catch (_) {
-      // Fall back to platform geocoder when network search is unavailable.
-    }
-
-    if (match?.latitude == null || match?.longitude == null) {
-      final results = await locationFromAddress(query);
-      if (!mounted || results.isEmpty) return false;
-
-      final result = results.first;
-      match = _PlaceSuggestion(
-        title: query,
-        subtitle: '',
-        fullText: query,
-        latitude: result.latitude,
-        longitude: result.longitude,
-      );
-    }
-
-    final resolvedMatch = match;
-    if (!mounted ||
-        resolvedMatch == null ||
-        resolvedMatch.latitude == null ||
-        resolvedMatch.longitude == null) {
-      return false;
-    }
-
-    await _moveToSuggestionLocation(
-      latitude: resolvedMatch.latitude!,
-      longitude: resolvedMatch.longitude!,
-    );
-    return true;
-  }
-
-  Future<void> _respectSearchRateLimit() async {
-    final lastRequestAt = _lastSearchRequestAt;
-    if (lastRequestAt != null) {
-      final elapsed = DateTime.now().difference(lastRequestAt);
-      if (elapsed < _minimumSearchRequestGap) {
-        await Future.delayed(_minimumSearchRequestGap - elapsed);
-      }
-    }
-    _lastSearchRequestAt = DateTime.now();
-  }
-
-  String get _languageTag {
-    final locale = WidgetsBinding.instance.platformDispatcher.locale;
-    return locale.toLanguageTag();
-  }
-
-  String _buildViewBox() {
-    const latitudeDelta = 1.8;
-    final longitudeDelta = math.max(
-      1.8,
-      1.8 /
-          math.max(
-            math.cos(_center.latitude * math.pi / 180).abs(),
-            0.25,
-          ),
-    );
-    final left = (_center.longitude - longitudeDelta).clamp(-180.0, 180.0);
-    final right = (_center.longitude + longitudeDelta).clamp(-180.0, 180.0);
-    final top = (_center.latitude + latitudeDelta).clamp(-90.0, 90.0);
-    final bottom = (_center.latitude - latitudeDelta).clamp(-90.0, 90.0);
-    return '$left,$top,$right,$bottom';
-  }
-
-  _PlaceSuggestion _suggestionFromNominatim(Map<String, dynamic> raw) {
-    final displayName = (raw['display_name'] as String?)?.trim() ?? '';
-    final name = (raw['name'] as String?)?.trim() ?? '';
-    final title = name.isNotEmpty ? name : _extractTitle(displayName);
-    final subtitle = _buildSubtitle(
-      title: title,
-      displayName: displayName,
-      address: raw['address'] as Map<String, dynamic>? ?? <String, dynamic>{},
-    );
-
-    return _PlaceSuggestion(
-      title: title.isNotEmpty ? title : displayName,
-      subtitle: subtitle,
-      fullText: displayName,
-      latitude: double.tryParse(raw['lat']?.toString() ?? ''),
-      longitude: double.tryParse(raw['lon']?.toString() ?? ''),
-      importance: (raw['importance'] as num?)?.toDouble() ?? 0,
-      type: (raw['type'] as String?)?.trim() ?? '',
-      category: (raw['category'] as String?)?.trim() ?? '',
-      placeRank: (raw['place_rank'] as num?)?.toInt() ?? 999,
-    );
-  }
-
-  String _extractTitle(String displayName) {
-    if (displayName.isEmpty) return '';
-    return displayName.split(',').first.trim();
-  }
-
-  String _buildSubtitle({
-    required String title,
-    required String displayName,
-    required Map<String, dynamic> address,
-  }) {
-    final parts = <String>[
-      address['suburb']?.toString() ?? '',
-      address['city']?.toString() ?? '',
-      address['state']?.toString() ?? '',
-      address['country']?.toString() ?? '',
-    ].where((part) => part.trim().isNotEmpty).toList();
-
-    final subtitle = parts.join(', ');
-    if (subtitle.isNotEmpty && subtitle != title) {
-      return subtitle;
-    }
-
-    if (displayName.startsWith('$title, ')) {
-      return displayName.substring(title.length + 2).trim();
-    }
-
-    return displayName == title ? '' : displayName;
-  }
-
-  int _compareSuggestions(
-    _PlaceSuggestion a,
-    _PlaceSuggestion b,
-    String normalizedQuery,
-  ) {
-    final scoreA = _scoreSuggestion(a, normalizedQuery);
-    final scoreB = _scoreSuggestion(b, normalizedQuery);
-    if (scoreA != scoreB) return scoreB.compareTo(scoreA);
-
-    if (a.importance != b.importance) {
-      return b.importance.compareTo(a.importance);
-    }
-
-    if (a.placeRank != b.placeRank) {
-      return a.placeRank.compareTo(b.placeRank);
-    }
-
-    return a.fullText.compareTo(b.fullText);
-  }
-
-  int _scoreSuggestion(_PlaceSuggestion suggestion, String normalizedQuery) {
-    final normalizedTitle = _normalizeQuery(suggestion.title);
-    final normalizedFullText = _normalizeQuery(suggestion.fullText);
-    var score = 0;
-
-    if (normalizedTitle == normalizedQuery) {
-      score += 1000;
-    } else if (normalizedTitle.startsWith(normalizedQuery)) {
-      score += 700;
-    } else if (normalizedFullText.startsWith(normalizedQuery)) {
-      score += 500;
-    } else if (normalizedFullText.contains(normalizedQuery)) {
-      score += 200;
-    }
-
-    if (_isBroadPlaceType(suggestion.type, suggestion.category)) {
-      score += 250;
-    }
-
-    if (_isAdministrativePlace(suggestion.type, suggestion.category)) {
-      score += 100;
-    }
-
-    score += (suggestion.importance * 100).round();
-    score -= suggestion.placeRank;
-    return score;
-  }
-
-  bool _isBroadPlaceType(String type, String category) {
-    const broadTypes = <String>{
-      'city',
-      'town',
-      'village',
-      'municipality',
-      'administrative',
-      'suburb',
-      'county',
-      'state',
-      'province',
-    };
-    return category == 'place' || broadTypes.contains(type);
-  }
-
-  bool _isAdministrativePlace(String type, String category) {
-    return category == 'boundary' || type == 'administrative' || type == 'city';
-  }
-
-  String _normalizeQuery(String value) {
-    final lower = value.toLowerCase().trim();
-    final buffer = StringBuffer();
-    for (final codeUnit in lower.codeUnits) {
-      final isAlphaNum = (codeUnit >= 97 && codeUnit <= 122) ||
-          (codeUnit >= 48 && codeUnit <= 57) ||
-          codeUnit == 32;
-      if (isAlphaNum) {
-        buffer.writeCharCode(codeUnit);
-      }
-    }
-    return buffer.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
-  }
-
-  bool get _showSuggestionsPanel =>
-      _searchFocusNode.hasFocus &&
-      (_searchController.text.trim().isNotEmpty ||
-          _loadingSuggestions ||
-          _suggestions.isNotEmpty);
-
-  Future<void> _moveToSuggestionLocation({
-    required double latitude,
-    required double longitude,
-  }) async {
-    final target = gmaps.LatLng(latitude, longitude);
-    if (!mounted) return;
-
-    setState(() => _center = target);
-
+    setState(() {
+      _searchController.text = result.name;
+      _searchResults.clear();
+      _loadingSearch = false;
+      _center = gmaps.LatLng(result.latitude, result.longitude);
+    });
     await _mapController?.animateCamera(
       gmaps.CameraUpdate.newCameraPosition(
-        gmaps.CameraPosition(target: target, zoom: 16),
+        gmaps.CameraPosition(
+          target: gmaps.LatLng(result.latitude, result.longitude),
+          zoom: 16,
+        ),
       ),
     );
+
+    // If the tapped result is itself a cafe/restaurant/bar/pub, select it.
+    if (_allowedAmenities.contains(result.amenity)) {
+      _selectVenue(result);
+    }
     await _fetchNearbyVenues(force: true);
   }
 
-  Future<void> _confirm() async {
+  bool get _showSearchPanel =>
+      _searchFocusNode.hasFocus &&
+      (_loadingSearch ||
+          _searchResults.isNotEmpty ||
+          _searchController.text.trim().isNotEmpty);
+
+  // ── Confirm ──────────────────────────────────────────────────────────────
+
+  void _confirm() {
     final venue = _selectedVenue;
     if (venue == null) return;
+    setState(() => _confirming = true);
 
-    setState(() => _searching = true);
-    final address = await _resolveVenueAddress(venue);
-    if (!mounted) return;
+    final address =
+        venue.address.isNotEmpty ? '${venue.name}, ${venue.address}' : venue.name;
 
     Navigator.of(context).pop(
       MapPickerResult(
@@ -949,15 +379,32 @@ out center 80;
     );
   }
 
-  @override
-  void dispose() {
-    _searchDebounce?.cancel();
-    _venueFetchDebounceTimer?.cancel();
-    _searchFocusNode.removeListener(_handleSearchFocusChange);
-    _searchController.dispose();
-    _searchFocusNode.dispose();
-    _mapController?.dispose();
-    super.dispose();
+  static String _amenityLabel(String amenity) {
+    switch (amenity) {
+      case 'cafe':
+        return 'Cafe';
+      case 'restaurant':
+        return 'Restaurant';
+      case 'bar':
+        return 'Bar';
+      case 'pub':
+        return 'Pub';
+      default:
+        return '';
+    }
+  }
+
+  String get _selectionLabel {
+    final venue = _selectedVenue;
+    if (venue != null) {
+      final type = _amenityLabel(venue.amenity);
+      return type.isEmpty ? venue.name : '${venue.name} · $type';
+    }
+    if (_venueError != null) return _venueError!;
+    if (_venuesLoadedOnce && _venues.isEmpty) {
+      return 'No cafes, restaurants, bars or pubs here — move the map or search another area.';
+    }
+    return 'Tap a cafe, restaurant, bar or pub marker to pick it.';
   }
 
   @override
@@ -971,7 +418,6 @@ out center 80;
     return Scaffold(
       body: Stack(
         children: [
-          // ── Map ──────────────────────────────────────────────────────────
           gmaps.GoogleMap(
             initialCameraPosition:
                 const gmaps.CameraPosition(target: _defaultCenter, zoom: 15),
@@ -1041,7 +487,6 @@ out center 80;
                             textInputAction: TextInputAction.search,
                             textInputType: TextInputType.streetAddress,
                             onChanged: _onSearchChanged,
-                            onFieldSubmitted: (_) => _searchLocation(),
                             inputDecoration: InputDecoration(
                               hintText: 'Search area, then tap a venue',
                               border: InputBorder.none,
@@ -1056,26 +501,19 @@ out center 80;
                           ),
                         ),
                         SizedBox(width: 8.w),
-                        IconButton(
-                          onPressed: _searching ? null : _searchLocation,
-                          icon: _searching
-                              ? SizedBox(
-                                  width: 18.w,
-                                  height: 18.w,
-                                  child: const CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Icon(
-                                  Icons.search,
-                                  size: 20.sp,
-                                  color: appTheme.neutral_700,
-                                ),
-                        ),
+                        _loadingSearch
+                            ? SizedBox(
+                                width: 18.w,
+                                height: 18.w,
+                                child: const CircularProgressIndicator(
+                                    strokeWidth: 2),
+                              )
+                            : Icon(Icons.search,
+                                size: 20.sp, color: appTheme.neutral_700),
                       ],
                     ),
                   ),
-                  if (_showSuggestionsPanel)
+                  if (_showSearchPanel)
                     Container(
                       width: double.infinity,
                       margin: EdgeInsets.only(top: 8.h, left: 6.w),
@@ -1091,7 +529,7 @@ out center 80;
                           ),
                         ],
                       ),
-                      child: _loadingSuggestions
+                      child: _loadingSearch
                           ? Padding(
                               padding: EdgeInsets.symmetric(
                                   vertical: 18.h, horizontal: 16.w),
@@ -1100,12 +538,10 @@ out center 80;
                                     CircularProgressIndicator(strokeWidth: 2),
                               ),
                             )
-                          : _suggestions.isEmpty
+                          : _searchResults.isEmpty
                               ? Padding(
                                   padding: EdgeInsets.symmetric(
-                                    vertical: 18.h,
-                                    horizontal: 16.w,
-                                  ),
+                                      vertical: 18.h, horizontal: 16.w),
                                   child: Center(
                                     child: Text(
                                       _searchController.text.trim().length <
@@ -1119,63 +555,48 @@ out center 80;
                                     ),
                                   ),
                                 )
-                              : Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Flexible(
-                                      child: ListView.separated(
-                                        shrinkWrap: true,
-                                        padding:
-                                            EdgeInsets.symmetric(vertical: 8.h),
-                                        itemCount: _suggestions.length,
-                                        separatorBuilder: (_, __) => Divider(
-                                          height: 1,
-                                          color:
-                                              appTheme.neutral_400.withValues(
-                                            alpha: 0.25,
-                                          ),
+                              : ListView.separated(
+                                  shrinkWrap: true,
+                                  padding: EdgeInsets.symmetric(vertical: 8.h),
+                                  itemCount: _searchResults.length,
+                                  separatorBuilder: (_, __) => Divider(
+                                    height: 1,
+                                    color: appTheme.neutral_400
+                                        .withValues(alpha: 0.25),
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final r = _searchResults[index];
+                                    return ListTile(
+                                      dense: true,
+                                      leading: Icon(
+                                        Icons.location_on_outlined,
+                                        size: 20.sp,
+                                        color: appTheme.b_Primary,
+                                      ),
+                                      title: Text(
+                                        r.name,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w600,
+                                          color: appTheme.neutral_800,
                                         ),
-                                        itemBuilder: (context, index) {
-                                          final suggestion =
-                                              _suggestions[index];
-                                          return ListTile(
-                                            dense: true,
-                                            leading: Icon(
-                                              Icons.location_on_outlined,
-                                              size: 20.sp,
-                                              color: appTheme.b_Primary,
-                                            ),
-                                            title: Text(
-                                              suggestion.title,
+                                      ),
+                                      subtitle: r.address.isEmpty
+                                          ? null
+                                          : Text(
+                                              r.address,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                fontSize: 14.sp,
-                                                fontWeight: FontWeight.w600,
-                                                color: appTheme.neutral_800,
+                                                fontSize: 12.sp,
+                                                color: appTheme.neutral_600,
                                               ),
                                             ),
-                                            subtitle: suggestion
-                                                    .subtitle.isEmpty
-                                                ? null
-                                                : Text(
-                                                    suggestion.subtitle,
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: TextStyle(
-                                                      fontSize: 12.sp,
-                                                      color:
-                                                          appTheme.neutral_600,
-                                                    ),
-                                                  ),
-                                            onTap: () =>
-                                                _selectSuggestion(suggestion),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ],
+                                      onTap: () => _pickSearchResult(r),
+                                    );
+                                  },
                                 ),
                     ),
                 ],
@@ -1263,11 +684,7 @@ out center 80;
                         SizedBox(width: 8.w),
                         Expanded(
                           child: Text(
-                            _selectedVenue != null
-                                ? _selectedVenue!.displayLabel
-                                : _venuesLoadedOnce && _venues.isEmpty
-                                    ? 'No cafes, restaurants, bars or pubs here — move the map or search another area.'
-                                    : 'Tap a cafe, restaurant, bar or pub marker to pick it.',
+                            _selectionLabel,
                             style: styles.dobLabelTextStyle,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -1297,10 +714,10 @@ out center 80;
                         buttonTextStyle: styles.loginButtonTextStyle,
                         isDisabled: _selectedVenue == null ||
                             _loadingLocation ||
-                            _searching,
+                            _confirming,
                         onPressed: (_selectedVenue == null ||
                                 _loadingLocation ||
-                                _searching)
+                                _confirming)
                             ? null
                             : _confirm,
                       ),
@@ -1311,7 +728,6 @@ out center 80;
             ),
           ),
 
-          // ── Loading overlay ──────────────────────────────────────────────
           if (_loadingLocation)
             const ColoredBox(
               color: Colors.white54,

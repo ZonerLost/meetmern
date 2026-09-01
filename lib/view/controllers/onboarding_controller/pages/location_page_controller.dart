@@ -1,34 +1,10 @@
 import 'package:get/get.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:meetmern/data/service/places_service.dart';
 import 'package:meetmern/view/controllers/onboarding_controller/OnboardingScreen/onboarding_screen_controller.dart';
 
 class LocationPageController extends GetxController {
   bool loading = false;
-
-  String? _formatCityCountry(Placemark placemark) {
-    final cityCandidates = <String?>[
-      placemark.locality,
-      placemark.subAdministrativeArea,
-      placemark.administrativeArea,
-      placemark.subLocality,
-    ];
-
-    final city = cityCandidates.map((value) => value?.trim()).firstWhere(
-        (value) => value != null && value.isNotEmpty,
-        orElse: () => null);
-    final country = placemark.country?.trim();
-
-    if ((city == null || city.isEmpty) &&
-        (country == null || country.isEmpty)) {
-      return null;
-    }
-    if (city == null || city.isEmpty) return country;
-    if (country == null || country.isEmpty) return city;
-    if (city.toLowerCase() == country.toLowerCase()) return city;
-
-    return '$city, $country';
-  }
 
   Future<void> enableLocation() async {
     loading = true;
@@ -58,15 +34,11 @@ class LocationPageController extends GetxController {
       }
 
       final position = await Geolocator.getCurrentPosition();
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
 
-      String? locationText;
-      if (placemarks.isNotEmpty) {
-        locationText = _formatCityCountry(placemarks.first);
-      }
+      String? locationText = await PlacesService.reverseGeocodeArea(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
       locationText ??= '${position.latitude},${position.longitude}';
 
       final onboardingController = Get.find<OnboardingController>();

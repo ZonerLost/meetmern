@@ -1,0 +1,3 @@
+// Copy to Keys.xcconfig (git-ignored) and fill in.
+// Must match MAPS_API_KEY in the repo-root env.json.
+MAPS_API_KEY=your-google-maps-sdk-key

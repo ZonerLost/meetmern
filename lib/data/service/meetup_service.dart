@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:geocoding/geocoding.dart';
+import 'package:meetmern/data/service/places_service.dart';
 import 'package:meetmern/main.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -189,10 +189,10 @@ class MeetupService {
     double? resolvedLng = longitude;
     if ((resolvedLat == null || resolvedLng == null) && address.isNotEmpty) {
       try {
-        final locations = await locationFromAddress(address);
-        if (locations.isNotEmpty) {
-          resolvedLat = locations.first.latitude;
-          resolvedLng = locations.first.longitude;
+        final point = await PlacesService.geocode(address);
+        if (point != null) {
+          resolvedLat = point.latitude;
+          resolvedLng = point.longitude;
         }
       } catch (_) {}
     }
@@ -248,10 +248,10 @@ class MeetupService {
     double? resolvedLng = longitude;
     if ((resolvedLat == null || resolvedLng == null) && address.isNotEmpty) {
       try {
-        final locations = await locationFromAddress(address);
-        if (locations.isNotEmpty) {
-          resolvedLat = locations.first.latitude;
-          resolvedLng = locations.first.longitude;
+        final point = await PlacesService.geocode(address);
+        if (point != null) {
+          resolvedLat = point.latitude;
+          resolvedLng = point.longitude;
         }
       } catch (_) {}
     }

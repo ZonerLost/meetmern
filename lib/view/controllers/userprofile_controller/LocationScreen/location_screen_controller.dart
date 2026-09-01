@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:get/get.dart';
 import 'package:meetmern/data/models/profile_model.dart';
 import 'package:meetmern/data/service/auth_service.dart';
+import 'package:meetmern/data/service/places_service.dart';
 import 'package:meetmern/data/service/profile_service.dart';
 import 'package:meetmern/main.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
@@ -75,31 +75,6 @@ class LocationScreenController extends GetxController {
     }
   }
 
-  String? _formatCityCountry(Placemark placemark) {
-    final cityCandidates = <String?>[
-      placemark.locality,
-      placemark.subAdministrativeArea,
-      placemark.administrativeArea,
-      placemark.subLocality,
-    ];
-
-    final city = cityCandidates.map((item) => item?.trim()).firstWhere(
-        (item) => item != null && item.isNotEmpty,
-        orElse: () => null);
-    final country = placemark.country?.trim();
-
-    if ((country == null || country.isEmpty) &&
-        (city == null || city.isEmpty)) {
-      return null;
-    }
-
-    if (country == null || country.isEmpty) return city;
-    if (city == null || city.isEmpty) return country;
-    if (city.toLowerCase() == country.toLowerCase()) return city;
-
-    return '$city, $country';
-  }
-
   Future<Position?> _resolvePosition() async {
     try {
       final current = await Geolocator.getCurrentPosition(
@@ -120,16 +95,12 @@ class LocationScreenController extends GetxController {
 
   Future<String?> _resolveLocationLabel(Position position) async {
     try {
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
+      final label = await PlacesService.reverseGeocodeArea(
+        latitude: position.latitude,
+        longitude: position.longitude,
       ).timeout(const Duration(seconds: 10));
-
-      if (placemarks.isNotEmpty) {
-        final formattedLocation = _formatCityCountry(placemarks.first);
-        if (formattedLocation != null && formattedLocation.isNotEmpty) {
-          return formattedLocation;
-        }
+      if (label != null && label.trim().isNotEmpty) {
+        return label.trim();
       }
     } catch (_) {
       // Fall back to coordinates text below.
