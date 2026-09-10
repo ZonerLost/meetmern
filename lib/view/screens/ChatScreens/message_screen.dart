@@ -6,6 +6,8 @@ import 'package:meetmern/data/models/chat_model.dart';
 import 'package:meetmern/view/screens/chatscreens/chat_detail_screen.dart';
 import 'package:meetmern/view/screens/chatscreens/chat_screen.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
+import 'package:meetmern/core/extensions/snackbar_extensions.dart';
+import 'package:meetmern/core/utils/maps_launcher.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
@@ -235,13 +237,8 @@ class _MessageScreenState extends State<MessageScreen> {
     String reqStatus = msg.requestStatus ?? 'requested';
     if (reqStatus == 'pending') reqStatus = 'requested';
 
-    final isLatest =
-        msg.meetupRequestId != null && msg.meetupRequestId == c.latestRequestId;
-
-    final showActions = isLatest &&
-        c.canRespondToLatestRequest &&
-        (c.effectiveChatStatus == 'requested' ||
-            c.effectiveChatStatus == 'pending');
+    // Each card answers for itself — a thread may hold several live requests.
+    final showActions = msg.canRespond;
 
     final cardText = msg.text.isNotEmpty
         ? msg.text
@@ -314,6 +311,92 @@ class _MessageScreenState extends State<MessageScreen> {
                 ),
               ],
             ),
+            // Agreed meetup: venue, type and time, plus directions. Each
+            // accepted card carries its own, so a second agreed meetup adds a
+            // second box with its own map button.
+            if (msg.hasMeetupDetail) ...[
+              SizedBox(height: dimension.d12),
+              Divider(height: dimension.d1, color: appTheme.borderColor),
+              SizedBox(height: dimension.d12),
+              if (msg.meetupType.isNotEmpty || msg.meetupWhen.isNotEmpty)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.event_outlined,
+                        size: dimension.d16, color: appTheme.neutral_600),
+                    SizedBox(width: dimension.d8),
+                    Expanded(
+                      child: Text(
+                        [msg.meetupType, msg.meetupWhen]
+                            .where((p) => p.trim().isNotEmpty)
+                            .join(' · '),
+                        style: TextStyle(
+                            fontFamily: strings.fontFamily,
+                            fontSize: dimension.d13,
+                            fontWeight: FontWeight.w600,
+                            color: appTheme.neutral_700),
+                      ),
+                    ),
+                  ],
+                ),
+              if (msg.meetupAddress.isNotEmpty) ...[
+                SizedBox(height: dimension.d6),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.place_outlined,
+                        size: dimension.d16, color: appTheme.neutral_600),
+                    SizedBox(width: dimension.d8),
+                    Expanded(
+                      child: Text(
+                        msg.meetupAddress,
+                        style: TextStyle(
+                            fontFamily: strings.fontFamily,
+                            fontSize: dimension.d13,
+                            color: appTheme.neutral_600),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              if (MapsLauncher.canOpen(
+                latitude: msg.meetupLatitude,
+                longitude: msg.meetupLongitude,
+                address: msg.meetupAddress,
+              )) ...[
+                SizedBox(height: dimension.d12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      final opened = await MapsLauncher.openDirections(
+                        latitude: msg.meetupLatitude,
+                        longitude: msg.meetupLongitude,
+                        address: msg.meetupAddress,
+                      );
+                      if (!opened && context.mounted) {
+                        context.showCustomSnackBar(strings.mapsUnavailable);
+                      }
+                    },
+                    icon: Icon(Icons.directions_outlined,
+                        size: dimension.d18, color: appTheme.b_Primary),
+                    label: Text(
+                      strings.getDirectionsLabel,
+                      style: TextStyle(
+                          fontFamily: strings.fontFamily,
+                          fontSize: dimension.d13,
+                          fontWeight: FontWeight.w600,
+                          color: appTheme.b_Primary),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: appTheme.b_Primary),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(dimension.d28)),
+                    ),
+                  ),
+                ),
+              ],
+            ],
             if (showActions) ...[
               SizedBox(height: dimension.d12),
               Row(
@@ -323,7 +406,7 @@ class _MessageScreenState extends State<MessageScreen> {
                       onPressed: () => showDeclineRequestDialog(
                         context,
                         name: c.chat?.name ?? '',
-                        onConfirm: c.rejectRequest,
+                        onConfirm: () => c.rejectRequest(msg.meetupRequestId),
                       ),
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: appTheme.red),
@@ -337,7 +420,7 @@ class _MessageScreenState extends State<MessageScreen> {
                   SizedBox(width: dimension.d10),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () async => c.acceptRequest(),
+                      onPressed: () async => c.acceptRequest(msg.meetupRequestId),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: appTheme.b_Primary,
                         shape: RoundedRectangleBorder(
@@ -432,8 +515,11 @@ class _MessageScreenState extends State<MessageScreen> {
       return _buildCompletedActions(context, c, styles, strings);
     }
 
-    // Accepted or continue_chat: both sides can chat.
-    if (c.effectiveChatStatus == 'accepted' ||
+    // Accepted or continue_chat: both sides can chat. messagingAllowed also
+    // covers a thread kept open by an earlier accepted request while a newer
+    // one sits pending or was just declined.
+    if (c.messagingAllowed ||
+        c.effectiveChatStatus == 'accepted' ||
         c.effectiveChatStatus == 'continue_chat') {
       return _buildTextComposer(c, styles, strings);
     }

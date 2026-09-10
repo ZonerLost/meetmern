@@ -158,6 +158,10 @@ class Strings {
   final String viewProfileBtn;
   final String requestToJoinBtn;
   final String requestedLabel;
+  final String declinedLabel;
+  final String requestDeclinedSnack;
+  final String getDirectionsLabel;
+  final String mapsUnavailable;
   final String hostedByLabel;
   final String timeLabelText;
   final String locationLabelText;
@@ -576,6 +580,11 @@ class Strings {
         viewProfileBtn = 'View Profile',
         requestToJoinBtn = 'Request to Join',
         requestedLabel = 'Requested',
+        declinedLabel = 'Declined',
+        requestDeclinedSnack =
+            'This meetup request was declined. You can request a different meetup from this host.',
+        getDirectionsLabel = 'Get directions',
+        mapsUnavailable = 'Could not open Google Maps.',
         hostedByLabel = 'Hosted by',
         timeLabelText = 'Time',
         locationLabelText = 'Location',

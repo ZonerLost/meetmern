@@ -7,7 +7,6 @@ import 'package:meetmern/view/controllers/chat_controller/chat_screen_controller
 import 'package:meetmern/view/controllers/home_controller/ViewMeetupScreen/view_meetup_screen_controller.dart';
 import 'package:meetmern/view/screens/chatscreens/message_screen.dart';
 import 'package:meetmern/view/screens/homescreens/MeetupUserProfileScreen/meetup_user_profile_screen.dart';
-import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/repeat_meetup_dialog.dart';
 import 'package:meetmern/core/constants/dimension_resource.dart';
 import 'package:meetmern/core/constants/app_strings.dart';
 import 'package:meetmern/core/extensions/snackbar_extensions.dart';
@@ -15,7 +14,7 @@ import 'package:meetmern/core/theme/theme.dart';
 import 'package:meetmern/core/widgets/custom_button_style_text_style.dart';
 import 'package:meetmern/core/widgets/custom_elevated_button.dart';
 import 'package:meetmern/core/widgets/custom_outlined_button.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:meetmern/core/utils/maps_launcher.dart';
 
 class ViewMeetupScreen extends StatefulWidget {
   final Meetup meetup;
@@ -35,20 +34,11 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
   final Strings strings = const Strings();
 
   Future<void> _openInMaps(Meetup meetup) async {
-    final lat = meetup.latitude;
-    final lng = meetup.longitude;
-    final Uri uri;
-    if (lat != null && lng != null) {
-      uri = Uri.parse(
-          'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=walking');
-    } else if (meetup.location.isNotEmpty) {
-      final encoded = Uri.encodeComponent(meetup.location);
-      uri = Uri.parse(
-          'https://www.google.com/maps/dir/?api=1&destination=$encoded&travelmode=walking');
-    } else {
-      return;
-    }
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+    await MapsLauncher.openDirections(
+      latitude: meetup.latitude,
+      longitude: meetup.longitude,
+      address: meetup.location,
+    );
   }
 
   @override
@@ -70,15 +60,24 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
   Future<void> _requestToJoin() async {
     if (_controller.isOwnMeetup) return;
 
-    if (_controller.isRequested) {
-      showRepeatMeetupDialog(
-        context,
-        _controller.currentMeetup,
-        onRepeat: () {
-          _controller.markRequested();
-          context.showCustomSnackBar(strings.repeatRequestSent);
-        },
-      );
+    // Already declined for this ad — one request per ad, nothing left to do.
+    if (_controller.isDeclined) {
+      context.showCustomSnackBar(strings.requestDeclinedSnack);
+      return;
+    }
+
+    // Already requested (pending, agreed or past) — the CTA is a shortcut into
+    // the existing conversation, not an invitation to duplicate the meetup.
+    if (_controller.opensChat) {
+      final existing = await _controller.openExistingChat();
+      if (!mounted) return;
+      if (existing != null) {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => MessageScreen(chat: existing)),
+        );
+      } else if (_controller.errorMessage?.isNotEmpty == true) {
+        context.showCustomSnackBar(_controller.errorMessage!);
+      }
       return;
     }
 
@@ -403,9 +402,11 @@ class _ViewMeetupScreenState extends State<ViewMeetupScreen> {
                                 buttonStyle: customButtonAndTextStyles.loginButtonStyle,
                                 buttonTextStyle: customButtonAndTextStyles.loginButtonTextStyle,
                                 onPressed: _requestToJoin,
-                                text: controller.isRequested
-                                    ? strings.requestedLabel
-                                    : strings.requestToJoinBtn,
+                                text: controller.isDeclined
+                                    ? strings.declinedLabel
+                                    : controller.hasOpenRequest
+                                        ? strings.requestedLabel
+                                        : strings.requestToJoinBtn,
                               ),
                     ],
                   ),

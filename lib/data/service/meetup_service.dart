@@ -805,6 +805,12 @@ class MeetupService {
   }
 
   /// Checks whether the pair has an active (non-terminal, non-expired) meetup request.
+  ///
+  /// NOTE: pair-scoped, and therefore **not** suitable for deciding whether an
+  /// ad shows "Requested" or whether a request may be sent. Two users may hold
+  /// independent requests on several ads at once; use [getExistingRequest] with
+  /// the specific meetup id for that. Kept only for callers that genuinely mean
+  /// "do these two have anything going on at all".
   static Future<bool> hasActiveMeetupRequestBetween({
     required String userA,
     required String userB,
@@ -868,15 +874,26 @@ class MeetupService {
       );
     }
 
-    debugPrint('[MeetupService] sendMeetupRequest — checking active request');
-    final hasActive = await hasActiveMeetupRequestBetween(
-      userA: requesterId,
-      userB: meetupOwnerId,
+    // Request state is scoped to THIS meetup ad, not to the user-pair: the same
+    // pair may have several independent requests in flight across different ads.
+    // Only a prior request for this same ad blocks a new one.
+    final priorRequest = await getExistingRequest(
+      meetupId: meetupId,
+      requesterId: requesterId,
     );
-    if (hasActive) {
-      throw Exception(
-        'A meetup request is already active between you. Wait for it to complete before sending a new one.',
-      );
+    final priorStatus =
+        priorRequest?['status']?.toString().trim().toLowerCase() ?? '';
+    debugPrint('[MeetupService] sendMeetupRequest — prior status="$priorStatus"');
+
+    switch (priorStatus) {
+      case 'requested':
+        throw Exception('You have already requested this meetup.');
+      case 'accepted':
+        throw Exception('This meetup is already confirmed between you.');
+      case 'rejected':
+        throw Exception('This meetup request was declined.');
+      case 'completed':
+        throw Exception('This meetup has already taken place.');
     }
 
     // ── 1. Find or create the single chat for this user-pair ─────────────────
@@ -910,60 +927,62 @@ class MeetupService {
         debugPrint('[MeetupService] sendMeetupRequest — reused chat id=${chatRow['id']}');
       }
     } else {
-      await supabase.from('chats').update({
-        'meetup_id': meetupId,
-        'status': 'requested',
+      // An existing thread may already be open from a previously accepted
+      // request. Never downgrade its status here — a new pending request must
+      // not close a chat the pair is actively using. Only seed meetup_id when
+      // the chat has none, and let _recomputeChatStatus decide the status.
+      final existingMeetupId = _text(chatRow['meetup_id']);
+      final update = <String, dynamic>{
         'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', chatRow['id']);
-      chatRow['status'] = 'requested';
-      chatRow['meetup_id'] = meetupId;
-      debugPrint('[MeetupService] sendMeetupRequest — reopened chat id=${chatRow['id']}');
+      };
+      if (existingMeetupId.isEmpty) {
+        update['meetup_id'] = meetupId;
+        chatRow['meetup_id'] = meetupId;
+      }
+      await supabase.from('chats').update(update).eq('id', chatRow['id']);
+      debugPrint('[MeetupService] sendMeetupRequest — reused chat id=${chatRow['id']}');
     }
 
     final chatId = _text(chatRow['id']);
     if (chatId.isEmpty) throw Exception('Failed to create meetup chat thread.');
 
-    // ── 2. Insert meetup_request row ─────────────────────────────────────────
+    // ── 2. Insert (or revive) the meetup_request row ─────────────────────────
+    // One request row per (meetup_id, requester_id) — enforced by a unique
+    // constraint. A previously *cancelled* row is revived rather than duplicated;
+    // every other prior status was already rejected by the guard above.
     Map<String, dynamic> requestRow;
-    try {
-      final inserted = await supabase
-          .from('meetup_requests')
-          .insert({
-            'meetup_id': meetupId,
-            'meetup_owner_id': meetupOwnerId,
-            'requester_id': requesterId,
-            'chat_id': chatId,
-            'status': 'requested',
-          })
-          .select()
-          .single();
-      requestRow = Map<String, dynamic>.from(inserted);
-      debugPrint('[MeetupService] sendMeetupRequest — created request id=${requestRow['id']}');
-    } catch (e) {
-      if (!_isUniqueViolation(e)) {
-        debugPrint('[MeetupService] sendMeetupRequest — insert error: $e');
-        rethrow;
-      }
-      // Unique constraint still present on DB — insert a fresh row by first
-      // fetching the conflicting row's ID so we can link the new message to it.
-      // We do NOT update the old row's status so historical messages keep their status.
-      debugPrint('[MeetupService] sendMeetupRequest — unique conflict, fetching existing row');
-      final existing = await supabase
-          .from('meetup_requests')
-          .select()
-          .eq('meetup_id', meetupId)
-          .eq('requester_id', requesterId)
-          .maybeSingle();
-      if (existing == null) rethrow;
-      // Update only chat_id linkage, leave status as-is so old messages are unaffected.
-      await supabase
+    if (priorRequest != null) {
+      final revived = await supabase
           .from('meetup_requests')
           .update({'chat_id': chatId, 'status': 'requested'})
-          .eq('id', existing['id']);
-      requestRow = Map<String, dynamic>.from(existing)
-        ..['status'] = 'requested'
-        ..['chat_id'] = chatId;
-      debugPrint('[MeetupService] sendMeetupRequest — reused request id=${requestRow['id']}');
+          .eq('id', priorRequest['id'])
+          .select()
+          .single();
+      requestRow = Map<String, dynamic>.from(revived);
+      debugPrint('[MeetupService] sendMeetupRequest — revived request id=${requestRow['id']}');
+    } else {
+      try {
+        final inserted = await supabase
+            .from('meetup_requests')
+            .insert({
+              'meetup_id': meetupId,
+              'meetup_owner_id': meetupOwnerId,
+              'requester_id': requesterId,
+              'chat_id': chatId,
+              'status': 'requested',
+            })
+            .select()
+            .single();
+        requestRow = Map<String, dynamic>.from(inserted);
+        debugPrint('[MeetupService] sendMeetupRequest — created request id=${requestRow['id']}');
+      } catch (e) {
+        if (!_isUniqueViolation(e)) {
+          debugPrint('[MeetupService] sendMeetupRequest — insert error: $e');
+          rethrow;
+        }
+        // Lost a race with a concurrent request for the same ad.
+        throw Exception('You have already requested this meetup.');
+      }
     }
 
     final requestId = _text(requestRow['id']);
@@ -974,6 +993,16 @@ class MeetupService {
     }).eq('id', chatId);
 
     // ── 3. Insert request message ────────────────────────────────
+    // A revived request already has a card in the thread from its first cycle.
+    // Drop it so the re-request appears once, in chronological order.
+    if (priorRequest != null) {
+      await supabase
+          .from('messages')
+          .delete()
+          .eq('meetup_request_id', requestId)
+          .eq('message_type', 'meetup_request');
+    }
+
     await supabase.from('messages').insert({
       'chat_id': chatId,
       'sender_id': requesterId,
@@ -983,6 +1012,9 @@ class MeetupService {
       'meetup_id': meetupId,
       'meetup_request_id': requestId,
     });
+
+    // Never downgrades an already-accepted thread — see _recomputeChatStatus.
+    await _recomputeChatStatus(chatId);
 
     debugPrint('[MeetupService] sendMeetupRequest — done. chatId=$chatId requestId=$requestId');
     return chatRow;
@@ -1125,13 +1157,24 @@ class MeetupService {
         .eq('meetup_request_id', requestId)
         .eq('message_type', 'meetup_request');
 
-    // 3. Update chat status to cancelled so messaging is blocked until new request.
-    await supabase.from('chats').update({
-      'status': 'cancelled',
-      'updated_at': DateTime.now().toIso8601String(),
-    }).eq('id', chatId);
+    // 3. Breadcrumb so the other side sees which request went away.
+    //    Best-effort, for the same reason as in rejectRequest.
+    try {
+      await supabase.from('messages').insert({
+        'chat_id': chatId,
+        'sender_id': cancelledByUserId,
+        'message_type': 'system',
+        'text': '$cancelledByUserName cancelled a meetup',
+      });
+    } catch (e) {
+      debugPrint('[MeetupService] cancelMeetupRequest — breadcrumb failed: $e');
+    }
 
-    // 4. Keep the meetup row for history.
+    // 4. Derive the chat status — cancelling one request must not close a
+    //    thread that another accepted request is keeping open.
+    await _recomputeChatStatus(chatId);
+
+    // 5. Keep the meetup row for history.
   }
 
   /// Sets the chat status to 'continue_chat' so both sides can keep messaging
@@ -1153,11 +1196,6 @@ class MeetupService {
         .from('meetup_requests')
         .update({'status': 'accepted'}).eq('id', requestId);
 
-    // Update chat status to accepted for the active cycle.
-    await supabase
-        .from('chats')
-        .update({'status': 'accepted'}).eq('id', chatId);
-
     // Only update the message for THIS specific request — preserve history.
     await supabase
         .from('messages')
@@ -1166,9 +1204,15 @@ class MeetupService {
         })
         .eq('meetup_request_id', requestId)
         .eq('message_type', 'meetup_request');
+
+    await _recomputeChatStatus(chatId);
   }
 
   /// Rejects a specific meetup request by its ID.
+  ///
+  /// Declining one request must never close a thread another accepted request
+  /// opened, so the chat status is recomputed from *all* requests rather than
+  /// being forced to 'rejected'.
   static Future<void> rejectRequest({
     required String requestId,
     required String chatId,
@@ -1178,11 +1222,6 @@ class MeetupService {
         .from('meetup_requests')
         .update({'status': 'rejected'}).eq('id', requestId);
 
-    // Revert chat to a neutral state so a new request can be sent later.
-    await supabase
-        .from('chats')
-        .update({'status': 'rejected'}).eq('id', chatId);
-
     await supabase
         .from('messages')
         .update({
@@ -1190,6 +1229,175 @@ class MeetupService {
         })
         .eq('meetup_request_id', requestId)
         .eq('message_type', 'meetup_request');
+
+    // Breadcrumb in the thread so the requester sees why nothing else changed.
+    // Best-effort: a failure here (RLS, a CHECK on message_type, a NOT NULL we
+    // don't satisfy) must never stop the recompute below, or the thread would
+    // be left showing whatever status the request update happened to leave —
+    // which is exactly how declining one request could close a whole chat.
+    try {
+      final declinerId = await _ownerIdForRequest(requestId);
+      if (declinerId != null) {
+        await supabase.from('messages').insert({
+          'chat_id': chatId,
+          'sender_id': declinerId,
+          'message_type': 'system',
+          'text': requestDeclinedMarker,
+        });
+      }
+    } catch (e) {
+      debugPrint('[MeetupService] rejectRequest — breadcrumb failed: $e');
+    }
+
+    await _recomputeChatStatus(chatId);
+  }
+
+  /// Text stored for the decline breadcrumb. The message screen rewrites it
+  /// per viewer, so keep it stable rather than user-facing prose.
+  static const String requestDeclinedMarker = 'meetup_request_declined';
+
+  static Future<String?> _ownerIdForRequest(String requestId) async {
+    try {
+      final row = await supabase
+          .from('meetup_requests')
+          .select('meetup_owner_id')
+          .eq('id', requestId)
+          .maybeSingle();
+      final id = _text(row?['meetup_owner_id']);
+      return id.isEmpty ? null : id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Meetup rows for the given ids, keyed by id. Used to decorate the agreed
+  /// meetup cards in a chat thread with venue, type, time and coordinates.
+  static Future<Map<String, Map<String, dynamic>>> fetchMeetupsByIds(
+    List<String> meetupIds,
+  ) async {
+    final ids = meetupIds.where((id) => id.trim().isNotEmpty).toSet().toList();
+    if (ids.isEmpty) return <String, Map<String, dynamic>>{};
+
+    try {
+      final rows = await supabase
+          .from('meetups')
+          .select('id, type, address, date, time, latitude, longitude')
+          .inFilter('id', ids);
+
+      final byId = <String, Map<String, dynamic>>{};
+      for (final raw in List<Map<String, dynamic>>.from(rows)) {
+        final id = _text(raw['id']);
+        if (id.isNotEmpty) byId[id] = raw;
+      }
+      return byId;
+    } catch (e) {
+      debugPrint('[MeetupService] fetchMeetupsByIds — ERROR: $e');
+      return <String, Map<String, dynamic>>{};
+    }
+  }
+
+  /// All meetup_requests belonging to a chat, oldest first.
+  static Future<List<Map<String, dynamic>>> fetchRequestsForChat(
+    String chatId,
+  ) async {
+    final rows = await supabase
+        .from('meetup_requests')
+        .select()
+        .eq('chat_id', chatId)
+        .order('created_at', ascending: true);
+
+    return List<Map<String, dynamic>>.from(rows);
+  }
+
+  /// Derives `chats.status` from every request in the thread.
+  ///
+  /// An accepted request outranks a pending one, which outranks any terminal
+  /// status. This is what keeps a thread open after one of several requests is
+  /// declined or cancelled. 'continue_chat' is left untouched — it is a user
+  /// choice, not a derived state.
+  static Future<void> _recomputeChatStatus(String chatId) async {
+    try {
+      final chatRow = await getChatById(chatId);
+      if (_text(chatRow?['status']) == 'continue_chat') return;
+
+      final requests = await fetchRequestsForChat(chatId);
+      if (requests.isEmpty) return;
+
+      final statuses = requests
+          .map((r) => _text(r['status']).toLowerCase())
+          .toList(growable: false);
+
+      final next = deriveChatStatus(statuses);
+      if (next.isEmpty) return;
+
+      debugPrint(
+          '[MeetupService] _recomputeChatStatus — chat=$chatId statuses=$statuses -> $next');
+
+      await supabase.from('chats').update({
+        'status': next,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', chatId);
+    } catch (e) {
+      debugPrint('[MeetupService] _recomputeChatStatus — ERROR: $e');
+    }
+  }
+
+  /// The meetup id of the soonest *upcoming* accepted meetup in this chat,
+  /// falling back to the most recently accepted one when all have passed.
+  /// Drives the chat app-bar subtitle and the meetup info screen.
+  static Future<String?> nextUpcomingAcceptedMeetupId(String chatId) async {
+    try {
+      final requests = await fetchRequestsForChat(chatId);
+      final acceptedIds = requests
+          .where((r) {
+            final s = _text(r['status']).toLowerCase();
+            return s == 'accepted' || s == 'completed';
+          })
+          .map((r) => _text(r['meetup_id']))
+          .where((id) => id.isNotEmpty)
+          .toList();
+
+      if (acceptedIds.isEmpty) return null;
+
+      final rows = await supabase
+          .from('meetups')
+          .select('id, date, time')
+          .inFilter('id', acceptedIds);
+
+      final now = DateTime.now();
+      DateTime? bestUpcoming;
+      String? bestUpcomingId;
+      DateTime? latestPast;
+      String? latestPastId;
+
+      for (final raw in List<Map<String, dynamic>>.from(rows)) {
+        final id = _text(raw['id']);
+        final dateStr = _text(raw['date']);
+        final timeStr = _text(raw['time']);
+        if (id.isEmpty || dateStr.isEmpty) continue;
+
+        final dt = DateTime.tryParse(
+            timeStr.isNotEmpty ? '${dateStr}T$timeStr' : dateStr);
+        if (dt == null) continue;
+
+        if (dt.isAfter(now)) {
+          if (bestUpcoming == null || dt.isBefore(bestUpcoming)) {
+            bestUpcoming = dt;
+            bestUpcomingId = id;
+          }
+        } else {
+          if (latestPast == null || dt.isAfter(latestPast)) {
+            latestPast = dt;
+            latestPastId = id;
+          }
+        }
+      }
+
+      return bestUpcomingId ?? latestPastId ?? acceptedIds.last;
+    } catch (e) {
+      debugPrint('[MeetupService] nextUpcomingAcceptedMeetupId — ERROR: $e');
+      return null;
+    }
   }
 
   /// Returns the latest meetup_request for a chat (most recent by created_at).
@@ -1284,61 +1492,89 @@ class MeetupService {
 
   /// Returns the effective status of the latest meetup request for a chat,
   /// auto-completing accepted requests whose meetup date has passed.
+  /// Retires accepted requests whose meetup has already passed, then returns
+  /// the thread's derived status.
+  ///
+  /// Walks **every** accepted request rather than only the newest one. Judging
+  /// the thread by its newest request alone would let a single past meetup mark
+  /// the whole conversation completed while another agreed meetup is still
+  /// upcoming — closing a chat that should stay open.
   static Future<String> resolveLatestRequestStatus(String chatId) async {
-    final reqRow = await getLatestRequestForChat(chatId);
-    if (reqRow == null) return 'none';
+    final requests = await fetchRequestsForChat(chatId);
+    if (requests.isEmpty) return 'none';
 
-    final status = reqRow['status']?.toString() ?? 'requested';
-    if (status == 'accepted') {
-      final meetupId = reqRow['meetup_id']?.toString() ?? '';
-      if (meetupId.isNotEmpty) {
-        try {
-          // Try both column name variants: (date,time) and (meetup_date,meetup_time)
-          Map<String, dynamic>? meetupRow;
-          try {
-            meetupRow = await supabase
-                .from('meetups')
-                .select('date, time')
-                .eq('id', meetupId)
-                .maybeSingle();
-          } catch (_) {
-            meetupRow = await supabase
-                .from('meetups')
-                .select('meetup_date, meetup_time')
-                .eq('id', meetupId)
-                .maybeSingle();
-          }
-          if (meetupRow != null) {
-            final dateStr = (meetupRow['date'] ?? meetupRow['meetup_date'])
-                    ?.toString()
-                    .trim() ??
-                '';
-            final timeStr = (meetupRow['time'] ?? meetupRow['meetup_time'])
-                    ?.toString()
-                    .trim() ??
-                '';
-            if (dateStr.isNotEmpty) {
-              final dt = DateTime.tryParse(
-                  timeStr.isNotEmpty ? '${dateStr}T$timeStr' : dateStr);
-              if (dt != null && dt.isBefore(DateTime.now())) {
-                await supabase
-                    .from('meetup_requests')
-                    .update({'status': 'completed'}).eq('id', reqRow['id']);
-                await supabase
-                    .from('chats')
-                    .update({'status': 'completed'}).eq('id', chatId);
-                await supabase
-                    .from('messages')
-                    .update({'request_status': 'completed'})
-                    .eq('meetup_request_id', reqRow['id'])
-                    .eq('message_type', 'meetup_request');
-                return 'completed';
-              }
-            }
-          }
-        } catch (_) {}
-      }
+    final now = DateTime.now();
+    var completedAny = false;
+
+    for (final req in requests) {
+      if (_text(req['status']).toLowerCase() != 'accepted') continue;
+
+      final meetupId = _text(req['meetup_id']);
+      if (meetupId.isEmpty) continue;
+
+      final dt = await _meetupStartsAt(meetupId);
+      if (dt == null || !dt.isBefore(now)) continue;
+
+      await supabase
+          .from('meetup_requests')
+          .update({'status': 'completed'}).eq('id', req['id']);
+      await supabase
+          .from('messages')
+          .update({'request_status': 'completed'})
+          .eq('meetup_request_id', req['id'])
+          .eq('message_type', 'meetup_request');
+      completedAny = true;
     }
-    return status;
+
+    if (completedAny) await _recomputeChatStatus(chatId);
+
+    final chatRow = await getChatById(chatId);
+    final chatStatus = _text(chatRow?['status']);
+    return chatStatus.isEmpty ? 'none' : chatStatus;
+  }
+
+  /// Start time of a meetup, tolerating both column-name variants.
+  static Future<DateTime?> _meetupStartsAt(String meetupId) async {
+    try {
+      Map<String, dynamic>? row;
+      try {
+        row = await supabase
+            .from('meetups')
+            .select('date, time')
+            .eq('id', meetupId)
+            .maybeSingle();
+      } catch (_) {
+        row = await supabase
+            .from('meetups')
+            .select('meetup_date, meetup_time')
+            .eq('id', meetupId)
+            .maybeSingle();
+      }
+      if (row == null) return null;
+
+      final dateStr = _text(row['date'] ?? row['meetup_date']);
+      final timeStr = _text(row['time'] ?? row['meetup_time']);
+      if (dateStr.isEmpty) return null;
+
+      return DateTime.tryParse(
+          timeStr.isNotEmpty ? '${dateStr}T$timeStr' : dateStr);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// The status a chat should display, derived from all of its requests.
+  /// Mirrors [_recomputeChatStatus] so list and thread never disagree.
+  static String deriveChatStatus(Iterable<String> requestStatuses) {
+    final statuses =
+        requestStatuses.map((s) => s.trim().toLowerCase()).toList();
+    if (statuses.contains('accepted')) return 'accepted';
+    if (statuses.contains('requested') || statuses.contains('pending')) {
+      return 'requested';
+    }
+    if (statuses.contains('completed')) return 'completed';
+    if (statuses.contains('rejected')) return 'rejected';
+    if (statuses.contains('cancelled')) return 'cancelled';
+    return '';
   }
 }

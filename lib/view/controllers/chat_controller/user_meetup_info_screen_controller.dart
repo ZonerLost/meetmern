@@ -84,43 +84,45 @@ class UserMeetupInfoController extends GetxController {
     distanceText = km > 0 ? '${km.toStringAsFixed(1)} km away' : 'Nearby';
   }
 
+  /// Resolves the request for **this meetup**, not the newest one in the chat.
+  /// A thread can hold several requests at once, so "latest in chat" would
+  /// happily show (and later cancel) a different meetup than the one on screen.
   Future<void> _loadLatestStatus() async {
     final m = meetup;
     if (m == null) return;
 
     try {
-      // Resolve chatId if not provided.
-      String? resolvedChatId = chatId;
-      String? resolvedRequestId = requestId;
-
-      if (resolvedChatId == null || resolvedRequestId == null) {
-        final rows = await supabase
-            .from('meetup_requests')
-            .select('id, chat_id, status')
-            .eq('meetup_id', m.id)
-            .order('created_at', ascending: false)
-            .limit(1);
-        if (rows.isNotEmpty) {
-          resolvedRequestId ??= rows.first['id']?.toString();
-          resolvedChatId ??= rows.first['chat_id']?.toString();
-          final dbStatus = rows.first['status']?.toString().toLowerCase() ?? '';
-          _applyRequestStatus(dbStatus);
-          return;
-        }
-      } else {
-        // Fetch the latest request for this chat.
-        final row = await MeetupService.getLatestRequestForChat(resolvedChatId);
-        if (row != null) {
-          resolvedRequestId = row['id']?.toString();
-          final dbStatus = row['status']?.toString().toLowerCase() ?? '';
-          _applyRequestStatus(dbStatus);
-          return;
-        }
+      final row = await _requestRowForThisMeetup();
+      if (row != null) {
+        requestId = row['id']?.toString() ?? requestId;
+        chatId ??= row['chat_id']?.toString();
+        _applyRequestStatus(row['status']?.toString().toLowerCase() ?? '');
+        return;
       }
     } catch (_) {}
 
     // Fallback: use the meetup object's own status.
     _applyRequestStatus(meetup?.status.toLowerCase() ?? '');
+  }
+
+  /// The meetup_request row tying this meetup to this chat.
+  Future<Map<String, dynamic>?> _requestRowForThisMeetup() async {
+    final m = meetup;
+    if (m == null) return null;
+
+    var query = supabase
+        .from('meetup_requests')
+        .select('id, chat_id, status, meetup_id')
+        .eq('meetup_id', m.id);
+
+    final cid = chatId;
+    if (cid != null && cid.isNotEmpty) {
+      query = query.eq('chat_id', cid);
+    }
+
+    final rows = await query.order('created_at', ascending: false).limit(1);
+    if (rows.isEmpty) return null;
+    return Map<String, dynamic>.from(rows.first);
   }
 
   void _applyRequestStatus(String status) {
@@ -141,35 +143,20 @@ class UserMeetupInfoController extends GetxController {
       String? resolvedRequestId = requestId;
       String? resolvedChatId = chatId;
 
-      // Always resolve from DB to get the true latest active request.
-      // Prefer chatId lookup (most accurate) over meetup_id lookup.
-      if (resolvedChatId != null) {
-        final row = await MeetupService.getLatestRequestForChat(resolvedChatId);
-        if (row != null) {
-          final rowStatus = row['status']?.toString().toLowerCase() ?? '';
-          // Only cancel if it's actually active.
-          if (rowStatus == 'requested' || rowStatus == 'accepted') {
-            resolvedRequestId = row['id']?.toString();
-          } else {
-            // Already terminal — nothing to cancel.
-            isConfirmed = false;
-            meetupStatus = rowStatus;
-            update();
-            return true;
-          }
-        }
-      } else if (meetup != null) {
-        // Fallback: find any active request for this meetup.
-        final rows = await supabase
-            .from('meetup_requests')
-            .select('id, chat_id, status')
-            .eq('meetup_id', meetup!.id)
-            .inFilter('status', ['requested', 'accepted'])
-            .order('created_at', ascending: false)
-            .limit(1);
-        if (rows.isNotEmpty) {
-          resolvedRequestId = rows.first['id']?.toString();
-          resolvedChatId = rows.first['chat_id']?.toString();
+      // Always resolve the request for THIS meetup — cancelling must never
+      // reach a different meetup the same pair also has agreed.
+      final row = await _requestRowForThisMeetup();
+      if (row != null) {
+        final rowStatus = row['status']?.toString().toLowerCase() ?? '';
+        if (rowStatus == 'requested' || rowStatus == 'accepted') {
+          resolvedRequestId = row['id']?.toString();
+          resolvedChatId = row['chat_id']?.toString() ?? resolvedChatId;
+        } else {
+          // Already terminal — nothing to cancel.
+          isConfirmed = false;
+          meetupStatus = rowStatus;
+          update();
+          return true;
         }
       }
 

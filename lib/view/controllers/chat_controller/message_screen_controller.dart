@@ -18,6 +18,26 @@ class ChatMessageItem {
   final String? meetupRequestId;
   final String? meetupId;
 
+  /// True when this card is a pending request addressed to the current user,
+  /// so it should show its own Accept / Decline pair. Each request card in a
+  /// thread answers independently.
+  final bool canRespond;
+
+  /// Venue detail for an agreed meetup card: "Coffee", the formatted
+  /// "Tue · 5–6 PM", the address, and coordinates for the directions button.
+  /// Only populated once the request is accepted — the exact venue stays
+  /// hidden until both sides have agreed, matching the meetup detail screen.
+  final String meetupType;
+  final String meetupWhen;
+  final String meetupAddress;
+  final double? meetupLatitude;
+  final double? meetupLongitude;
+
+  bool get hasMeetupDetail =>
+      meetupType.isNotEmpty ||
+      meetupWhen.isNotEmpty ||
+      meetupAddress.isNotEmpty;
+
   const ChatMessageItem({
     required this.id,
     required this.text,
@@ -26,6 +46,12 @@ class ChatMessageItem {
     this.requestStatus,
     this.meetupRequestId,
     this.meetupId,
+    this.canRespond = false,
+    this.meetupType = '',
+    this.meetupWhen = '',
+    this.meetupAddress = '',
+    this.meetupLatitude,
+    this.meetupLongitude,
   });
 }
 
@@ -53,6 +79,21 @@ class MessageController extends GetxController with WidgetsBindingObserver {
   String? _latestRequestMessageId;
   String? _latestRequestSenderId;
   String? _latestRequestReceiverId;
+
+  /// Every meetup_request in this thread, keyed by request id. A thread can
+  /// hold several independent requests at once (one per meetup ad), so each
+  /// card reads its status from here rather than from the shared chat status.
+  final Map<String, Map<String, dynamic>> _requestsById =
+      <String, Map<String, dynamic>>{};
+
+  /// Meetup rows for the ads those requests point at, keyed by meetup id.
+  final Map<String, Map<String, dynamic>> _meetupsById =
+      <String, Map<String, dynamic>>{};
+
+  /// True once any request in the thread has been agreed. This — not the
+  /// transient chat status — is what keeps the conversation open, so declining
+  /// a later request never closes a chat an earlier one opened.
+  bool _hasAcceptedRequest = false;
   StreamSubscription<List<Map<String, dynamic>>>? _chatSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _messageSubscription;
   bool _isLoadInProgress = false;
@@ -107,9 +148,15 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     return _chatStatus == 'requested' || _chatStatus == 'pending';
   }
 
-  /// Messaging is allowed when accepted, or in continue-chat mode after completion.
+  /// Messaging is allowed once any request in the thread has been agreed, or in
+  /// continue-chat mode after completion.
+  ///
+  /// Keyed off [_hasAcceptedRequest] rather than the chat status so that a
+  /// later request being declined or cancelled cannot silence a conversation
+  /// an earlier accepted request opened.
   bool get messagingAllowed {
     if (_isBlockedConversation) return false;
+    if (_hasAcceptedRequest) return true;
     final status = _chatStatus ?? 'requested';
     if (status == 'accepted') return true;
     if (_continueChatMode && status == 'completed') return true;
@@ -193,6 +240,9 @@ class MessageController extends GetxController with WidgetsBindingObserver {
 
     // Reset all state so a previous chat's data never bleeds through.
     messages.clear();
+    _requestsById.clear();
+    _meetupsById.clear();
+    _hasAcceptedRequest = false;
     _latestRequestId = null;
     _latestRequestMessageId = null;
     _latestRequestSenderId = null;
@@ -364,8 +414,18 @@ class MessageController extends GetxController with WidgetsBindingObserver {
           String builtSubtitle = chat?.subtitle ?? '';
           String builtType = chat?.type ?? '';
 
-          // Resolve the meetup ID — chat.meetup_id may be null if the meetup was deleted.
-          String resolvedMeetupId = chatMeetupId;
+          // A thread can hold several agreed meetups; the header shows whichever
+          // comes next. Falls back to chat.meetup_id, then to any linked
+          // request, for threads with nothing accepted yet.
+          String resolvedMeetupId = '';
+          try {
+            resolvedMeetupId =
+                await MeetupService.nextUpcomingAcceptedMeetupId(_chatId!) ?? '';
+            print('[AppBarSubtitle] next upcoming accepted meetup: "$resolvedMeetupId"');
+          } catch (_) {}
+
+          if (resolvedMeetupId.isEmpty) resolvedMeetupId = chatMeetupId;
+
           if (resolvedMeetupId.isEmpty && _chatId != null) {
             try {
               resolvedMeetupId =
@@ -431,18 +491,19 @@ class MessageController extends GetxController with WidgetsBindingObserver {
         print('🔴 [MessageController] Error fetching chat: $e');
       }
 
-      // 2. Auto-complete if meetup date passed.
-      if (_chatStatus == 'accepted') {
-        try {
-          final resolved =
-              await MeetupService.resolveLatestRequestStatus(_chatId!);
-          if (resolved == 'completed') {
-            _chatStatus = 'completed';
-            print('🔵 [MessageController] Chat status auto-completed');
-          }
-        } catch (e) {
-          print('🔴 [MessageController] Error resolving status: $e');
+      // 2. Retire any accepted meetup whose date has passed. Runs before the
+      //    requests are read so step 4 sees the retired statuses. It is safe to
+      //    call unconditionally — it only writes for accepted-and-past rows,
+      //    and it leaves the thread open while any agreed meetup is upcoming.
+      try {
+        final resolved =
+            await MeetupService.resolveLatestRequestStatus(_chatId!);
+        if (resolved == 'completed') {
+          _chatStatus = 'completed';
+          print('🔵 [MessageController] Chat status auto-completed');
         }
+      } catch (e) {
+        print('🔴 [MessageController] Error resolving status: $e');
       }
 
       // 3. Block state.
@@ -452,21 +513,59 @@ class MessageController extends GetxController with WidgetsBindingObserver {
         print('🔴 [MessageController] Error refreshing block state: $e');
       }
 
-      // 4. Latest request metadata — needed for accept/reject button logic.
+      // 4. Every request in the thread — each card renders from its own row.
       try {
-        final reqRow = await MeetupService.getLatestRequestForChat(_chatId!);
-        _latestRequestId = reqRow?['id']?.toString();
-        _latestRequestSenderId = reqRow?['requester_id']?.toString();
-        _latestRequestReceiverId = reqRow?['meetup_owner_id']?.toString();
+        final reqRows = await MeetupService.fetchRequestsForChat(_chatId!);
+        _requestsById
+          ..clear()
+          ..addEntries(reqRows
+              .where((r) => (r['id']?.toString() ?? '').isNotEmpty)
+              .map((r) => MapEntry(r['id'].toString(), r)));
+
+        // Only a live 'accepted' request holds the thread open. A thread whose
+        // meetups have all completed still falls through to the completed
+        // actions bar, as before.
+        _hasAcceptedRequest = reqRows.any(
+            (r) => (r['status']?.toString().toLowerCase() ?? '') == 'accepted');
+
+        final latest = reqRows.isNotEmpty ? reqRows.last : null;
+        _latestRequestId = latest?['id']?.toString();
+        _latestRequestSenderId = latest?['requester_id']?.toString();
+        _latestRequestReceiverId = latest?['meetup_owner_id']?.toString();
 
         if (_latestRequestId != null) {
-          final reqMsg = await MeetupService.getRequestMessageForRequest(_latestRequestId!);
+          final reqMsg =
+              await MeetupService.getRequestMessageForRequest(_latestRequestId!);
           _latestRequestMessageId = reqMsg?['id']?.toString();
         } else {
           _latestRequestMessageId = null;
           _latestRequestSenderId = null;
           _latestRequestReceiverId = null;
         }
+        // The requests are the source of truth for the thread's state, not the
+        // chats row. That row can lag behind (a failed write, a trigger firing
+        // after us, data from an older build), and trusting it is what let a
+        // single declined request close a conversation an earlier accepted one
+        // had opened. Continue-chat is a user choice, so it still wins.
+        if (!_continueChatMode && reqRows.isNotEmpty) {
+          final derived = MeetupService.deriveChatStatus(
+              reqRows.map((r) => r['status']?.toString() ?? ''));
+          if (derived.isNotEmpty && derived != _chatStatus) {
+            print(
+                '🔵 [MessageController] Chat status $_chatStatus -> $derived (derived from requests)');
+            _chatStatus = derived;
+          }
+        }
+
+        // Venue detail for the agreed cards, in one query rather than per card.
+        _meetupsById
+          ..clear()
+          ..addAll(await MeetupService.fetchMeetupsByIds(reqRows
+              .map((r) => r['meetup_id']?.toString() ?? '')
+              .toList(growable: false)));
+
+        print(
+            '🔵 [MessageController] ${reqRows.length} request(s) in thread, hasAccepted=$_hasAcceptedRequest');
       } catch (e) {
         print('🔴 [MessageController] Error fetching request metadata: $e');
       }
@@ -490,22 +589,72 @@ class MessageController extends GetxController with WidgetsBindingObserver {
             String? requestStatus = r['request_status']?.toString();
             final msgRequestId = _readString(r, const ['meetup_request_id']);
 
+            bool canRespond = false;
+            var meetupType = '';
+            var meetupWhen = '';
+            var meetupAddress = '';
+            double? meetupLat;
+            double? meetupLng;
+
             if (messageType == 'meetup_request') {
+              // Every request card stays in the thread — a pair may agree
+              // several meetups, and each keeps its own box. Status comes from
+              // that request's own row, never from the shared chat status, so
+              // declining one card cannot restamp the others.
+              final reqRow =
+                  msgRequestId.isNotEmpty ? _requestsById[msgRequestId] : null;
+              final rowStatus = reqRow?['status']?.toString().toLowerCase();
+              if (rowStatus != null && rowStatus.isNotEmpty) {
+                requestStatus = rowStatus;
+              }
               if (requestStatus == 'pending') requestStatus = 'requested';
-              final isLatestReq = msgRequestId.isNotEmpty &&
-                  msgRequestId == _latestRequestId;
-              // Skip non-latest request messages entirely.
-              if (!isLatestReq) return null;
-              // Sync latest request badge with live chat status.
-              if (_chatStatus == 'accepted') requestStatus = 'accepted';
-              else if (_chatStatus == 'completed') requestStatus = 'completed';
-              else if (_chatStatus == 'rejected') requestStatus = 'rejected';
-              else if (_chatStatus == 'cancelled') requestStatus = 'cancelled';
+
+              // The requester is always the sender, so the other side is the
+              // host who answers it.
+              canRespond = !isMe &&
+                  requestStatus == 'requested' &&
+                  !_isBlockedConversation;
+
               if (text.trim().toLowerCase() == 'sent you a meetup request') {
                 text = isMe
                     ? 'You sent a meetup request'
                     : 'Sent you a meetup request';
               }
+
+              // Venue detail rides along only once the meetup is agreed. Before
+              // that the exact address stays hidden, exactly as it is on the
+              // meetup detail screen.
+              final isAgreed =
+                  requestStatus == 'accepted' || requestStatus == 'completed';
+
+              var mId = _readString(r, const ['meetup_id']);
+              if (mId.isEmpty) {
+                mId = reqRow?['meetup_id']?.toString() ?? '';
+              }
+              final meetupRow =
+                  isAgreed && mId.isNotEmpty ? _meetupsById[mId] : null;
+
+              if (meetupRow != null) {
+                meetupType = meetupRow['type']?.toString().trim() ?? '';
+                meetupAddress = meetupRow['address']?.toString().trim() ?? '';
+                meetupLat = (meetupRow['latitude'] as num?)?.toDouble();
+                meetupLng = (meetupRow['longitude'] as num?)?.toDouble();
+                meetupWhen = _buildSubtitleFromMeetup(<String, dynamic>{
+                  'meetup_date': meetupRow['date'],
+                  'meetup_time': meetupRow['time'],
+                  // Address is rendered on its own line, so keep it out of the
+                  // "Tue · 5–6 PM" line.
+                  'address': '',
+                });
+              }
+            }
+
+            if (messageType == 'system' &&
+                text.trim() == MeetupService.requestDeclinedMarker) {
+              // Stored as a stable marker; phrased per viewer here.
+              text = isMe
+                  ? 'You declined a meetup request'
+                  : 'Sorry, your meetup request was rejected';
             }
 
             return ChatMessageItem(
@@ -516,6 +665,12 @@ class MessageController extends GetxController with WidgetsBindingObserver {
               requestStatus: requestStatus,
               meetupRequestId: msgRequestId,
               meetupId: _readString(r, const ['meetup_id']),
+              canRespond: canRespond,
+              meetupType: meetupType,
+              meetupWhen: meetupWhen,
+              meetupAddress: meetupAddress,
+              meetupLatitude: meetupLat,
+              meetupLongitude: meetupLng,
             );
           }).whereType<ChatMessageItem>());
         print(
@@ -599,9 +754,14 @@ class MessageController extends GetxController with WidgetsBindingObserver {
         print('💬 [MessageController] Sending message to backend');
         // When _chatStatus is 'completed' but _continueChatMode is true, the DB
         // status is actually 'continue_chat' — pass that to satisfy the backend guard.
+        // A thread held open by an earlier accepted request may carry a chat
+        // status of 'requested' for a moment while a newer request is pending;
+        // messagingAllowed is the authority here.
         final effectiveStatus = (_continueChatMode && _chatStatus == 'completed')
             ? 'continue_chat'
-            : (_chatStatus ?? 'requested');
+            : _hasAcceptedRequest
+                ? 'accepted'
+                : (_chatStatus ?? 'requested');
         await MeetupService.sendTextMessage(
           chatId: _chatId!,
           senderId: uid,
@@ -655,9 +815,12 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     canSend = messageController.text.trim().isNotEmpty && messagingAllowed;
   }
 
-  Future<void> acceptRequest() async {
-    print('🟡 [MessageController] acceptRequest called');
-    if (_chatId == null || _latestRequestId == null) {
+  /// Accepts one specific request card. [requestId] defaults to the newest
+  /// request so older call sites keep working.
+  Future<void> acceptRequest([String? requestId]) async {
+    final targetId = requestId ?? _latestRequestId;
+    print('🟡 [MessageController] acceptRequest called for $targetId');
+    if (_chatId == null || targetId == null) {
       print(
           '🔴 [MessageController] Cannot accept - missing chat ID or request ID');
       return;
@@ -666,9 +829,9 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     try {
       print('🟡 [MessageController] Calling backend acceptRequest');
       await MeetupService.acceptRequest(
-        requestId: _latestRequestId!,
+        requestId: targetId,
         chatId: _chatId!,
-        requestMessageId: _latestRequestMessageId ?? '',
+        requestMessageId: await _messageIdForRequest(targetId),
       );
       print('🟡 [MessageController] Backend accept successful');
       await _loadFromSupabase(showLoader: false);
@@ -681,9 +844,12 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     }
   }
 
-  Future<void> rejectRequest() async {
-    print('🟠 [MessageController] rejectRequest called');
-    if (_chatId == null || _latestRequestId == null) {
+  /// Declines one specific request card, leaving every other request — and the
+  /// conversation itself — untouched.
+  Future<void> rejectRequest([String? requestId]) async {
+    final targetId = requestId ?? _latestRequestId;
+    print('🟠 [MessageController] rejectRequest called for $targetId');
+    if (_chatId == null || targetId == null) {
       print(
           '🔴 [MessageController] Cannot reject - missing chat ID or request ID');
       return;
@@ -692,9 +858,9 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     try {
       print('🟠 [MessageController] Calling backend rejectRequest');
       await MeetupService.rejectRequest(
-        requestId: _latestRequestId!,
+        requestId: targetId,
         chatId: _chatId!,
-        requestMessageId: _latestRequestMessageId ?? '',
+        requestMessageId: await _messageIdForRequest(targetId),
       );
       print('🟠 [MessageController] Backend reject successful');
       await _loadFromSupabase(showLoader: false);
@@ -704,6 +870,25 @@ class MessageController extends GetxController with WidgetsBindingObserver {
       }
     } catch (e) {
       print('🔴 [MessageController] Error in rejectRequest: $e');
+    }
+  }
+
+  /// The id of the meetup_request message for [requestId], preferring the
+  /// already-loaded thread so no extra round trip is needed.
+  Future<String> _messageIdForRequest(String requestId) async {
+    for (final m in messages) {
+      if (m.messageType == 'meetup_request' && m.meetupRequestId == requestId) {
+        return m.id;
+      }
+    }
+    if (requestId == _latestRequestId && _latestRequestMessageId != null) {
+      return _latestRequestMessageId!;
+    }
+    try {
+      final row = await MeetupService.getRequestMessageForRequest(requestId);
+      return row?['id']?.toString() ?? '';
+    } catch (_) {
+      return '';
     }
   }
 

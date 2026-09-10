@@ -22,6 +22,27 @@ class ViewMeetupController extends GetxController {
   String? errorMessage;
   String distanceText = '';
 
+  /// Status of this user's request **for this ad only**: '' (never requested),
+  /// 'requested', 'accepted', 'rejected', 'cancelled' or 'completed'.
+  String requestStatus = '';
+
+  /// True while a request for this ad is live or already agreed — the states
+  /// where the CTA reads "Requested" and leads to the chat.
+  bool get hasOpenRequest =>
+      requestStatus == 'requested' ||
+      requestStatus == 'accepted' ||
+      requestStatus == 'completed';
+
+  /// The host turned this one down. Terminal: one request per ad.
+  bool get isDeclined => requestStatus == 'rejected';
+
+  /// A fresh request may be sent when none exists, or after a cancellation.
+  bool get canSendRequest =>
+      !isOwnMeetup && (requestStatus.isEmpty || requestStatus == 'cancelled');
+
+  /// Tapping the CTA should open the existing thread rather than send anything.
+  bool get opensChat => hasOpenRequest;
+
   String? get currentUserId => AuthService.currentUser?.id;
 
   bool get isOwnMeetup =>
@@ -92,6 +113,7 @@ class ViewMeetupController extends GetxController {
     // Always start as false — _checkExistingRequest will set the real value
     // from the DB so stale store state never shows a wrong button label.
     isRequested = false;
+    requestStatus = '';
     isLocationExactVisible = isOwnMeetup;
     isProfileLoading = false;
     errorMessage = null;
@@ -234,38 +256,30 @@ class ViewMeetupController extends GetxController {
     return '';
   }
 
+  /// Loads the request state for **this specific ad**.
+  ///
+  /// Deliberately not pair-scoped: the same two users may hold independent
+  /// requests across several ads, so one active request must not mark every
+  /// other ad by the same host as "Requested".
   Future<void> _checkExistingRequest() async {
     final uid = currentUserId;
     final m = meetup;
     if (uid == null || m == null) return;
 
     try {
-      // Check if there's an ACTIVE request between these users (not just for this meetup)
-      final hasActive = await MeetupService.hasActiveMeetupRequestBetween(
-        userA: uid,
-        userB: m.userId ?? '',
-      );
-
-      if (meetup?.id != m.id) return; // meetup changed while loading
-
-      // If there's an active request between these users, disable the button
-      isRequested = hasActive;
-      
-      // Check the specific request for this meetup to determine location visibility
       final existing = await MeetupService.getExistingRequest(
         meetupId: m.id,
         requesterId: uid,
       );
-      
-      if (existing != null) {
-        final status =
-            existing['status']?.toString().trim().toLowerCase() ?? '';
-        final isConfirmed = status == 'accepted';
-        isLocationExactVisible = isOwnMeetup || isConfirmed;
-      } else {
-        isLocationExactVisible = isOwnMeetup;
-      }
-      
+
+      if (meetup?.id != m.id) return; // meetup changed while loading
+
+      requestStatus =
+          existing?['status']?.toString().trim().toLowerCase() ?? '';
+
+      isRequested = hasOpenRequest;
+      isLocationExactVisible = isOwnMeetup || requestStatus == 'accepted';
+
       m.joinRequested = isRequested;
       update();
     } catch (e, st) {
@@ -344,19 +358,9 @@ class ViewMeetupController extends GetxController {
         return null;
       }
 
-      debugPrint(
-          '[ViewMeetup] requestToJoin — checking active request between users');
-      final hasActive = await MeetupService.hasActiveMeetupRequestBetween(
-        userA: uid,
-        userB: m.userId!,
-      );
-      if (hasActive) {
-        errorMessage =
-            'A meetup is already active between you. Wait for it to complete first.';
-        debugPrint('[ViewMeetup] requestToJoin — aborted: active request exists');
-        return null;
-      }
-
+      // No pair-level guard here: requests are per-ad, so an active request on
+      // another of this host's ads must not block this one. sendMeetupRequest
+      // enforces the one-request-per-ad rule itself.
       debugPrint('[ViewMeetup] requestToJoin — sending request...');
       final chatRow = await MeetupService.sendMeetupRequest(
         meetupId: m.id,
@@ -366,6 +370,7 @@ class ViewMeetupController extends GetxController {
       debugPrint(
           '[ViewMeetup] requestToJoin — request sent, chatId=${chatRow['id']}');
 
+      requestStatus = 'requested';
       isRequested = true;
       m.joinRequested = true;
       _store.setJoinRequested(m.id, true);
@@ -405,8 +410,53 @@ class ViewMeetupController extends GetxController {
     return parts.join(' · ');
   }
 
+  /// Resolves the existing thread with this host so the "Requested" CTA can
+  /// jump straight into it. Returns null when no chat row exists yet.
+  Future<Chat?> openExistingChat() async {
+    final uid = currentUserId;
+    final m = meetup;
+    if (uid == null || m == null) return null;
+
+    final ownerId = m.userId?.trim() ?? '';
+    if (ownerId.isEmpty) return null;
+
+    isLoading = true;
+    errorMessage = null;
+    update();
+
+    try {
+      final chatRow = await MeetupService.getChatForUserPair(
+        userA: uid,
+        userB: ownerId,
+      );
+      if (chatRow == null) {
+        errorMessage = 'Chat is not available yet.';
+        return null;
+      }
+
+      final chat = Chat.fromSupabase(
+        chatRow,
+        otherUserName: hostName,
+        otherUserAvatar: hostPhotoUrl.startsWith('http') ? hostPhotoUrl : '',
+        lastMessage: '',
+      );
+      chat.type = m.type;
+      chat.time = formattedTime;
+      chat.subtitle = _buildSubtitle(m);
+      return chat;
+    } catch (e, st) {
+      debugPrint('[ViewMeetup] openExistingChat — ERROR: $e\n$st');
+      errorMessage = 'Could not open the chat.';
+      return null;
+    } finally {
+      isLoading = false;
+      update();
+    }
+  }
+
   void markRequested() {
     if (meetup == null) return;
+    requestStatus = 'requested';
     isRequested = true;
     meetup!.joinRequested = true;
     _store.setJoinRequested(meetup!.id, true);

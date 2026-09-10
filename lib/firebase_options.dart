@@ -49,21 +49,36 @@ class DefaultFirebaseOptions {
     }
   }
 
+  // DEBUG-ONLY: defaultValue keys inlined so the app runs without
+  // --dart-define-from-file. TODO: revert to bare String.fromEnvironment.
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: String.fromEnvironment('ANDROID_FIREBASE_API_KEY'),
-    appId: String.fromEnvironment('ANDROID_FIREBASE_APP_ID'),
-    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID'),
-    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID'),
-    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET'),
+    apiKey: String.fromEnvironment('ANDROID_FIREBASE_API_KEY',
+        defaultValue: 'AIzaSyCCw4zVop-Jx_qJ-amXKzzFBsr72YCs7F4'),
+    appId: String.fromEnvironment('ANDROID_FIREBASE_APP_ID',
+        defaultValue: '1:925940972492:android:001df3f4a357a9de8afb69'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID',
+        defaultValue: '925940972492'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID',
+        defaultValue: 'meetmerightnow-299b6'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET',
+        defaultValue: 'meetmerightnow-299b6.firebasestorage.app'),
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: String.fromEnvironment('IOS_FIREBASE_API_KEY'),
-    appId: String.fromEnvironment('IOS_FIREBASE_APP_ID'),
-    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID'),
-    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID'),
-    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET'),
-    iosClientId: String.fromEnvironment('IOS_FIREBASE_CLIENT_ID'),
-    iosBundleId: String.fromEnvironment('IOS_BUNDLE_ID'),
+    apiKey: String.fromEnvironment('IOS_FIREBASE_API_KEY',
+        defaultValue: 'AIzaSyB_vUoS1fIT8nj03UfpKOGG0mBm7pUlbGc'),
+    appId: String.fromEnvironment('IOS_FIREBASE_APP_ID',
+        defaultValue: '1:925940972492:ios:1dde74ca62e5a7078afb69'),
+    messagingSenderId: String.fromEnvironment('FIREBASE_MESSAGING_SENDER_ID',
+        defaultValue: '925940972492'),
+    projectId: String.fromEnvironment('FIREBASE_PROJECT_ID',
+        defaultValue: 'meetmerightnow-299b6'),
+    storageBucket: String.fromEnvironment('FIREBASE_STORAGE_BUCKET',
+        defaultValue: 'meetmerightnow-299b6.firebasestorage.app'),
+    iosClientId: String.fromEnvironment('IOS_FIREBASE_CLIENT_ID',
+        defaultValue:
+            '925940972492-57srnrhf5hqp3mfv2fe76v541b83vpdr.apps.googleusercontent.com'),
+    iosBundleId: String.fromEnvironment('IOS_BUNDLE_ID',
+        defaultValue: 'com.example.meetmern'),
   );
 }

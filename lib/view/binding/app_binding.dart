@@ -17,7 +17,6 @@ import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_
 import 'package:meetmern/view/controllers/home_controller/FilterScreen/filter_screen_controller.dart';
 import 'package:meetmern/view/controllers/home_controller/MeetupUserProfileScreen/meetup_user_profile_screen_controller.dart';
 import 'package:meetmern/view/controllers/home_controller/RequestMeetupScreen/request_meetup_screen_controller.dart';
-import 'package:meetmern/view/controllers/home_controller/ViewMeetupScreen/repeat_meetup_dialog_controller.dart';
 import 'package:meetmern/view/controllers/home_controller/ViewMeetupScreen/view_meetup_screen_controller.dart';
 import 'package:meetmern/view/controllers/onboarding_controller/OnboardingScreen/onboarding_screen_controller.dart';
 import 'package:meetmern/view/controllers/onboarding_controller/pages/about_page_controller.dart';
@@ -61,7 +60,6 @@ class AppBinding extends Bindings {
     Get.lazyPut<FilterController>(() => FilterController(), fenix: true);
     Get.lazyPut<MeetupUserProfileController>(() => MeetupUserProfileController(), fenix: true);
     Get.lazyPut<RequestMeetupController>(() => RequestMeetupController(), fenix: true);
-    Get.lazyPut<RepeatMeetupDialogController>(() => RepeatMeetupDialogController(), fenix: true);
     Get.lazyPut<ViewMeetupController>(() => ViewMeetupController(), fenix: true);
     Get.lazyPut<OnboardingController>(() => OnboardingController(), fenix: true);
     Get.lazyPut<AboutPageController>(() => AboutPageController(), fenix: true);

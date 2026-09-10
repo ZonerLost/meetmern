@@ -293,13 +293,18 @@ class ChatListController extends GetxController with WidgetsBindingObserver {
           if (id.isNotEmpty) meetupById[id] = row;
         }
 
-        final latestRequestByChatId = <String, Map<String, dynamic>>{};
+        // A chat can hold several requests at once, so the pill is derived from
+        // all of them — not just the newest. Judging by the newest alone made a
+        // freshly declined request stamp "Rejected" on a thread whose earlier
+        // meetup is still agreed.
+        final requestStatusesByChatId = <String, List<String>>{};
         for (final raw in requestRows) {
           final row = Map<String, dynamic>.from(raw);
           final cId = row['chat_id']?.toString() ?? '';
-          if (cId.isNotEmpty && !latestRequestByChatId.containsKey(cId)) {
-            latestRequestByChatId[cId] = row;
-          }
+          if (cId.isEmpty) continue;
+          requestStatusesByChatId
+              .putIfAbsent(cId, () => <String>[])
+              .add(row['status']?.toString() ?? '');
         }
 
         print('🔵 [ChatListController] Building chat list');
@@ -317,13 +322,21 @@ class ChatListController extends GetxController with WidgetsBindingObserver {
           final latest = latestMessageByChatId[chatId];
           final latestMessageType = latest?['message_type']?.toString() ?? '';
           final latestSenderId = latest?['sender_id']?.toString() ?? '';
+          final latestText = latest?['text']?.toString() ?? '';
           final lastMessage = latest == null
               ? ''
               : latestMessageType == 'meetup_request'
                   ? (latestSenderId == uid
                       ? 'You sent a meetup request'
                       : 'Sent you a meetup request')
-                  : (latest['text']?.toString() ?? '');
+                  // Decline breadcrumbs are stored as a stable marker rather
+                  // than prose, so phrase them per viewer here too — otherwise
+                  // the raw marker would surface in the list preview.
+                  : latestText.trim() == MeetupService.requestDeclinedMarker
+                      ? (latestSenderId == uid
+                          ? 'You declined a meetup request'
+                          : 'Your meetup request was declined')
+                      : latestText;
 
           final chat = Chat.fromSupabase(
             row,
@@ -337,11 +350,12 @@ class ChatListController extends GetxController with WidgetsBindingObserver {
             chat.status = RequestStatus.requested;
           }
 
-          // Use latest request status as authoritative pill status.
-          final latestReq = latestRequestByChatId[chatId];
-          if (latestReq != null) {
-            final reqStatus = latestReq['status']?.toString() ?? '';
-            final mapped = requestStatusFromDbString(reqStatus);
+          // Derived across every request in the thread — accepted outranks
+          // pending, which outranks any terminal status.
+          final reqStatuses = requestStatusesByChatId[chatId];
+          if (reqStatuses != null && reqStatuses.isNotEmpty) {
+            final derived = MeetupService.deriveChatStatus(reqStatuses);
+            final mapped = requestStatusFromDbString(derived);
             if (mapped != RequestStatus.none) chat.status = mapped;
           }
 
