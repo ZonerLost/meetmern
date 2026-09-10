@@ -137,7 +137,9 @@ class ExploreController extends GetxController {
   }
 
   bool _isAvailableMeetup(Meetup meetup) {
-    // Hide meetups the current user has already requested or completed.
+    // Hide only meetups this user has already completed. A requested or agreed
+    // ad stays in the feed — its detail screen shows "Requested" and leads to
+    // the chat.
     if (_store.hiddenMeetupIds.contains(meetup.id)) return false;
 
     // Only show meetups that are open/active and not expired.

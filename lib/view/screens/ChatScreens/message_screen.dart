@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:meetmern/core/services/notification_service.dart';
 import 'package:meetmern/view/controllers/chat_controller/message_screen_controller.dart';
 import 'package:meetmern/data/models/chat_model.dart';
@@ -311,9 +312,10 @@ class _MessageScreenState extends State<MessageScreen> {
                 ),
               ],
             ),
-            // Agreed meetup: venue, type and time, plus directions. Each
-            // accepted card carries its own, so a second agreed meetup adds a
-            // second box with its own map button.
+            // Venue detail appears on exactly one card — the accepted meetup
+            // happening next. Pending, declined and completed cards stay bare.
+            // The address lives inside the map card, so only the date line is
+            // rendered here.
             if (msg.hasMeetupDetail) ...[
               SizedBox(height: dimension.d12),
               Divider(height: dimension.d1, color: appTheme.borderColor),
@@ -339,62 +341,9 @@ class _MessageScreenState extends State<MessageScreen> {
                     ),
                   ],
                 ),
-              if (msg.meetupAddress.isNotEmpty) ...[
-                SizedBox(height: dimension.d6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(Icons.place_outlined,
-                        size: dimension.d16, color: appTheme.neutral_600),
-                    SizedBox(width: dimension.d8),
-                    Expanded(
-                      child: Text(
-                        msg.meetupAddress,
-                        style: TextStyle(
-                            fontFamily: strings.fontFamily,
-                            fontSize: dimension.d13,
-                            color: appTheme.neutral_600),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              if (MapsLauncher.canOpen(
-                latitude: msg.meetupLatitude,
-                longitude: msg.meetupLongitude,
-                address: msg.meetupAddress,
-              )) ...[
+              if (msg.canShowMap) ...[
                 SizedBox(height: dimension.d12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () async {
-                      final opened = await MapsLauncher.openDirections(
-                        latitude: msg.meetupLatitude,
-                        longitude: msg.meetupLongitude,
-                        address: msg.meetupAddress,
-                      );
-                      if (!opened && context.mounted) {
-                        context.showCustomSnackBar(strings.mapsUnavailable);
-                      }
-                    },
-                    icon: Icon(Icons.directions_outlined,
-                        size: dimension.d18, color: appTheme.b_Primary),
-                    label: Text(
-                      strings.getDirectionsLabel,
-                      style: TextStyle(
-                          fontFamily: strings.fontFamily,
-                          fontSize: dimension.d13,
-                          fontWeight: FontWeight.w600,
-                          color: appTheme.b_Primary),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: appTheme.b_Primary),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(dimension.d28)),
-                    ),
-                  ),
-                ),
+                _buildMeetupMapCard(context, msg, strings),
               ],
             ],
             if (showActions) ...[
@@ -433,6 +382,101 @@ class _MessageScreenState extends State<MessageScreen> {
                 ],
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// The venue card for the soonest upcoming agreed meetup: a non-interactive
+  /// map over the venue name and address. Tapping anywhere opens walking
+  /// directions in Google Maps.
+  ///
+  /// Gestures are all disabled so the map never fights the chat's scroll, and
+  /// lite mode renders it as a bitmap on Android rather than a live map.
+  Widget _buildMeetupMapCard(
+      BuildContext context, ChatMessageItem msg, Strings strings) {
+    final lat = msg.meetupLatitude;
+    final lng = msg.meetupLongitude;
+    final hasPin = lat != null && lng != null;
+    final target = hasPin ? LatLng(lat, lng) : null;
+
+    return GestureDetector(
+      onTap: () async {
+        final opened = await MapsLauncher.openDirections(
+          latitude: lat,
+          longitude: lng,
+          address: msg.meetupAddress,
+        );
+        if (!opened && context.mounted) {
+          context.showCustomSnackBar(strings.mapsUnavailable);
+        }
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: appTheme.b_Primary,
+          borderRadius: BorderRadius.circular(dimension.d16),
+        ),
+        padding: EdgeInsets.all(dimension.d12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (target != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(dimension.d12),
+                child: SizedBox(
+                  height: dimension.d180,
+                  width: double.infinity,
+                  child: IgnorePointer(
+                    child: GoogleMap(
+                      initialCameraPosition:
+                          CameraPosition(target: target, zoom: 14),
+                      markers: <Marker>{
+                        Marker(
+                          markerId: MarkerId(msg.meetupId ?? 'meetup'),
+                          position: target,
+                        ),
+                      },
+                      liteModeEnabled: true,
+                      zoomControlsEnabled: false,
+                      myLocationButtonEnabled: false,
+                      mapToolbarEnabled: false,
+                      compassEnabled: false,
+                      zoomGesturesEnabled: false,
+                      scrollGesturesEnabled: false,
+                      rotateGesturesEnabled: false,
+                      tiltGesturesEnabled: false,
+                    ),
+                  ),
+                ),
+              ),
+            if (target != null) SizedBox(height: dimension.d12),
+            if (msg.meetupVenue.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: dimension.d4),
+                child: Text(
+                  msg.meetupVenue,
+                  style: TextStyle(
+                      fontFamily: strings.fontFamily,
+                      fontSize: dimension.d20,
+                      fontWeight: FontWeight.w700,
+                      color: appTheme.coreWhite),
+                ),
+              ),
+            if (msg.meetupAddress.isNotEmpty) ...[
+              SizedBox(height: dimension.d4),
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: dimension.d4),
+                child: Text(
+                  msg.meetupAddress,
+                  style: TextStyle(
+                      fontFamily: strings.fontFamily,
+                      fontSize: dimension.d15,
+                      color: appTheme.coreWhite),
+                ),
+              ),
+            ],
+            SizedBox(height: dimension.d4),
           ],
         ),
       ),

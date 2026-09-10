@@ -5,21 +5,21 @@
       "name": "meetmern (debug)",
       "request": "launch",
       "type": "dart",
-      "toolArgs": ["--dart-define-from-file=env.json"]
+      "toolArgs": ["--dart-define-from-file=.env"]
     },
     {
       "name": "meetmern (profile)",
       "request": "launch",
       "type": "dart",
       "flutterMode": "profile",
-      "toolArgs": ["--dart-define-from-file=env.json"]
+      "toolArgs": ["--dart-define-from-file=.env"]
     },
     {
       "name": "meetmern (release)",
       "request": "launch",
       "type": "dart",
       "flutterMode": "release",
-      "toolArgs": ["--dart-define-from-file=env.json"]
+      "toolArgs": ["--dart-define-from-file=.env"]
     }
   ]
 }

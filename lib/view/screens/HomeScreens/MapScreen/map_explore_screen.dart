@@ -127,6 +127,37 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
         Timer(const Duration(milliseconds: 300), _rebuildMarkers);
   }
 
+  /// Pans back to the user. Re-reads the position when it wasn't captured on
+  /// entry — permission may have been granted since.
+  Future<void> _recentreOnUser() async {
+    var target = _currentPos;
+
+    if (target == null) {
+      try {
+        var perm = await Geolocator.checkPermission();
+        if (perm == LocationPermission.denied) {
+          perm = await Geolocator.requestPermission();
+        }
+        if (perm == LocationPermission.denied ||
+            perm == LocationPermission.deniedForever) {
+          return;
+        }
+        final pos = await Geolocator.getCurrentPosition(
+          locationSettings:
+              const LocationSettings(accuracy: LocationAccuracy.high),
+        ).timeout(const Duration(seconds: 10));
+        target = LatLng(pos.latitude, pos.longitude);
+        if (!mounted) return;
+        setState(() => _currentPos = target);
+        _rebuildMarkers();
+      } catch (_) {
+        return;
+      }
+    }
+
+    await _mapCtrl?.animateCamera(CameraUpdate.newLatLngZoom(target, 15));
+  }
+
   void _jumpToInitialCamera() {
     final target = _currentPos ??
         (_coords.isNotEmpty ? _coords.values.first : null);
@@ -254,6 +285,18 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
             ),
           ),
 
+          // ── Recentre on me ────────────────────────────────────────────────
+          // Google's own button is disabled above so it doesn't collide with
+          // the bottom sheet, so the map needs its own way back to the user.
+          Positioned(
+            right: 16.w,
+            bottom: _selectedMeetup != null ? 240.h : 32.h,
+            child: _MapActionButton(
+              icon: Icons.near_me_outlined,
+              onTap: _recentreOnUser,
+            ),
+          ),
+
           // ── Loading overlay ───────────────────────────────────────────────
           if (_loading)
             const ColoredBox(
@@ -280,6 +323,33 @@ class _MapExploreScreenState extends State<MapExploreScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Floating map action ───────────────────────────────────────────────────────
+
+class _MapActionButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _MapActionButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: appTheme.coreWhite,
+      shape: const CircleBorder(),
+      elevation: 4,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: SizedBox(
+          width: 48.w,
+          height: 48.w,
+          child: Icon(icon, size: 22.sp, color: appTheme.neutral_800),
+        ),
       ),
     );
   }

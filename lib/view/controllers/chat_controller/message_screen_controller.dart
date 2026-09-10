@@ -33,10 +33,21 @@ class ChatMessageItem {
   final double? meetupLatitude;
   final double? meetupLongitude;
 
+  /// Venue heading for the map card, e.g. "Benungo".
+  final String meetupVenue;
+
+  /// Only the soonest upcoming agreed meetup renders the full map card.
+  final bool showMap;
+
   bool get hasMeetupDetail =>
       meetupType.isNotEmpty ||
       meetupWhen.isNotEmpty ||
       meetupAddress.isNotEmpty;
+
+  bool get canShowMap =>
+      showMap &&
+      (meetupLatitude != null && meetupLongitude != null ||
+          meetupAddress.isNotEmpty);
 
   const ChatMessageItem({
     required this.id,
@@ -52,6 +63,8 @@ class ChatMessageItem {
     this.meetupAddress = '',
     this.meetupLatitude,
     this.meetupLongitude,
+    this.meetupVenue = '',
+    this.showMap = false,
   });
 }
 
@@ -90,12 +103,22 @@ class MessageController extends GetxController with WidgetsBindingObserver {
   final Map<String, Map<String, dynamic>> _meetupsById =
       <String, Map<String, dynamic>>{};
 
+  /// The agreed meetup happening soonest. Only this one gets the full map card
+  /// in the thread — the others stay compact, so a long history of meetups
+  /// doesn't turn into a column of maps.
+  String _primaryMeetupId = '';
+
   /// True once any request in the thread has been agreed. This — not the
   /// transient chat status — is what keeps the conversation open, so declining
   /// a later request never closes a chat an earlier one opened.
   bool _hasAcceptedRequest = false;
   StreamSubscription<List<Map<String, dynamic>>>? _chatSubscription;
   StreamSubscription<List<Map<String, dynamic>>>? _messageSubscription;
+
+  /// meetup_requests is the authority for each card's status chip, so it needs
+  /// its own subscription — a status flip there is not guaranteed to surface
+  /// through the chats or messages streams.
+  StreamSubscription<List<Map<String, dynamic>>>? _requestSubscription;
   bool _isLoadInProgress = false;
   bool _hasPendingLoad = false;
   bool _pendingLoadWantsLoader = false;
@@ -235,8 +258,10 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     // Cancel stale subscriptions from any previous chat session.
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
+    _requestSubscription?.cancel();
     _chatSubscription = null;
     _messageSubscription = null;
+    _requestSubscription = null;
 
     // Reset all state so a previous chat's data never bleeds through.
     messages.clear();
@@ -313,6 +338,7 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     _realtimeReconnectTimer?.cancel();
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
+    _requestSubscription?.cancel();
 
     _chatSubscription = supabase
         .from('chats')
@@ -336,6 +362,23 @@ class MessageController extends GetxController with WidgetsBindingObserver {
           (_) => _queueRealtimeReload(),
           onError: (Object e) {
             print('🔴 [MessageController] Message stream error: $e');
+            _scheduleRealtimeReconnect();
+          },
+          onDone: _scheduleRealtimeReconnect,
+          cancelOnError: true,
+        );
+
+    // Without this, the requester's status chip only refreshed if the accept
+    // happened to surface through one of the streams above — so it could sit on
+    // "Requested" until the screen was reopened.
+    _requestSubscription = supabase
+        .from('meetup_requests')
+        .stream(primaryKey: ['id'])
+        .eq('chat_id', _chatId!)
+        .listen(
+          (_) => _queueRealtimeReload(),
+          onError: (Object e) {
+            print('🔴 [MessageController] Request stream error: $e');
             _scheduleRealtimeReconnect();
           },
           onDone: _scheduleRealtimeReconnect,
@@ -421,6 +464,7 @@ class MessageController extends GetxController with WidgetsBindingObserver {
           try {
             resolvedMeetupId =
                 await MeetupService.nextUpcomingAcceptedMeetupId(_chatId!) ?? '';
+            _primaryMeetupId = resolvedMeetupId;
             print('[AppBarSubtitle] next upcoming accepted meetup: "$resolvedMeetupId"');
           } catch (_) {}
 
@@ -593,6 +637,8 @@ class MessageController extends GetxController with WidgetsBindingObserver {
             var meetupType = '';
             var meetupWhen = '';
             var meetupAddress = '';
+            var meetupVenue = '';
+            var showMap = false;
             double? meetupLat;
             double? meetupLng;
 
@@ -621,24 +667,28 @@ class MessageController extends GetxController with WidgetsBindingObserver {
                     : 'Sent you a meetup request';
               }
 
-              // Venue detail rides along only once the meetup is agreed. Before
-              // that the exact address stays hidden, exactly as it is on the
-              // meetup detail screen.
-              final isAgreed =
-                  requestStatus == 'accepted' || requestStatus == 'completed';
-
+              // Venue detail belongs to exactly one card: the accepted meetup
+              // happening next. Pending and declined cards must not leak the
+              // address before both sides agree, and a completed one is
+              // finished business — both stay bare, like a declined card.
               var mId = _readString(r, const ['meetup_id']);
               if (mId.isEmpty) {
                 mId = reqRow?['meetup_id']?.toString() ?? '';
               }
-              final meetupRow =
-                  isAgreed && mId.isNotEmpty ? _meetupsById[mId] : null;
+
+              final isNextUpcoming = requestStatus == 'accepted' &&
+                  mId.isNotEmpty &&
+                  mId == _primaryMeetupId;
+
+              final meetupRow = isNextUpcoming ? _meetupsById[mId] : null;
 
               if (meetupRow != null) {
                 meetupType = meetupRow['type']?.toString().trim() ?? '';
                 meetupAddress = meetupRow['address']?.toString().trim() ?? '';
                 meetupLat = (meetupRow['latitude'] as num?)?.toDouble();
                 meetupLng = (meetupRow['longitude'] as num?)?.toDouble();
+                meetupVenue = _venueNameFrom(meetupAddress, meetupType);
+                showMap = true;
                 meetupWhen = _buildSubtitleFromMeetup(<String, dynamic>{
                   'meetup_date': meetupRow['date'],
                   'meetup_time': meetupRow['time'],
@@ -671,6 +721,8 @@ class MessageController extends GetxController with WidgetsBindingObserver {
               meetupAddress: meetupAddress,
               meetupLatitude: meetupLat,
               meetupLongitude: meetupLng,
+              meetupVenue: meetupVenue,
+              showMap: showMap,
             );
           }).whereType<ChatMessageItem>());
         print(
@@ -963,6 +1015,22 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     return result;
   }
 
+  /// Venue heading for the map card.
+  ///
+  /// `meetups` has no venue-name column — the venue is picked from Places and
+  /// only its formatted address is stored, which puts the name first
+  /// ("Benungo, 63 Long Acre, London"). So the leading segment is the name
+  /// whenever it isn't a street number. Falls back to the meetup type.
+  String _venueNameFrom(String address, String type) {
+    final first = address.split(',').first.trim();
+    final startsWithNumber = RegExp(r'^\d').hasMatch(first);
+    if (first.isNotEmpty && !startsWithNumber) return first;
+
+    final t = type.trim();
+    if (t.isEmpty) return '';
+    return t[0].toUpperCase() + t.substring(1);
+  }
+
   String _readString(Map<String, dynamic> row, List<String> keys) {
     for (final key in keys) {
       final value = row[key]?.toString().trim() ?? '';
@@ -991,6 +1059,7 @@ class MessageController extends GetxController with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     _chatSubscription?.cancel();
     _messageSubscription?.cancel();
+    _requestSubscription?.cancel();
     _realtimeReloadDebounce?.cancel();
     _realtimeReconnectTimer?.cancel();
     messageController.removeListener(_onTextChanged);

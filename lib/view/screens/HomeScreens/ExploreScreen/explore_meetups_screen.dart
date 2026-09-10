@@ -7,6 +7,7 @@ import 'package:meetmern/data/models/explore_meetup_model.dart';
 import 'package:meetmern/view/controllers/home_controller/ExploreScreen/explore_meetups_screen_controller.dart';
 import 'package:meetmern/view/screens/homescreens/CreateMeetupScreen/create_meetup.dart';
 import 'package:meetmern/view/screens/homescreens/FilterScreen/filter_screen.dart';
+import 'package:meetmern/view/screens/homescreens/MapScreen/map_explore_screen.dart';
 import 'package:meetmern/view/screens/homescreens/ViewMeetupScreen/view_meetup_screen.dart';
 import 'package:meetmern/view/screens/UserProfileScreens/ManageAds/ads_screen.dart';
 import 'package:meetmern/core/extensions/navigation_extensions.dart';
@@ -49,6 +50,15 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
     if (result != null) {
       _controller.applyFilters(result);
     }
+  }
+
+  /// Map view of the same feed. Pushed as a full screen — MapExploreScreen's
+  /// search bar owns the back arrow.
+  Future<void> _openMapView() async {
+    await Navigator.of(context)
+        .push(MaterialPageRoute(builder: (_) => const MapExploreScreen()));
+    if (!mounted) return;
+    _controller.loadData();
   }
 
   Future<void> _openMeetup(Meetup m) async {
@@ -101,7 +111,12 @@ class _ExploreMeetupsScreenState extends State<ExploreMeetupsScreen> {
                 IconButton(
                   icon:  Icon(LucideIcons.filter, size: dimension.d22.sp),
                   onPressed: () => _openFilter(context),
-                )
+                ),
+                IconButton(
+                  tooltip: 'Map view',
+                  icon: Icon(LucideIcons.map, size: dimension.d22.sp),
+                  onPressed: _openMapView,
+                ),
               ],
             ),
             Row(

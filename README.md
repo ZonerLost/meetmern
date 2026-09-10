@@ -8,10 +8,10 @@ All API keys live in **`env.json`** at the repo root — it is git-ignored. Copy
 the template and fill it in:
 
 ```bash
-cp env.example.json env.json      # then edit env.json
+cp .env.example .env      # then edit .env
 ```
 
-Keys in `env.json`:
+Keys in `.env` (plain `KEY=value` lines):
 
 | Key | Used by |
 | --- | --- |
@@ -23,21 +23,41 @@ Keys in `env.json`:
 Run / build **always** passing the file:
 
 ```bash
-flutter run   --dart-define-from-file=env.json
-flutter build apk --dart-define-from-file=env.json
-flutter test  integration_test/ -d <device> --dart-define-from-file=env.json
+# Debug
+flutter run --dart-define-from-file=.env
+
+# Release APK (single universal APK)
+flutter build apk --release --dart-define-from-file=.env
+
+# Release APK split per ABI — smaller downloads
+flutter build apk --release --split-per-abi --dart-define-from-file=.env
+
+# Play Store bundle
+flutter build appbundle --release --dart-define-from-file=.env
+
+# Integration tests
+flutter test integration_test/ -d <device> --dart-define-from-file=.env
 ```
+
+Output lands in `build/app/outputs/flutter-apk/app-release.apk`.
 
 (VS Code launch configs in `.vscode/launch.json` already pass it.)
 
+> **Release signing is not configured yet.** `android/app/build.gradle` has
+> `release { signingConfig = signingConfigs.debug }`, so release APKs are signed
+> with the debug key. They install and run fine for testing, but **cannot be
+> uploaded to the Play Store**. Before publishing, generate an upload keystore,
+> add `android/key.properties` (git-ignored), and point the release
+> `signingConfig` at it.
+
 **Native pieces that can't read `--dart-define`:**
 
-- **Android** — `android/app/build.gradle` reads `MAPS_API_KEY` straight out of
-  `env.json` (or a `MAPS_API_KEY` env var for CI) and injects it as a manifest
+- **Android** — `android/app/build.gradle` parses `MAPS_API_KEY` straight out of
+  `.env` (or a `MAPS_API_KEY` env var for CI) and injects it as a manifest
   placeholder. Nothing else to do.
 - **iOS** — copy `ios/Flutter/Keys.example.xcconfig` to
   `ios/Flutter/Keys.xcconfig` (git-ignored) and set `MAPS_API_KEY` to match
-  `env.json`.
+  `.env`.
 
 Also git-ignored and required for Firebase: `android/app/google-services.json`,
 `ios/Runner/GoogleService-Info.plist`.

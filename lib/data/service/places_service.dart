@@ -57,12 +57,7 @@ class PlacesException implements Exception {
 class PlacesService {
   PlacesService._();
 
-  // DEBUG-ONLY: defaultValue inlined so the app runs without
-  // --dart-define-from-file. TODO: revert to bare String.fromEnvironment.
-  static const String _apiKey = String.fromEnvironment(
-    'PLACES_API_KEY',
-    defaultValue: 'AIzaSyB2uwkwvJ1k-1WULAjf24KmSCydpjAGfo8',
-  );
+  static const String _apiKey = String.fromEnvironment('PLACES_API_KEY');
 
   static const String _searchNearbyUrl =
       'https://places.googleapis.com/v1/places:searchNearby';

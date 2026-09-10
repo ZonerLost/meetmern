@@ -298,14 +298,14 @@ class MeetupService {
     String userId,
   ) async {
     try {
-      // Hide meetups where the current user has any non-cancelled request.
-      // completed = meetup happened, hide permanently.
-      // requested/accepted = active cycle, hide until terminal.
+      // Only a meetup that has already happened is hidden from the feed.
+      // A requested or accepted ad stays on the board marked "Requested" so the
+      // user can find their way back into the conversation from it.
       final rows = await supabase
           .from('meetup_requests')
           .select('meetup_id, status')
           .eq('requester_id', userId)
-          .not('status', 'in', '(cancelled,rejected)');
+          .eq('status', 'completed');
 
       return List<Map<String, dynamic>>.from(rows)
           .map((r) => r['meetup_id']?.toString() ?? '')
@@ -314,6 +314,30 @@ class MeetupService {
     } catch (e, st) {
       debugPrint(
         '[MeetupService] fetchHiddenMeetupIdsForUser - failed: $e\n$st',
+      );
+      return const <String>{};
+    }
+  }
+
+  /// Meetup ids this user has a live request on (pending or agreed).
+  /// Drives the "Requested" badge on feed cards and their tap target.
+  static Future<Set<String>> fetchOpenRequestMeetupIdsForUser(
+    String userId,
+  ) async {
+    try {
+      final rows = await supabase
+          .from('meetup_requests')
+          .select('meetup_id, status')
+          .eq('requester_id', userId)
+          .inFilter('status', ['requested', 'accepted']);
+
+      return List<Map<String, dynamic>>.from(rows)
+          .map((r) => r['meetup_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toSet();
+    } catch (e, st) {
+      debugPrint(
+        '[MeetupService] fetchOpenRequestMeetupIdsForUser - failed: $e\n$st',
       );
       return const <String>{};
     }
@@ -1342,17 +1366,16 @@ class MeetupService {
     }
   }
 
-  /// The meetup id of the soonest *upcoming* accepted meetup in this chat,
-  /// falling back to the most recently accepted one when all have passed.
-  /// Drives the chat app-bar subtitle and the meetup info screen.
+  /// The meetup id of the soonest *upcoming* accepted meetup in this chat.
+  ///
+  /// Strictly accepted-and-in-the-future: a meetup that has already happened is
+  /// finished business, so it neither titles the thread nor carries the venue
+  /// card. Returns null when nothing is upcoming, and callers fall back.
   static Future<String?> nextUpcomingAcceptedMeetupId(String chatId) async {
     try {
       final requests = await fetchRequestsForChat(chatId);
       final acceptedIds = requests
-          .where((r) {
-            final s = _text(r['status']).toLowerCase();
-            return s == 'accepted' || s == 'completed';
-          })
+          .where((r) => _text(r['status']).toLowerCase() == 'accepted')
           .map((r) => _text(r['meetup_id']))
           .where((id) => id.isNotEmpty)
           .toList();
@@ -1367,9 +1390,6 @@ class MeetupService {
       final now = DateTime.now();
       DateTime? bestUpcoming;
       String? bestUpcomingId;
-      DateTime? latestPast;
-      String? latestPastId;
-
       for (final raw in List<Map<String, dynamic>>.from(rows)) {
         final id = _text(raw['id']);
         final dateStr = _text(raw['date']);
@@ -1378,22 +1398,17 @@ class MeetupService {
 
         final dt = DateTime.tryParse(
             timeStr.isNotEmpty ? '${dateStr}T$timeStr' : dateStr);
-        if (dt == null) continue;
+        if (dt == null || !dt.isAfter(now)) continue;
 
-        if (dt.isAfter(now)) {
-          if (bestUpcoming == null || dt.isBefore(bestUpcoming)) {
-            bestUpcoming = dt;
-            bestUpcomingId = id;
-          }
-        } else {
-          if (latestPast == null || dt.isAfter(latestPast)) {
-            latestPast = dt;
-            latestPastId = id;
-          }
+        if (bestUpcoming == null || dt.isBefore(bestUpcoming)) {
+          bestUpcoming = dt;
+          bestUpcomingId = id;
         }
       }
 
-      return bestUpcomingId ?? latestPastId ?? acceptedIds.last;
+      // No fallback to a past meetup — once it has happened there is nothing
+      // upcoming to point at, and the venue card should disappear with it.
+      return bestUpcomingId;
     } catch (e) {
       debugPrint('[MeetupService] nextUpcomingAcceptedMeetupId — ERROR: $e');
       return null;

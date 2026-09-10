@@ -72,6 +72,16 @@ class MeetupStore {
             m.isFavorite = favIds.contains(m.id);
           }
         } catch (_) {}
+
+        // Requested ads stay in the feed, so each card needs to know whether
+        // this user already has a live request on it.
+        try {
+          final requestedIds =
+              await MeetupService.fetchOpenRequestMeetupIdsForUser(uid);
+          for (final m in _meetups) {
+            m.joinRequested = requestedIds.contains(m.id);
+          }
+        } catch (_) {}
       }
 
       _loaded = true;

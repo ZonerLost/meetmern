@@ -51,6 +51,7 @@ devtools_options.yaml
 .gitignore
 
 # Secrets / API keys - never commit these files
+.env
 env.json
 firebase_secrets.json
 android/app/google-services.json
